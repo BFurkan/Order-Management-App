@@ -13,7 +13,7 @@ function OrderSummary() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://localhost:3001/orders');
+      const response = await fetch('http://10.167.49.200:3004/orders');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -21,7 +21,7 @@ function OrderSummary() {
       const ordersWithImages = await Promise.all(data.map(async (order) => {
         if (order.product_id) {
           try {
-            const productResponse = await fetch(`http://localhost:3001/products/${order.product_id}`);
+            const productResponse = await fetch(`http://10.167.49.200:3004/products/${order.product_id}`);
             if (!productResponse.ok) {
               throw new Error('Product fetch failed');
             }
@@ -57,7 +57,7 @@ function OrderSummary() {
   const handleEditOrderId = (orderId) => {
     console.log('Editing Order ID:', orderId);
     setEditingOrderId(orderId);
-    setNewOrderId(orderId);
+   setNewOrderId(orderId);
   };
 
   const handleOrderIdChange = (event) => {
@@ -66,7 +66,11 @@ function OrderSummary() {
 
   const handleUpdateOrderId = async (oldOrderId, newOrderId) => {
     try {
-      const response = await fetch('http://localhost:3001/update-order-id', {
+      if (!oldOrderId || !newOrderId) {
+        throw new Error('Both oldOrderId and newOrderId are required.');
+      }
+
+      const response = await fetch('http://10.167.49.200:3004/update-order-id', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,72 +101,80 @@ function OrderSummary() {
       <Typography variant="h4" component="h1" gutterBottom>
         Order Summary
       </Typography>
-      {Object.keys(groupedOrders).map(orderId => (
-        <Box key={orderId} sx={{ marginBottom: 4, padding: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            {editingOrderId === orderId ? (
-              <>
-                <TextField
-                  value={newOrderId}
-                  onChange={handleOrderIdChange}
-                  autoFocus
-                />
-                <Button
-                  onClick={() => handleUpdateOrderId(editingOrderId, newOrderId)}
-                  sx={{ marginLeft: 2 }}
-                  variant="contained"
-                  color="primary"
-                >
-                  Confirm
-                </Button>
-                <Button
-                  onClick={() => setEditingOrderId(null)}
-                  sx={{ marginLeft: 2 }}
-                  variant="outlined"
-                  color="secondary"
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <>
-                Order ID: {orderId}
-                <Button onClick={() => handleEditOrderId(orderId)} sx={{ marginLeft: 2 }}>
-                  Edit
-                </Button>
-              </>
-            )}
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Product Image</TableCell>
-                  <TableCell>Product</TableCell>
-                  <TableCell>Ordered Quantity</TableCell>
-                  <TableCell>Order Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {groupedOrders[orderId].map(order => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      {order.product_image ? (
-                        <img src={`http://localhost:3001${order.product_image}`} alt={order.product_name} style={{ width: '100px' }} />
-                      ) : (
-                        <Typography>No Image</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>{order.product_name}</TableCell>
-                    <TableCell>{order.quantity}</TableCell>
-                    <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd HH:mm:ss')}</TableCell>
+      {Object.keys(groupedOrders).map(orderId => {
+        const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
+
+        if (filteredOrders.length === 0) {
+          return null; // Don't render anything if all orders have a quantity of 0
+        }
+
+        return (
+          <Box key={orderId} sx={{ marginBottom: 4, padding: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              {editingOrderId === orderId ? (
+                <>
+                  <TextField
+                    value={newOrderId}
+                    onChange={handleOrderIdChange}
+                    autoFocus
+                  />
+                  <Button
+                    onClick={() => handleUpdateOrderId(editingOrderId, newOrderId)}
+                    sx={{ marginLeft: 2 }}
+                    variant="contained"
+                    color="primary"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    onClick={() => setEditingOrderId(null)}
+                    sx={{ marginLeft: 2 }}
+                    variant="outlined"
+                    color="secondary"
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <>
+                  Order ID: {orderId}
+                  <Button onClick={() => handleEditOrderId(orderId)} sx={{ marginLeft: 2 }}>
+                    Edit
+                  </Button>
+                </>
+              )}
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Product Image</TableCell>
+                    <TableCell>Product</TableCell>
+                    <TableCell>Ordered Quantity</TableCell>
+                    <TableCell>Order Date</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      ))}
+                </TableHead>
+                <TableBody>
+                  {filteredOrders.map(order => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        {order.product_image ? (
+                          <img src={`http://10.167.49.200:3004${order.product_image}`} alt={order.product_name} style={{ width: '100px' }} />
+                        ) : (
+                          <Typography>No Image</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>{order.product_name}</TableCell>
+                      <TableCell>{order.quantity}</TableCell>
+                      <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        );
+     })}
     </Container>
   );
 }

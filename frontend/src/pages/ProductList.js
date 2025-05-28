@@ -15,7 +15,7 @@ function ProductList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:3001/products')
+    fetch('http://10.167.49.200:3004/products')
       .then(response => response.json())
       .then(data => setProducts(data))
       .catch(error => console.error('Error fetching products:', error));
@@ -29,19 +29,22 @@ function ProductList() {
   };
 
   const handleOrder = () => {
-    fetch('http://localhost:3001/latest-order-id')
+    fetch('http://10.167.49.200:3004/latest-order-id')
       .then(response => response.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
+ 	const today = new Date();
+        today.setDate(today.getDate() + 1);  // Adds 1 day
+        const order_date = today.toISOString().split('T')[0];
         const currentOrder = Object.entries(order).map(([productId, quantity]) => ({
           order_id: newOrderId,
           product_id: parseInt(productId, 10),
           quantity,
-          order_date: new Date().toISOString().split('T')[0]
+          order_date: order_date,
         }));
 
         return Promise.all(currentOrder.map(order => 
-          fetch('http://localhost:3001/orders', {
+          fetch('http://10.167.49.200:3004/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(order)
@@ -58,7 +61,8 @@ function ProductList() {
       .catch(error => console.error('Error placing order:', error));
   };
 
-  const filteredProducts = products.filter(product => product.category.trim().toLowerCase() === selectedCategory.trim().toLowerCase());
+  const filteredProducts = products.filter(product => product.category === selectedCategory);
+
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -75,22 +79,39 @@ function ProductList() {
   };
 
   const handleFormSubmit = () => {
-    const formData = new FormData();
-    formData.append('name', newProduct.name);
-    formData.append('category', newProduct.category);
-    formData.append('image', newProduct.image);
+  const formData = new FormData();
+  formData.append('name', newProduct.name);
+  formData.append('category', newProduct.category);
+  formData.append('image', newProduct.image);
 
-    fetch('http://localhost:3001/products', {
-      method: 'POST',
-      body: formData,
-    })
-      .then(response => response.json())
-      .then(data => {
-        setProducts([...products, data]);
-        handleClose();
-      })
-      .catch(error => console.error('Error adding product:', error));
-  };
+  fetch('http://10.167.49.200:3004/products', {
+    method: 'POST',
+    body: formData,
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Failed to add product');
+    }
+    return response.json();
+  })
+  .then(data => {
+    setProducts(prevProducts => [...prevProducts, {
+      id: data.id, // Ensure you use the ID assigned by the backend
+      name: data.name,
+      category: data.category,
+      image: data.image
+    }]);
+    handleClose();
+    setNewProduct({ name: '', category: 'Notebooks', image: null });  // Reset form
+    window.location.reload();
+
+  })
+  .catch(error => {
+    console.error('Error adding product:', error);
+    alert('Failed to add product: ' + error.message);  // Display error to the user
+  });
+};
+
 
   return (
     <Container>
@@ -147,7 +168,7 @@ function ProductList() {
             {filteredProducts.map(product => (
               <TableRow key={product.id}>
                 <TableCell sx={{ border: '1px solid #bbb' }}>
-                  <img src={`http://localhost:3001${product.image}`} alt={product.name} style={{ width: '100px' }} />
+                  <img src={`http://10.167.49.200:3004${product.image}`} alt={product.name} style={{ width: '100px' }} />
                 </TableCell>
                 <TableCell sx={{ border: '1px solid #bbb' }}>{product.name}</TableCell>
                 <TableCell sx={{ border: '1px solid #bbb' }}>

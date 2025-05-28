@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, TextField, Button, Box } from '@mui/material';
+import { format } from 'date-fns';
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [products, setProducts] = useState({});
-  const [inputValues, setInputValues] = useState({});
-  const [totals, setTotals] = useState({ monitors: 0, notebooks: 0, accessories: 0 });
+  const [serialNumbers, setSerialNumbers] = useState({});
 
   useEffect(() => {
-    fetch('http://localhost:3001/products')
+    fetch('http://10.167.49.200:3004/products')
       .then(response => response.json())
       .then(data => {
         const productMap = data.reduce((acc, product) => {
@@ -21,35 +21,28 @@ function OrderDetails() {
   }, []);
 
   const calculateTotals = useCallback((orders) => {
-    let monitors = 0;
-    let notebooks = 0;
-    let accessories = 0;
-  
+    const totals = { monitors: 0, notebooks: 0, accessories: 0 };
+
     Object.values(orders).forEach(orderGroup => {
       orderGroup.forEach(order => {
         const product = products[order.product_id];
         if (product) {
-          const productNameLower = product.name.toLowerCase();
-  
-          // Check if the product name includes certain keywords
-          if (productNameLower.includes('monitor')) {
-            monitors += order.quantity;
-          } else if (productNameLower.includes('notebook') || productNameLower.includes('thinkpad')) {
-            notebooks += order.quantity;
-          } else if (productNameLower.includes('accessory')) {
-            accessories += order.quantity;
+          if (product.category === 'Monitors') {
+            totals.monitors += order.quantity;
+          } else if (product.category === 'Notebooks') {
+            totals.notebooks += order.quantity;
+          } else if (product.category === 'Accessories') {
+            totals.accessories += order.quantity;
           }
         }
       });
     });
-  
-    console.log('Totals:', { monitors, notebooks, accessories });  // Debugging line
-  
-    setTotals({ monitors, notebooks, accessories });
+
+    return totals;
   }, [products]);
-  
+
   useEffect(() => {
-    fetch('http://localhost:3001/orders')
+    fetch('http://10.167.49.200:3004/orders')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -64,31 +57,27 @@ function OrderDetails() {
           acc[order.order_id].push(order);
           return acc;
         }, {});
-
-        setGroupedOrders(grouped);
-        calculateTotals(grouped); // Call calculateTotals here after setting groupedOrders
+       setGroupedOrders(grouped);
       })
       .catch(error => console.error('Error fetching orders:', error));
-  }, [calculateTotals]);
+  }, []);
 
-  const handleInputChange = (order_id, product_id, value) => {
-    setInputValues(prev => ({
+  const handleSerialNumberChange = (order_id, product_id, value) => {
+    setSerialNumbers(prev => ({
       ...prev,
       [`${order_id}-${product_id}`]: value,
     }));
   };
 
   const handleConfirm = (order_id, product_id) => {
-    const order = groupedOrders[order_id]?.find(o => o.product_id === product_id);
-    const confirmQuantity = Number(inputValues[`${order_id}-${product_id}`] || 0);
-
-    if (!order || confirmQuantity > order.quantity) {
-      alert('Confirmed quantity cannot be greater than the total quantity');
+    const serialNumber = serialNumbers[`${order_id}-${product_id}`];
+    if (!serialNumber) {
+      alert('Please enter the serial number.');
       return;
     }
 
     // Send the confirmation request to the backend
-    fetch('http://localhost:3001/confirm', {
+    fetch('http://10.167.49.200:3004/confirm', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -96,7 +85,7 @@ function OrderDetails() {
       body: JSON.stringify({
         order_id,
         product_id,
-        confirmQuantity,
+        serialNumber,
       }),
     })
       .then(response => {
@@ -106,28 +95,41 @@ function OrderDetails() {
         return response.json();
       })
       .then(() => {
-        // Update the frontend state to reflect the new quantities
-        const updatedOrders = Object.keys(groupedOrders).reduce((acc, current_order_id) => {
-          acc[current_order_id] = groupedOrders[current_order_id].map(order =>
-            order.product_id === product_id && order.order_id === order_id
-              ? {
-                  ...order,
-                  confirmed_quantity: order.confirmed_quantity + confirmQuantity,
-                  quantity: order.quantity - confirmQuantity,
-                }
-              : order
-          );
-          return acc;
-        }, {});
+        alert(`Serial number ${serialNumber} confirmed successfully.`);
 
-        setGroupedOrders(updatedOrders);
-        calculateTotals(updatedOrders); // Recalculate totals after confirmation
-        setInputValues(prev => ({
+        // Clear the serial number input and update the grouped orders to reflect the new quantity
+        setSerialNumbers(prev => ({
           ...prev,
-          [`${order_id}-${product_id}`]: '', // Clear input after confirmation
+          [`${order_id}-${product_id}`]: '',
         }));
+
+        // Update the grouped orders by decreasing the quantity
+        setGroupedOrders(prev => {
+          const updatedOrders = { ...prev };
+
+          // Find the order and decrease the quantity by 1
+          updatedOrders[order_id] = updatedOrders[order_id].map(order => {
+            if (order.product_id === product_id && order.quantity > 0) {
+              return {
+                ...order,
+                quantity: order.quantity - 1,
+              };
+            }
+            return order;
+          });
+
+          // Filter out orders where the quantity is now 0
+          updatedOrders[order_id] = updatedOrders[order_id].filter(order => order.quantity > 0);
+
+          // If no more items in the order, remove the order_id
+          if (updatedOrders[order_id].length === 0) {
+            delete updatedOrders[order_id];
+          }
+
+          return updatedOrders;
+        });
       })
-      .catch(error => console.error('Error confirming item:', error));
+      .catch(error => console.error('Error confirming serial number:', error));
   };
 
   return (
@@ -136,70 +138,72 @@ function OrderDetails() {
         Order Details
       </Typography>
 
-      {/* Display totals for monitors, notebooks, and accessories */}
       <Box sx={{ marginBottom: 4 }}>
         <Typography variant="h6">Totals</Typography>
-        <Typography>Monitors: {totals.monitors}</Typography>
-        <Typography>Notebooks: {totals.notebooks}</Typography>
-        <Typography>Accessories: {totals.accessories}</Typography>
+        {/* Display totals */}
+        <Typography>Monitors: {calculateTotals(groupedOrders).monitors}</Typography>
+        <Typography>Notebooks: {calculateTotals(groupedOrders).notebooks}</Typography>
+        <Typography>Accessories: {calculateTotals(groupedOrders).accessories}</Typography>
       </Box>
 
-      {Object.keys(groupedOrders).map(order_id => (
-        <Box key={order_id} sx={{ marginBottom: 4, padding: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Order ID: {order_id}
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Product Name</TableCell>
-                  <TableCell>Total Quantity</TableCell>
-                  <TableCell>Confirmed Quantity</TableCell>
-                  <TableCell>Confirm Quantity</TableCell>
-                  <TableCell>Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {groupedOrders[order_id].map(order => {
-                  const product = products[order.product_id];
-                  const inputValue = inputValues[`${order_id}-${order.product_id}`] || '';
-
-                  return (
-                    <TableRow key={`${order.product_id}-${order.order_id}`}>
-                      <TableCell>{product?.name || 'Unknown Product'}</TableCell>
-                      <TableCell>{order.quantity}</TableCell>
-                      <TableCell>{order.confirmed_quantity || 0}</TableCell>
-                      <TableCell>
-                        <TextField
-                          type="number"
-                          label="Confirm Quantity"
-                          onChange={(e) => handleInputChange(order_id, order.product_id, e.target.value)}
-                          value={inputValue}
-                          inputProps={{ min: 0, max: order.quantity }}
-                          disabled={order.quantity <= 0} // Disable input if quantity is 0 or less
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleConfirm(order_id, order.product_id)}
-                          disabled={order.quantity <= 0 || inputValue <= 0} // Disable button if quantity is 0 or input is empty
-                        >
-                          Confirm
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      ))}
+      {Object.keys(groupedOrders)
+        .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0)) // Filter out orders with quantity 0
+        .map(order_id => (
+          <Box key={order_id} sx={{ marginBottom: 4, padding: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
+            <Typography variant="h6" component="h2" gutterBottom>
+              Order ID: {order_id}
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Product Name</TableCell>
+                    <TableCell>Order Date</TableCell>
+                    <TableCell>Total Quantity</TableCell>
+                    <TableCell>Serial Number</TableCell>
+                    <TableCell>Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {groupedOrders[order_id].map(order => {
+                    const product = products[order.product_id];
+                    return (
+                      <TableRow key={`${order.product_id}-${order.order_id}`}>
+                        <TableCell>{product?.name || 'Unknown Product'}</TableCell>
+                        <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>
+                        <TableCell>{order.quantity}</TableCell>
+                        <TableCell>
+                          <TextField
+                            type="text"
+                        label="Serial Number"
+                            onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
+                            value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
+                            placeholder="Enter Serial Number"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => handleConfirm(order_id, order.product_id)}
+                            disabled={order.quantity <= 0}
+                          >
+                            Confirm
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        ))}
     </Container>
   );
 }
 
 export default OrderDetails;
+
+
+
