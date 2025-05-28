@@ -8,6 +8,81 @@ import ConfirmedItems from './pages/ConfirmedItems';
 function App() {
   return (
     <Router>
+<<<<<<< HEAD
+      <AppBar position="static" sx={{ backgroundColor: cyan[900] }}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Order Management
+          </Typography>
+          <Button
+            component={Link}
+            to="/"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Product List
+          </Button>
+          <Button
+            component={Link}
+            to="/order-summary"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Order Summary
+          </Button>
+          <Button
+            component={Link}
+            to="/order-details"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Order Details
+          </Button>
+          <Button
+		            component={Link}
+            to="/confirmed-items"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Confirmed Items
+          </Button>
+
+        </Toolbar>
+      </AppBar>
+      <Container>
+=======
       {/* Modern Navigation Bar */}
       <nav className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
@@ -52,11 +127,16 @@ function App() {
 
       {/* Main Content Container */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+>>>>>>> origin/master
         <Routes>
           <Route path="/" element={<ProductList />} />
           <Route path="/order-summary" element={<OrderSummary />} />
           <Route path="/order-details" element={<OrderDetails />} />
+<<<<<<< HEAD
+	  <Route path="/confirmed-items" element={<ConfirmedItems />} />
+=======
           <Route path="/confirmed-items" element={<ConfirmedItems />} />
+>>>>>>> origin/master
         </Routes>
       </div>
     </Router>

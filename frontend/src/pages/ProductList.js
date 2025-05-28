@@ -32,8 +32,13 @@ function ProductList() {
       .then(response => response.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
+<<<<<<< HEAD
+ 	const today = new Date();
+        today.setDate(today.getDate() + 1);  // Adds 1 day
+=======
         const today = new Date();
         today.setDate(today.getDate() + 1);
+>>>>>>> origin/master
         const order_date = today.toISOString().split('T')[0];
         const currentOrder = Object.entries(order).map(([productId, quantity]) => ({
           order_id: newOrderId,
@@ -61,6 +66,10 @@ function ProductList() {
   };
 
   const filteredProducts = products.filter(product => product.category === selectedCategory);
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/master
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -77,11 +86,41 @@ function ProductList() {
   };
 
   const handleFormSubmit = () => {
-    const formData = new FormData();
-    formData.append('name', newProduct.name);
-    formData.append('category', newProduct.category);
-    formData.append('image', newProduct.image);
+  const formData = new FormData();
+  formData.append('name', newProduct.name);
+  formData.append('category', newProduct.category);
+  formData.append('image', newProduct.image);
 
+  fetch('http://10.167.49.200:3004/products', {
+    method: 'POST',
+    body: formData,
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Failed to add product');
+    }
+    return response.json();
+  })
+  .then(data => {
+    setProducts(prevProducts => [...prevProducts, {
+      id: data.id, // Ensure you use the ID assigned by the backend
+      name: data.name,
+      category: data.category,
+      image: data.image
+    }]);
+    handleClose();
+    setNewProduct({ name: '', category: 'Notebooks', image: null });  // Reset form
+    window.location.reload();
+
+  })
+  .catch(error => {
+    console.error('Error adding product:', error);
+    alert('Failed to add product: ' + error.message);  // Display error to the user
+  });
+};
+
+<<<<<<< HEAD
+=======
     fetch('http://10.167.49.200:3004/products', {
       method: 'POST',
       body: formData,
@@ -108,6 +147,7 @@ function ProductList() {
       alert('Failed to add product: ' + error.message);
     });
   };
+>>>>>>> origin/master
 
   return (
     <div className="space-y-6">
@@ -146,12 +186,17 @@ function ProductList() {
           <TableBody>
             {filteredProducts.map(product => (
               <TableRow key={product.id}>
+<<<<<<< HEAD
+                <TableCell sx={{ border: '1px solid #bbb' }}>
+                  <img src={`http://10.167.49.200:3004${product.image}`} alt={product.name} style={{ width: '100px' }} />
+=======
                 <TableCell>
                   <img 
                     src={`http://10.167.49.200:3004${product.image}`} 
                     alt={product.name} 
                     className="w-24 h-24 object-cover rounded-md"
                   />
+>>>>>>> origin/master
                 </TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>
