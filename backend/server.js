@@ -1,22 +1,30 @@
-const express = require('express');
-const mysql = require('mysql2');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import mysql from 'mysql2/promise'; // Use promise-based API for async/await
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// Required for __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const port = process.env.PORT || 3003;
+const port = process.env.PORT || 3004;
 
 // MySQL configuration
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'asset',
-  password: process.env.DB_PASSWORD || 'jito',
+  password: process.env.DB_PASSWORD || 'AssetJito2024$',
   database: process.env.DB_NAME || 'order_tracking',
+  port:3306,
   connectionLimit: 10,
-  queueLimit: 0
-}).promise();  // Using promise-based API for cleaner async/await usage
+  queueLimit: 0,
+});
 
+// Set up multer for file uploads
 const imagesDir = path.join(__dirname, 'public', 'images');
 if (!fs.existsSync(imagesDir)) {
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -46,16 +54,19 @@ const upload = multer({
   },
 });
 
-app.use(cors());
-app.use(express.json());
-app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+// Middleware
+app.use(cors()); // Enable CORS
+app.use(express.json()); // To handle JSON requests
+app.use('/images', express.static(imagesDir)); // Serve uploaded images
 
 // Middleware to ensure database connection
 app.use(async (req, res, next) => {
   try {
-    await pool.getConnection();
+    const connection = await pool.getConnection();
+   connection.release();
     next();
   } catch (err) {
+   console.error('Database connection error:', err);
     res.status(500).send('Database connection error');
   }
 });
@@ -88,7 +99,7 @@ app.get('/products/:id', async (req, res) => {
   }
 });
 
-// Add new product
+// Add a new product
 app.post('/products', upload.single('image'), async (req, res) => {
   try {
     const { name, category } = req.body;
@@ -102,10 +113,11 @@ app.post('/products', upload.single('image'), async (req, res) => {
   }
 });
 
-// Get latest order ID
+// Get the latest order ID
 app.get('/latest-order-id', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT order_id FROM orders ORDER BY id DESC LIMIT 1');
+
     const latestOrderId = rows[0]?.order_id || '-';
     res.status(200).json({ latest_order_id: latestOrderId });
   } catch (err) {
@@ -117,13 +129,29 @@ app.get('/latest-order-id', async (req, res) => {
 // Place a new order
 app.post('/orders', async (req, res) => {
   try {
-    const { product_id, quantity, order_date } = req.body;
+    const { product_id, quantity, order_date, order_id } = req.body;
 
     if (!product_id || !quantity || !order_date) {
       return res.status(400).send('Missing required fields');
     }
-    await pool.query('INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id) VALUES (?, ?, ?, 0, "-")', [product_id, quantity, order_date]);
 
+        let newOrderId = result.insertId;
+    if (!newOrderId){
+        const [result] = await pool.query(
+      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id) VALUES (?, ?, ?, 0, NULL)',
+      [product_id, quantity, order_date]
+    );
+    const newOrderId = result.insertId;
+    await pool.query(
+      'UPDATE orders SET order_id = ? WHERE id = ?',
+      [newOrderId, newOrderId]
+    );
+} else{
+      await pool.query(
+        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id) VALUES (?, ?, ?, 0, ?)',
+        [product_id, quantity, order_date, newOrderId]
+      );
+}
 
     res.status(201).json({ message: 'Order placed successfully' });
   } catch (err) {
@@ -132,26 +160,28 @@ app.post('/orders', async (req, res) => {
   }
 });
 
+// Get all orders
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, p.name AS product_name, p.image
       FROM orders o
-      JOIN products p ON o.product_id = p.id;
+      JOIN products p ON o.product_id = p.id
     `);
-    res.json(rows);  // Send the fetched orders as JSON
+    res.json(rows);
   } catch (err) {
     console.error('Error fetching orders:', err.message);
     res.status(500).send('Error fetching orders: ' + err.message);
   }
 });
 
-// Update confirmed quantity and total quantity for an order
+// Confirm an order
 app.post('/confirm', async (req, res) => {
-  try {
-    const { order_id, product_id, confirmQuantity } = req.body;
+try {
+    const { order_id, product_id, serialNumber } = req.body;
+            const confirmQuantity = 1;
 
-    const [rows] = await pool.query('SELECT quantity, confirmed_quantity FROM orders WHERE order_id = ? AND product_id = ?', [order_id, product_id]);
+    const [rows] = await pool.query('SELECT quantity, confirmed_quantity, serial_numbers FROM orders WHERE order_id = ? AND product_id = ?', [order_id, product_id]);
 
     if (rows.length === 0) {
       return res.status(404).send('Order not found');
@@ -160,10 +190,17 @@ app.post('/confirm', async (req, res) => {
     const currentQuantity = rows[0].quantity;
     const currentConfirmedQuantity = rows[0].confirmed_quantity;
 
+    if (currentQuantity <= 0) {
+      return res.status(400).send('Cannot confirm more than available quantity');
+    }
+
     const newConfirmedQuantity = currentConfirmedQuantity + confirmQuantity;
     const newTotalQuantity = currentQuantity - confirmQuantity;
+    let updatedSerialNumbers = rows[0].serial_numbers ? JSON.parse(rows[0].serial_numbers): [];
 
-    await pool.query('UPDATE orders SET confirmed_quantity = ?, quantity = ? WHERE order_id = ? AND product_id = ?', [newConfirmedQuantity, newTotalQuantity, order_id, product_id]);
+    updatedSerialNumbers.push(serialNumber);
+
+    await pool.query('UPDATE orders SET confirmed_quantity = ?, quantity = ?, confirm_date = ?, serial_numbers = ?  WHERE order_id = ? AND product_id = ?', [newConfirmedQuantity, newTotalQuantity, new Date(), JSON.stringify(updatedSerialNumbers), order_id, product_id]);
 
     res.status(200).json({ message: 'Order confirmed successfully' });
   } catch (err) {
@@ -172,24 +209,42 @@ app.post('/confirm', async (req, res) => {
   }
 });
 
-// Update order ID
+// Update an order ID
 app.post('/update-order-id', async (req, res) => {
   try {
-    const { id, newOrderId } = req.body;
+    const { oldOrderId, newOrderId } = req.body;
 
-    const [result] = await pool.query('UPDATE orders SET order_id = ? WHERE id = ? AND order_id IS NULL', [newOrderId, id]);
+    const [result] = await pool.query('UPDATE orders SET order_id = ? WHERE order_id = ?', [newOrderId, oldOrderId]);
 
     if (result.affectedRows > 0) {
       res.status(200).json({ message: 'Order ID updated successfully' });
     } else {
-      res.status(404).json({ message: 'No matching order found' });
+      res.status(404).json({ message: 'Order ID not found' });
     }
   } catch (err) {
     console.error('Error updating order ID:', err.message);
-    res.status(500).send('Error updating order ID');
+    res.status(500).send('Error updating order ID: ' + err.message);
   }
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://10.167.49.197:${port}/`);
+// Get confirmed items
+app.get('/confirmed-items', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id
+      FROM orders o
+      JOIN products p ON o.product_id = p.id
+      WHERE o.confirmed_quantity > 0
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching confirmed items:', err.message);
+    res.status(500).send('Error fetching confirmed items: ' + err.message);
+  }
 });
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${port}`);
+});
+
+
