@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, Container, Typography, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
-import { teal } from '@mui/material/colors';
+import { Button, Input, Select, Table, TableHead, TableBody, TableRow, TableCell, TableContainer } from '../components';
 
 const categories = ['Notebooks', 'Monitors', 'Accessories'];
 
@@ -33,8 +32,8 @@ function ProductList() {
       .then(response => response.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
- 	const today = new Date();
-        today.setDate(today.getDate() + 1);  // Adds 1 day
+        const today = new Date();
+        today.setDate(today.getDate() + 1);
         const order_date = today.toISOString().split('T')[0];
         const currentOrder = Object.entries(order).map(([productId, quantity]) => ({
           order_id: newOrderId,
@@ -63,7 +62,6 @@ function ProductList() {
 
   const filteredProducts = products.filter(product => product.category === selectedCategory);
 
-
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
   const handleConfirmOpen = () => setConfirmOpen(true);
@@ -79,104 +77,90 @@ function ProductList() {
   };
 
   const handleFormSubmit = () => {
-  const formData = new FormData();
-  formData.append('name', newProduct.name);
-  formData.append('category', newProduct.category);
-  formData.append('image', newProduct.image);
+    const formData = new FormData();
+    formData.append('name', newProduct.name);
+    formData.append('category', newProduct.category);
+    formData.append('image', newProduct.image);
 
-  fetch('http://10.167.49.200:3004/products', {
-    method: 'POST',
-    body: formData,
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Failed to add product');
-    }
-    return response.json();
-  })
-  .then(data => {
-    setProducts(prevProducts => [...prevProducts, {
-      id: data.id, // Ensure you use the ID assigned by the backend
-      name: data.name,
-      category: data.category,
-      image: data.image
-    }]);
-    handleClose();
-    setNewProduct({ name: '', category: 'Notebooks', image: null });  // Reset form
-    window.location.reload();
-
-  })
-  .catch(error => {
-    console.error('Error adding product:', error);
-    alert('Failed to add product: ' + error.message);  // Display error to the user
-  });
-};
-
+    fetch('http://10.167.49.200:3004/products', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to add product');
+      }
+      return response.json();
+    })
+    .then(data => {
+      setProducts(prevProducts => [...prevProducts, {
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        image: data.image
+      }]);
+      handleClose();
+      setNewProduct({ name: '', category: 'Notebooks', image: null });
+      window.location.reload();
+    })
+    .catch(error => {
+      console.error('Error adding product:', error);
+      alert('Failed to add product: ' + error.message);
+    });
+  };
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>Product List</Typography>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          {categories.map(category => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "contained" : "outlined"}
-              sx={{
-                color: selectedCategory === category ? 'white' : teal[700],
-                backgroundColor: selectedCategory === category ? teal[700] : 'transparent',
-                borderColor: teal[700],
-                '&:hover': {
-                  backgroundColor: selectedCategory === category ? teal[900] : teal[100],
-                  borderColor: teal[900],
-                },
-                margin: '0 8px 8px 0'
-              }}
-              onClick={() => setSelectedCategory(category)}
-            >
-              {category}
-            </Button>
-          ))}
-        </div>
-        <Button
-          variant="contained"
-          sx={{
-            color: 'white',
-            backgroundColor: teal[700],
-            borderColor: teal[700],
-            '&:hover': {
-              backgroundColor: teal[300],
-              borderColor: teal[500],
-            },
-            margin: '0 8px 8px 0'
-          }}
-          onClick={handleClickOpen}
-        >
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">Product List</h1>
+        <Button onClick={handleClickOpen} variant="primary">
           Add New Product
         </Button>
       </div>
-      <TableContainer component={Paper}>
-        <Table sx={{ border: '1px solid #ccc' }}>
+
+      {/* Category Filter */}
+      <div className="flex space-x-2">
+        {categories.map(category => (
+          <Button
+            key={category}
+            variant={selectedCategory === category ? "primary" : "outline"}
+            onClick={() => setSelectedCategory(category)}
+            className="mb-2"
+          >
+            {category}
+          </Button>
+        ))}
+      </div>
+
+      {/* Products Table */}
+      <TableContainer>
+        <Table>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ border: '1px solid #000' }}>Image</TableCell>
-              <TableCell sx={{ border: '1px solid #000' }}>Product</TableCell>
-              <TableCell sx={{ border: '1px solid #000' }}>Quantity</TableCell>
+              <TableCell isHeader>Image</TableCell>
+              <TableCell isHeader>Product</TableCell>
+              <TableCell isHeader>Quantity</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredProducts.map(product => (
               <TableRow key={product.id}>
-                <TableCell sx={{ border: '1px solid #bbb' }}>
-                  <img src={`http://10.167.49.200:3004${product.image}`} alt={product.name} style={{ width: '100px' }} />
+                <TableCell>
+                  <img 
+                    src={`http://10.167.49.200:3004${product.image}`} 
+                    alt={product.name} 
+                    className="w-24 h-24 object-cover rounded-md"
+                  />
                 </TableCell>
-                <TableCell sx={{ border: '1px solid #bbb' }}>{product.name}</TableCell>
-                <TableCell sx={{ border: '1px solid #bbb' }}>
-                  <TextField
+                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell>
+                  <Input
                     type="number"
                     value={order[product.id] || 0}
                     onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
-                    inputProps={{ min: 0 }}
+                    className="w-20"
+                    min="0"
                   />
                 </TableCell>
               </TableRow>
@@ -184,73 +168,86 @@ function ProductList() {
           </TableBody>
         </Table>
       </TableContainer>
-      {/* Fixed Position for Place Order Button */}
-      <div style={{ position: 'fixed', bottom: '16px', right: '16px' }}>
+
+      {/* Fixed Place Order Button */}
+      <div className="fixed bottom-4 right-4">
         <Button
-          variant="contained"
-          color="error"
+          variant="danger"
           onClick={handleConfirmOpen}
+          size="lg"
+          className="shadow-lg"
         >
           Place Order
         </Button>
       </div>
 
-      {/* Confirmation Dialog for placing an order */}
-      <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-        <DialogTitle>Confirm Order</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to place this order?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleConfirmClose}>Cancel</Button>
-          <Button onClick={handleOrder}>Confirm</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Add Product Modal */}
+      {open && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Product</h3>
+              <div className="space-y-4">
+                <Input
+                  label="Product Name"
+                  name="name"
+                  value={newProduct.name}
+                  onChange={handleInputChange}
+                  required
+                />
+                <Select
+                  label="Category"
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  options={categories}
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Image
+                  </label>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <Button variant="secondary" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={handleFormSubmit}>
+                  Add Product
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Dialog for adding a new product */}
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Add New Product</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            To add a new product, please enter the name, select a category, and upload an image.
-          </DialogContentText>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Product Name"
-            fullWidth
-            variant="standard"
-            value={newProduct.name}
-            onChange={handleInputChange}
-          />
-          <FormControl fullWidth variant="standard" margin="dense">
-            <InputLabel>Category</InputLabel>
-            <Select
-              name="category"
-              value={newProduct.category}
-              onChange={handleInputChange}
-            >
-              {categories.map((category) => (
-                <MenuItem key={category} value={category}>{category}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ marginTop: '16px' }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleFormSubmit}>Add</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+      {/* Confirmation Modal */}
+      {confirmOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Order</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to place this order?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <Button variant="secondary" onClick={handleConfirmClose}>
+                  Cancel
+                </Button>
+                <Button variant="danger" onClick={handleOrder}>
+                  Confirm Order
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
