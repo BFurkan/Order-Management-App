@@ -5,6 +5,7 @@ import { cyan, blueGrey } from '@mui/material/colors';
 import ProductList from './pages/ProductList';
 import OrderSummary from './pages/OrderSummary';
 import OrderDetails from './pages/OrderDetails';
+import ConfirmedItems from './pages/ConfirmedItems';
 
 function App() {
   return (
@@ -62,6 +63,23 @@ function App() {
           >
             Order Details
           </Button>
+          <Button
+		            component={Link}
+            to="/confirmed-items"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Confirmed Items
+          </Button>
+
         </Toolbar>
       </AppBar>
       <Container>
@@ -69,6 +87,7 @@ function App() {
           <Route path="/" element={<ProductList />} />
           <Route path="/order-summary" element={<OrderSummary />} />
           <Route path="/order-details" element={<OrderDetails />} />
+	  <Route path="/confirmed-items" element={<ConfirmedItems />} />
         </Routes>
       </Container>
     </Router>
