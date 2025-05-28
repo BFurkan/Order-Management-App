@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mysql from 'mysql2/promise'; // Use promise-based API for async/await
 import cors from 'cors';
@@ -10,8 +11,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const express = require('express');
+const sql = require('mssql');
+const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
 const app = express();
 const port = process.env.PORT || 3003;
+
 
 // MySQL configuration
 const pool = mysql.createPool({
@@ -24,6 +33,33 @@ const pool = mysql.createPool({
 });
 
 // Set up multer for file uploads
+=======
+// MSSQL Database configuration
+const config = {
+  user: process.env.DB_USER || 'sa',
+  password: process.env.DB_PASSWORD || 'your_password',
+  server: process.env.DB_SERVER || 'your_server',
+  database: process.env.DB_NAME || 'order_tracking',
+  port: parseInt(process.env.DB_PORT, 10) || 1433,
+  options: {
+    encrypt: true, // for Azure, set to false for local
+    trustServerCertificate: true, // for self-signed certificates
+  },
+};
+
+const poolPromise = sql.connect(config).then(pool => {
+  console.log('Connected to MSSQL database');
+  return pool;
+}).catch(err => {
+  console.error('Database connection error:', err);
+  throw err;
+});
+
+app.use(cors());
+app.use(express.json());
+
+// Serve images from the public/images directory
+
 const imagesDir = path.join(__dirname, 'public', 'images');
 if (!fs.existsSync(imagesDir)) {
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -37,6 +73,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
+
 
 const upload = multer({
   storage,
@@ -58,11 +95,17 @@ app.use(cors()); // Enable CORS
 app.use(express.json()); // To handle JSON requests
 app.use('/images', express.static(imagesDir)); // Serve uploaded images
 
-// Middleware to ensure database connection
+const upload = multer({ storage });
+
+
+// Ensure database connection middleware
 app.use(async (req, res, next) => {
   try {
+
     const connection = await pool.getConnection();
    connection.release();
+    await poolPromise;
+
     next();
   } catch (err) {
    console.error('Database connection error:', err);
@@ -70,30 +113,35 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Get all products
+// Fetch all products
 app.get('/products', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM products');
-    res.json(rows);
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT * FROM products');
+    res.json(result.recordset);
   } catch (err) {
     console.error('Error fetching products:', err.message);
-    res.status(500).send('Error fetching products: ' + err.message);
+    res.status(500).send('Error fetching products');
   }
 });
 
-// Get a single product by ID
+// Fetch a single product by ID
 app.get('/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query('SELECT * FROM products WHERE id = ?', [id]);
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query('SELECT * FROM products WHERE id = @id');
 
-    if (rows.length === 0) {
+    if (result.recordset.length === 0) {
       return res.status(404).send('Product not found');
     }
 
-    res.json(rows[0]);
+    res.json(result.recordset[0]);
   } catch (err) {
     console.error('Error fetching product:', err.message);
+
     res.status(500).send('Error fetching product: ' + err.message);
   }
 });
@@ -122,10 +170,13 @@ app.get('/latest-order-id', async (req, res) => {
   } catch (err) {
     console.error('Error fetching latest order ID:', err.message);
     res.status(500).send('Error fetching latest order ID: ' + err.message);
+
+    res.status(500).send('Error fetching product');
+
   }
 });
 
-// Place a new order
+// Add a new order
 app.post('/orders', async (req, res) => {
   try {
     const { product_id, quantity, order_date, order_id } = req.body;
@@ -133,6 +184,7 @@ app.post('/orders', async (req, res) => {
     if (!product_id || !quantity || !order_date) {
       return res.status(400).send('Missing required fields');
     }
+
 
         let newOrderId = order_id;
     if (!newOrderId){
@@ -151,16 +203,41 @@ app.post('/orders', async (req, res) => {
         [product_id, quantity, order_date, newOrderId]
       );
 }
+   const pool = await poolPromise;
+    await pool.request()
+      .input('product_id', sql.Int, product_id)
+      .input('quantity', sql.Int, quantity)
+      .input('order_date', sql.Date, order_date)
+      .input('confirmed_quantity', sql.Int, 0)
+      .query('INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity) VALUES (@product_id, @quantity, @order_date, @confirmed_quantity)');
+
 
     res.status(201).json({ message: 'Order placed successfully' });
   } catch (err) {
     console.error('Error placing order:', err.message);
-    res.status(500).send('Error placing order: ' + err.message);
+    res.status(500).send('Error placing order');
   }
 });
 
+
 // Get all orders
 app.get('/orders', async (req, res) => {
+
+// Fetch all orders
+app.get('/orders', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT * FROM orders');
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching orders:', err.message);
+    res.status(500).send('Error fetching orders');
+  }
+});
+
+// Confirm an order by updating quantity and confirmed quantity
+app.post('/confirm', async (req, res) => {
+
   try {
     const [rows] = await pool.query(`
       SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, p.name AS product_name, p.image
@@ -180,14 +257,21 @@ try {
     const { order_id, product_id, serialNumber } = req.body;
             const confirmQuantity = 1;
 
+
     const [rows] = await pool.query('SELECT quantity, confirmed_quantity, serial_numbers FROM orders WHERE order_id = ? AND product_id = ?', [order_id, product_id]);
 
     if (rows.length === 0) {
       return res.status(404).send('Order not found');
     }
+   const pool = await poolPromise;
+    const result = await pool.request()
+      .input('order_id', sql.VarChar, order_id)
+      .input('product_id', sql.Int, product_id)
+      .query('SELECT quantity, confirmed_quantity FROM orders WHERE order_id = @order_id AND product_id = @product_id');
 
-    const currentQuantity = rows[0].quantity;
-    const currentConfirmedQuantity = rows[0].confirmed_quantity;
+
+    const currentQuantity = result.recordset[0].quantity;
+    const currentConfirmedQuantity = result.recordset[0].confirmed_quantity;
 
     if (currentQuantity <= 0) {
       return res.status(400).send('Cannot confirm more than available quantity');
@@ -197,14 +281,23 @@ try {
     const newTotalQuantity = currentQuantity - confirmQuantity;
     let updatedSerialNumbers = rows[0].serial_numbers ? JSON.parse(rows[0].serial_numbers): [];
 
+
     updatedSerialNumbers.push(serialNumber);
 
     await pool.query('UPDATE orders SET confirmed_quantity = ?, quantity = ?, confirm_date = ?, serial_numbers = ?  WHERE order_id = ? AND product_id = ?', [newConfirmedQuantity, newTotalQuantity, new Date(), JSON.stringify(updatedSerialNumbers), order_id, product_id]);
 
+    await pool.request()
+      .input('order_id', sql.VarChar, order_id)
+      .input('product_id', sql.Int, product_id)
+      .input('newConfirmedQuantity', sql.Int, newConfirmedQuantity)
+      .input('newTotalQuantity', sql.Int, newTotalQuantity)
+      .query('UPDATE orders SET confirmed_quantity = @newConfirmedQuantity, quantity = @newTotalQuantity WHERE order_id = @order_id AND product_id = @product_id');
+
+
     res.status(200).json({ message: 'Order confirmed successfully' });
   } catch (err) {
     console.error('Error confirming order:', err.message);
-    res.status(500).send('Error confirming order: ' + err.message);
+    res.status(500).send('Error confirming order');
   }
 });
 
@@ -213,13 +306,23 @@ app.post('/update-order-id', async (req, res) => {
   try {
     const { oldOrderId, newOrderId } = req.body;
 
+
     const [result] = await pool.query('UPDATE orders SET order_id = ? WHERE order_id = ?', [newOrderId, oldOrderId]);
 
     if (result.affectedRows > 0) {
+  const pool = await poolPromise;
+    const result = await pool.request()
+      .input('oldOrderId', sql.VarChar, oldOrderId)
+      .input('newOrderId', sql.VarChar, newOrderId)
+      .query('UPDATE orders SET order_id = @newOrderId WHERE order_id = @oldOrderId');
+
+    if (result.rowsAffected[0] > 0) {
+
       res.status(200).json({ message: 'Order ID updated successfully' });
     } else {
       res.status(404).json({ message: 'Order ID not found' });
     }
+
   } catch (err) {
     console.error('Error updating order ID:', err.message);
     res.status(500).send('Error updating order ID: ' + err.message);
@@ -242,6 +345,14 @@ app.get('/confirmed-items', async (req, res) => {
   }
 });
 
+
+
+
+  } catch (error) {
+    console.error('Error updating order ID:', error.message);
+    res.status(500).send('Error updating order ID');
+  }
+});
 
 
 // Start the server
