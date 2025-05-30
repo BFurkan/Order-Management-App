@@ -1,14 +1,47 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, TextField, Button, Box } from '@mui/material';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Paper, 
+  Container, 
+  Typography, 
+  TextField, 
+  Button, 
+  Box, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  Chip
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [products, setProducts] = useState({});
   const [serialNumbers, setSerialNumbers] = useState({});
+  const [expandedOrders, setExpandedOrders] = useState({});
+  const [orderComments, setOrderComments] = useState({});
+  
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    productName: true,
+    orderDate: true,
+    totalQuantity: true,
+    serialNumber: true,
+    action: true,
+    comment: true
+  });
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3004/products')
+    fetch('http://10.167.49.200:3007/products')
       .then(response => response.json())
       .then(data => {
         const productMap = data.reduce((acc, product) => {
@@ -41,8 +74,15 @@ function OrderDetails() {
     return totals;
   }, [products]);
 
+  const handleColumnToggle = (column) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
   useEffect(() => {
-    fetch('http://10.167.49.200:3004/orders')
+    fetch('http://10.167.49.200:3007/orders')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -58,6 +98,15 @@ function OrderDetails() {
           return acc;
         }, {});
        setGroupedOrders(grouped);
+       
+       // Extract comments from orders
+       const comments = {};
+       data.forEach(order => {
+         if (order.comment) {
+           comments[order.order_id] = order.comment;
+         }
+       });
+       setOrderComments(comments);
       })
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
@@ -77,7 +126,7 @@ function OrderDetails() {
     }
 
     // Send the confirmation request to the backend
-    fetch('http://10.167.49.200:3004/confirm', {
+    fetch('http://10.167.49.200:3007/confirm', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -132,6 +181,13 @@ function OrderDetails() {
       .catch(error => console.error('Error confirming serial number:', error));
   };
 
+  const handleAccordionChange = (orderId) => (event, isExpanded) => {
+    setExpandedOrders(prev => ({
+      ...prev,
+      [orderId]: isExpanded
+    }));
+  };
+
   return (
     <Container>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -146,58 +202,163 @@ function OrderDetails() {
         <Typography>Accessories: {calculateTotals(groupedOrders).accessories}</Typography>
       </Box>
 
+      {/* Column Selection */}
+      <Box sx={{ marginBottom: 3, padding: 2, border: '1px solid #ddd', borderRadius: '8px' }}>
+        <Typography variant="h6" gutterBottom>
+          Select Columns to Display:
+        </Typography>
+        <FormGroup row>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.productName}
+                onChange={() => handleColumnToggle('productName')}
+              />
+            }
+            label="Product Name"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.orderDate}
+                onChange={() => handleColumnToggle('orderDate')}
+              />
+            }
+            label="Order Date"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.totalQuantity}
+                onChange={() => handleColumnToggle('totalQuantity')}
+              />
+            }
+            label="Total Quantity"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.serialNumber}
+                onChange={() => handleColumnToggle('serialNumber')}
+              />
+            }
+            label="Serial Number"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.action}
+                onChange={() => handleColumnToggle('action')}
+              />
+            }
+            label="Action"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={visibleColumns.comment}
+                onChange={() => handleColumnToggle('comment')}
+              />
+            }
+            label="Comment"
+          />
+        </FormGroup>
+      </Box>
+
       {Object.keys(groupedOrders)
         .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0)) // Filter out orders with quantity 0
         .map(order_id => (
-          <Box key={order_id} sx={{ marginBottom: 4, padding: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Order ID: {order_id}
-            </Typography>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Product Name</TableCell>
-                    <TableCell>Order Date</TableCell>
-                    <TableCell>Total Quantity</TableCell>
-                    <TableCell>Serial Number</TableCell>
-                    <TableCell>Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {groupedOrders[order_id].map(order => {
-                    const product = products[order.product_id];
-                    return (
-                      <TableRow key={`${order.product_id}-${order.order_id}`}>
-                        <TableCell>{product?.name || 'Unknown Product'}</TableCell>
-                        <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>
-                          <TextField
-                            type="text"
-                        label="Serial Number"
-                            onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
-                            value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
-                            placeholder="Enter Serial Number"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => handleConfirm(order_id, order.product_id)}
-                            disabled={order.quantity <= 0}
-                          >
-                            Confirm
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
+          <Accordion 
+            key={order_id} 
+            expanded={expandedOrders[order_id] || false}
+            onChange={handleAccordionChange(order_id)}
+            sx={{ marginBottom: 2 }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls={`panel-${order_id}-content`}
+              id={`panel-${order_id}-header`}
+              sx={{ backgroundColor: '#f5f5f5' }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                <Typography variant="h6">
+                  Order ID: {order_id}
+                </Typography>
+                {orderComments[order_id] && (
+                  <Chip 
+                    label="Has Comment" 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      {visibleColumns.productName && <TableCell>Product Name</TableCell>}
+                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
+                      {visibleColumns.totalQuantity && <TableCell>Total Quantity</TableCell>}
+                      {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
+                      {visibleColumns.action && <TableCell>Action</TableCell>}
+                      {visibleColumns.comment && <TableCell>Comment</TableCell>}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {groupedOrders[order_id].map(order => {
+                      const product = products[order.product_id];
+                      return (
+                        <TableRow key={`${order.product_id}-${order.order_id}`}>
+                          {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
+                          {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
+                          {visibleColumns.totalQuantity && <TableCell>{order.quantity}</TableCell>}
+                          {visibleColumns.serialNumber && (
+                            <TableCell>
+                              <TextField
+                                type="text"
+                                label="Serial Number"
+                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
+                                value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
+                                placeholder="Enter Serial Number"
+                              />
+                            </TableCell>
+                          )}
+                          {visibleColumns.action && (
+                            <TableCell>
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleConfirm(order_id, order.product_id)}
+                                disabled={order.quantity <= 0}
+                              >
+                                Confirm
+                              </Button>
+                            </TableCell>
+                          )}
+                          {visibleColumns.comment && (
+                            <TableCell>
+                              {orderComments[order_id] ? (
+                                <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {orderComments[order_id]}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" color="textSecondary">
+                                  No comment
+                                </Typography>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </AccordionDetails>
+          </Accordion>
         ))}
     </Container>
   );

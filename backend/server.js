@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = process.env.PORT || 3004;
+const port = process.env.PORT || 3007;
 
 // MySQL connection pool
 const pool = mysql.createPool({
@@ -146,7 +146,7 @@ app.post('/orders', async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, p.name AS product_name, p.image
+      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, p.name AS product_name, p.image
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
@@ -221,7 +221,7 @@ app.post('/update-order-id', async (req, res) => {
 app.get('/confirmed-items', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id
+      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment
       FROM orders o
       JOIN products p ON o.product_id = p.id
       WHERE o.confirmed_quantity > 0
@@ -230,6 +230,30 @@ app.get('/confirmed-items', async (req, res) => {
   } catch (err) {
     console.error('Error fetching confirmed items:', err.message);
     res.status(500).send('Error fetching confirmed items');
+  }
+});
+
+app.post('/update-order-comment', async (req, res) => {
+  try {
+    const { orderId, comment } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'Order ID is required' });
+    }
+
+    const [result] = await pool.query(
+      'UPDATE orders SET comment = ? WHERE order_id = ?',
+      [comment || null, orderId]
+    );
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Comment updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Order not found' });
+    }
+  } catch (err) {
+    console.error('Error updating comment:', err.message);
+    res.status(500).send('Error updating comment');
   }
 });
 
