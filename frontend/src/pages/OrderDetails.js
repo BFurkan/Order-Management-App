@@ -56,6 +56,12 @@ function OrderDetails() {
     comment: 'Comment'
   };
 
+  // Function to extract username from email (part before @)
+  const getDisplayName = (email) => {
+    if (!email) return 'N/A';
+    return email.split('@')[0];
+  };
+
   useEffect(() => {
     fetch('http://10.167.49.200:3007/products')
       .then(response => response.json())
@@ -306,7 +312,7 @@ function OrderDetails() {
                           {visibleColumns.orderedBy && (
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {order.ordered_by || 'N/A'}
+                                {getDisplayName(order.ordered_by)}
                               </Typography>
                             </TableCell>
                           )}

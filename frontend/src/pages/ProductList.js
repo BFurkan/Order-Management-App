@@ -35,6 +35,7 @@ function ProductList() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [orderedByOpen, setOrderedByOpen] = useState(false);
   const [orderedBy, setOrderedBy] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [newProduct, setNewProduct] = useState({ name: '', category: 'Notebooks', image: null });
   const navigate = useNavigate();
 
@@ -69,11 +70,24 @@ function ProductList() {
     }));
   };
 
+  // Email validation function
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleOrder = () => {
     if (!orderedBy.trim()) {
-      alert('Please enter who is placing this order.');
+      setEmailError('Please enter an email address.');
       return;
     }
+
+    if (!validateEmail(orderedBy)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    setEmailError(''); // Clear any previous errors
 
     fetch('http://10.167.49.200:3007/latest-order-id')
       .then(res => res.json())
@@ -256,16 +270,22 @@ function ProductList() {
         <DialogTitle>Place Order</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Please enter the name of the person placing this order:
+            Please enter your email address to place this order:
           </Typography>
           <TextField
             autoFocus
-            label="Ordered By"
+            label="Email Address"
+            type="email"
             fullWidth
             variant="outlined"
             value={orderedBy}
-            onChange={(e) => setOrderedBy(e.target.value)}
-            placeholder="Enter your name"
+            onChange={(e) => {
+              setOrderedBy(e.target.value);
+              if (emailError) setEmailError(''); // Clear error when user starts typing
+            }}
+            placeholder="Enter your email address"
+            error={!!emailError}
+            helperText={emailError}
             sx={{ mt: 1 }}
           />
         </DialogContent>

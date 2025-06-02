@@ -47,6 +47,12 @@ function ConfirmedItems() {
     comment: 'Comment'
   };
 
+  // Function to extract username from email (part before @)
+  const getDisplayName = (email) => {
+    if (!email) return 'N/A';
+    return email.split('@')[0];
+  };
+
   useEffect(() => {
     // Fetch the confirmed items from the backend
     fetch('http://10.167.49.200:3007/confirmed-items')
@@ -187,7 +193,7 @@ function ConfirmedItems() {
                       {visibleColumns.orderedBy && (
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {item.ordered_by || 'N/A'}
+                            {getDisplayName(item.ordered_by)}
                           </Typography>
                         </TableCell>
                       )}
