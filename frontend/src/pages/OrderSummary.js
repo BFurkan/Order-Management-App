@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, Button, TextField, Accordion, AccordionSummary, AccordionDetails, Dialog, DialogTitle, DialogContent, DialogActions, FormGroup, FormControlLabel, Checkbox, Chip } from '@mui/material';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, Button, TextField, Accordion, AccordionSummary, AccordionDetails, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
+import ColumnSelector from '../components/ColumnSelector';
 
 function OrderSummary() {
   const [groupedOrders, setGroupedOrders] = useState({});
@@ -19,8 +20,18 @@ function OrderSummary() {
     product: true,
     orderedQuantity: true,
     orderDate: true,
+    orderedBy: true,
     comment: true
   });
+
+  const columnLabels = {
+    productImage: 'Product Image',
+    product: 'Product Name',
+    orderedQuantity: 'Ordered Quantity',
+    orderDate: 'Order Date',
+    orderedBy: 'Ordered By',
+    comment: 'Comment'
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -29,138 +40,30 @@ function OrderSummary() {
   const fetchOrders = async () => {
     try {
       const response = await fetch('http://10.167.49.200:3007/orders');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
       const data = await response.json();
-      const ordersWithImages = await Promise.all(data.map(async (order) => {
-        if (order.product_id) {
-          try {
-            const productResponse = await fetch(`http://10.167.49.200:3007/products/${order.product_id}`);
-            if (!productResponse.ok) {
-              throw new Error('Product fetch failed');
-            }
-            const product = await productResponse.json();
-            return {
-              ...order,
-              product_name: product.name,
-              product_image: product.image,
-            };
-          } catch (error) {
-            console.error(`Error fetching product with ID ${order.product_id}:`, error);
-            return { ...order, product_name: 'Unknown Product', product_image: null };
-          }
-        } else {
-          console.warn('Order is missing product_id:', order);
-          return { ...order, product_name: 'Unknown Product', product_image: null };
+      
+      // Group orders by order_id
+      const grouped = data.reduce((acc, order) => {
+        if (!acc[order.order_id]) {
+          acc[order.order_id] = [];
         }
-      }));
-      const grouped = ordersWithImages.reduce((acc, order) => {
-        const { order_id } = order;
-        if (!acc[order_id]) {
-          acc[order_id] = [];
-        }
-        acc[order_id].push(order);
+        acc[order.order_id].push(order);
         return acc;
       }, {});
+      
       setGroupedOrders(grouped);
       
       // Extract comments from orders
       const comments = {};
-      ordersWithImages.forEach(order => {
+      data.forEach(order => {
         if (order.comment) {
           comments[order.order_id] = order.comment;
         }
       });
       setOrderComments(comments);
+      
     } catch (error) {
       console.error('Error fetching orders:', error);
-    }
-  };
-
-  const handleEditOrderId = (orderId) => {
-    console.log('Editing Order ID:', orderId);
-    setEditingOrderId(orderId);
-    setNewOrderId(orderId);
-  };
-
-  const handleOrderIdChange = (event) => {
-    setNewOrderId(event.target.value);
-  };
-
-  const handleUpdateOrderId = async (oldOrderId, newOrderId) => {
-    try {
-      if (!oldOrderId || !newOrderId) {
-        throw new Error('Both oldOrderId and newOrderId are required.');
-      }
-
-      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ oldOrderId, newOrderId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update Order ID');
-      }
-
-      // Update the frontend state after successful backend update
-      setGroupedOrders((prevGroupedOrders) => {
-        const updatedGroupedOrders = { ...prevGroupedOrders };
-        updatedGroupedOrders[newOrderId] = updatedGroupedOrders[oldOrderId];
-        delete updatedGroupedOrders[oldOrderId];
-        return updatedGroupedOrders;
-      });
-
-      setEditingOrderId(null); // Reset editing state
-    } catch (error) {
-      console.error('Error updating order ID:', error.message);
-    }
-  };
-
-  const handleAccordionChange = (orderId) => (event, isExpanded) => {
-    setExpandedOrders(prev => ({
-      ...prev,
-      [orderId]: isExpanded
-    }));
-  };
-
-  const handleCommentClick = (orderId) => {
-    setCurrentCommentOrderId(orderId);
-    setCommentText(orderComments[orderId] || '');
-    setCommentDialogOpen(true);
-  };
-
-  const handleCommentSave = async () => {
-    try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          orderId: currentCommentOrderId, 
-          comment: commentText 
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update comment');
-      }
-
-      // Update local state
-      setOrderComments(prev => ({
-        ...prev,
-        [currentCommentOrderId]: commentText
-      }));
-
-      setCommentDialogOpen(false);
-      setCurrentCommentOrderId(null);
-      setCommentText('');
-    } catch (error) {
-      console.error('Error updating comment:', error);
     }
   };
 
@@ -171,6 +74,99 @@ function OrderSummary() {
     }));
   };
 
+  const handleEditOrderId = (orderId) => {
+    setEditingOrderId(orderId);
+    setNewOrderId(orderId);
+  };
+
+  const handleSaveOrderId = async () => {
+    try {
+      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldOrderId: editingOrderId,
+          newOrderId: newOrderId,
+        }),
+      });
+
+      if (response.ok) {
+        // Update the local state
+        const updatedGroupedOrders = { ...groupedOrders };
+        updatedGroupedOrders[newOrderId] = updatedGroupedOrders[editingOrderId];
+        delete updatedGroupedOrders[editingOrderId];
+        setGroupedOrders(updatedGroupedOrders);
+        
+        // Update comments if they exist
+        if (orderComments[editingOrderId]) {
+          const updatedComments = { ...orderComments };
+          updatedComments[newOrderId] = updatedComments[editingOrderId];
+          delete updatedComments[editingOrderId];
+          setOrderComments(updatedComments);
+        }
+        
+        setEditingOrderId(null);
+        setNewOrderId('');
+      } else {
+        alert('Failed to update order ID');
+      }
+    } catch (error) {
+      console.error('Error updating order ID:', error);
+      alert('Error updating order ID');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingOrderId(null);
+    setNewOrderId('');
+  };
+
+  const handleOpenCommentDialog = (orderId) => {
+    setCurrentCommentOrderId(orderId);
+    setCommentText(orderComments[orderId] || '');
+    setCommentDialogOpen(true);
+  };
+
+  const handleSaveComment = async () => {
+    try {
+      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: currentCommentOrderId,
+          comment: commentText,
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setOrderComments(prev => ({
+          ...prev,
+          [currentCommentOrderId]: commentText
+        }));
+        setCommentDialogOpen(false);
+        setCurrentCommentOrderId(null);
+        setCommentText('');
+      } else {
+        alert('Failed to update comment');
+      }
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      alert('Error updating comment');
+    }
+  };
+
+  const handleAccordionChange = (orderId) => (event, isExpanded) => {
+    setExpandedOrders(prev => ({
+      ...prev,
+      [orderId]: isExpanded
+    }));
+  };
+
   return (
     <Container>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -178,57 +174,12 @@ function OrderSummary() {
       </Typography>
       
       {/* Column Selection */}
-      <Box sx={{ marginBottom: 3, padding: 2, border: '1px solid #ddd', borderRadius: '8px' }}>
-        <Typography variant="h6" gutterBottom>
-          Select Columns to Display:
-        </Typography>
-        <FormGroup row>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.productImage}
-                onChange={() => handleColumnToggle('productImage')}
-              />
-            }
-            label="Product Image"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.product}
-                onChange={() => handleColumnToggle('product')}
-              />
-            }
-            label="Product"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.orderedQuantity}
-                onChange={() => handleColumnToggle('orderedQuantity')}
-              />
-            }
-            label="Ordered Quantity"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.orderDate}
-                onChange={() => handleColumnToggle('orderDate')}
-              />
-            }
-            label="Order Date"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.comment}
-                onChange={() => handleColumnToggle('comment')}
-              />
-            }
-            label="Comment"
-          />
-        </FormGroup>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <ColumnSelector
+          visibleColumns={visibleColumns}
+          onColumnToggle={handleColumnToggle}
+          columnLabels={columnLabels}
+        />
       </Box>
 
       {Object.keys(groupedOrders).map(orderId => {
@@ -254,72 +205,46 @@ function OrderSummary() {
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   {editingOrderId === orderId ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <TextField
-                        value={newOrderId}
-                        onChange={handleOrderIdChange}
-                        autoFocus
                         size="small"
+                        value={newOrderId}
+                        onChange={(e) => setNewOrderId(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
                       />
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateOrderId(editingOrderId, newOrderId);
-                        }}
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                      >
-                        Confirm
+                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleSaveOrderId(); }}>
+                        Save
                       </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingOrderId(null);
-                        }}
-                        variant="outlined"
-                        color="secondary"
-                        size="small"
-                      >
+                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}>
                         Cancel
                       </Button>
                     </Box>
                   ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h6">
-                        Order ID: {orderId}
-                      </Typography>
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditOrderId(orderId);
-                        }} 
-                        size="small"
-                      >
-                        Edit
-                      </Button>
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCommentClick(orderId);
-                        }} 
-                        size="small"
-                        variant="outlined"
-                      >
-                        Comment
-                      </Button>
-                    </Box>
+                    <Typography variant="h6" onClick={(e) => { e.stopPropagation(); handleEditOrderId(orderId); }}>
+                      Order ID: {orderId}
+                    </Typography>
                   )}
                 </Box>
-                {orderComments[orderId] && (
-                  <Chip 
-                    label="Has Comment" 
-                    size="small" 
-                    color="primary" 
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {orderComments[orderId] && (
+                    <Chip 
+                      label="Has Comment" 
+                      size="small" 
+                      color="primary" 
+                      variant="outlined"
+                    />
+                  )}
+                  <Button
+                    size="small"
                     variant="outlined"
-                  />
-                )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenCommentDialog(orderId);
+                    }}
+                  >
+                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
+                  </Button>
+                </Box>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -331,24 +256,28 @@ function OrderSummary() {
                       {visibleColumns.product && <TableCell>Product</TableCell>}
                       {visibleColumns.orderedQuantity && <TableCell>Ordered Quantity</TableCell>}
                       {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
+                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
                       {visibleColumns.comment && <TableCell>Comment</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredOrders.map(order => (
+                    {filteredOrders.map((order) => (
                       <TableRow key={order.id}>
                         {visibleColumns.productImage && (
                           <TableCell>
-                            {order.product_image ? (
-                              <img src={`http://10.167.49.200:3007${order.product_image}`} alt={order.product_name} style={{ width: '100px' }} />
-                            ) : (
-                              <Typography>No Image</Typography>
-                            )}
+                            <img src={`http://10.167.49.200:3007${order.product_image}`} alt={order.product_name} style={{ width: '100px' }} />
                           </TableCell>
                         )}
                         {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}
                         {visibleColumns.orderedQuantity && <TableCell>{order.quantity}</TableCell>}
                         {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
+                        {visibleColumns.orderedBy && (
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {order.ordered_by || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                        )}
                         {visibleColumns.comment && (
                           <TableCell>
                             {orderComments[orderId] ? (
@@ -370,28 +299,30 @@ function OrderSummary() {
             </AccordionDetails>
           </Accordion>
         );
-     })}
+      })}
 
       {/* Comment Dialog */}
       <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add/Edit Comment for Order ID: {currentCommentOrderId}</DialogTitle>
+        <DialogTitle>
+          {orderComments[currentCommentOrderId] ? 'Edit Comment' : 'Add Comment'}
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
-            margin="dense"
-            label="Comment"
-            fullWidth
             multiline
             rows={4}
+            fullWidth
             variant="outlined"
+            label="Comment"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder="Enter your comment here..."
+            sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleCommentSave} variant="contained">Save</Button>
+          <Button onClick={handleSaveComment} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
     </Container>

@@ -6,7 +6,7 @@
 
 ## Database Migration Required
 
-Before running the application, you need to add a `comment` column to the `orders` table.
+Before running the application, you need to add `comment` and `ordered_by` columns to the `orders` table.
 
 ### Option 1: Automatic Migration (Recommended)
 Run the dynamic SQL script:
@@ -16,19 +16,22 @@ source backend/add_comment_column.sql;
 ```
 
 ### Option 2: Manual Migration
-If the automatic script doesn't work, run this simple command:
+If the automatic script doesn't work, run these commands:
 ```sql
 -- Connect to your MySQL database and run:
 ALTER TABLE orders ADD COLUMN comment TEXT NULL;
+ALTER TABLE orders ADD COLUMN ordered_by VARCHAR(255) NULL;
 ```
 
 ### Verify the Migration
-Check that the column was added:
+Check that the columns were added:
 ```sql
 DESCRIBE orders;
 ```
 
-You should see a `comment` column of type `TEXT` that allows `NULL` values.
+You should see:
+- A `comment` column of type `TEXT` that allows `NULL` values
+- An `ordered_by` column of type `VARCHAR(255)` that allows `NULL` values
 
 ## Running the Application
 
@@ -53,15 +56,31 @@ The React app will run on `http://localhost:3008`
 - View comments in Order Details and Confirmed Items pages
 - Visual indicators for orders with comments
 
-### 2. Column Selection
+### 2. Modern Column Selection
+- **NEW**: Replaced old checkbox layout with modern button + popup
 - Toggle visibility of table columns on all pages
+- Clean, modern UI with switches instead of checkboxes
 - Customizable view for better data management
 - Persistent column preferences during session
 
-### 3. Enhanced UI
+### 3. Enhanced Order Placement
+- **NEW**: Floating "Place Order" button that appears when items are selected
+- **NEW**: "Ordered By" field - tracks who placed each order
+- Sticky button positioning for better UX when scrolling
+- Modern popup dialog for order confirmation
+
+### 4. Ordered By Tracking
+- **NEW**: Track who placed each order
+- Display "Ordered By" information in all order views
+- Required field when placing orders
+- Searchable in Confirmed Items page
+
+### 5. Enhanced UI
 - Collapsible order sections (accordion style)
 - Professional Material-UI components
 - Responsive design improvements
+- Modern floating action buttons
+- Improved visual hierarchy
 
 ## Troubleshooting
 
@@ -74,8 +93,14 @@ If ports 3007 or 3008 are already in use:
 - Verify MySQL is running
 - Check database credentials in `backend/server.js`
 - Ensure the `order_tracking` database exists
+- Verify both `comment` and `ordered_by` columns exist in the `orders` table
 
 ### API Connection Issues
 - Verify backend is running on port 3007
 - Check that all frontend API calls use the correct port (3007)
-- Ensure firewall allows connections to the new ports 
+- Ensure firewall allows connections to the new ports
+
+### Material-UI Icons Issues
+- Ensure `@mui/icons-material@^5.17.1` is installed
+- Version must match your `@mui/material` version
+- Run `npm install @mui/icons-material@^5.17.1` if missing 

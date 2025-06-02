@@ -15,13 +15,11 @@ import {
   Accordion, 
   AccordionSummary, 
   AccordionDetails,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
   Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
+import ColumnSelector from '../components/ColumnSelector';
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
@@ -35,10 +33,21 @@ function OrderDetails() {
     productName: true,
     orderDate: true,
     totalQuantity: true,
+    orderedBy: true,
     serialNumber: true,
     action: true,
     comment: true
   });
+
+  const columnLabels = {
+    productName: 'Product Name',
+    orderDate: 'Order Date',
+    totalQuantity: 'Total Quantity',
+    orderedBy: 'Ordered By',
+    serialNumber: 'Serial Number',
+    action: 'Action',
+    comment: 'Comment'
+  };
 
   useEffect(() => {
     fetch('http://10.167.49.200:3007/products')
@@ -121,7 +130,7 @@ function OrderDetails() {
   const handleConfirm = (order_id, product_id) => {
     const serialNumber = serialNumbers[`${order_id}-${product_id}`];
     if (!serialNumber) {
-      alert('Please enter the serial number.');
+      alert('Please enter a serial number before confirming.');
       return;
     }
 

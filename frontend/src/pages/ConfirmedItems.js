@@ -15,13 +15,11 @@ import {
   AccordionSummary, 
   AccordionDetails,
   Box,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
   Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
+import ColumnSelector from '../components/ColumnSelector';
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
@@ -36,8 +34,18 @@ function ConfirmedItems() {
     quantity: true,
     orderDate: true,
     confirmDate: true,
+    orderedBy: true,
     comment: true
   });
+
+  const columnLabels = {
+    productName: 'Product Name',
+    quantity: 'Quantity',
+    orderDate: 'Order Date',
+    confirmDate: 'Confirm Date',
+    orderedBy: 'Ordered By',
+    comment: 'Comment'
+  };
 
   useEffect(() => {
     // Fetch the confirmed items from the backend
@@ -68,7 +76,8 @@ function ConfirmedItems() {
       (item.order_id && item.order_id.toLowerCase().includes(value)) ||
       (item.quantity && item.quantity.toString().includes(value)) ||
       (item.order_date && item.order_date.toLowerCase().includes(value)) ||
-      (item.confirm_date && item.confirm_date.toLowerCase().includes(value))
+      (item.confirm_date && item.confirm_date.toLowerCase().includes(value)) ||
+      (item.ordered_by && item.ordered_by.toLowerCase().includes(value))
     );
     setFilteredItems(filtered);
   };
@@ -109,7 +118,7 @@ function ConfirmedItems() {
         fullWidth
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search by product name, order ID, quantity, etc."
+        placeholder="Search by product name, order ID, quantity, ordered by, etc."
         sx={{ marginBottom: '20px' }}
       />
 
@@ -119,57 +128,12 @@ function ConfirmedItems() {
       </Button>
 
       {/* Column Selection */}
-      <Box sx={{ marginBottom: 3, padding: 2, border: '1px solid #ddd', borderRadius: '8px' }}>
-        <Typography variant="h6" gutterBottom>
-          Select Columns to Display:
-        </Typography>
-        <FormGroup row>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.productName}
-                onChange={() => handleColumnToggle('productName')}
-              />
-            }
-            label="Product Name"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.quantity}
-                onChange={() => handleColumnToggle('quantity')}
-              />
-            }
-            label="Quantity"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.orderDate}
-                onChange={() => handleColumnToggle('orderDate')}
-              />
-            }
-            label="Order Date"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.confirmDate}
-                onChange={() => handleColumnToggle('confirmDate')}
-              />
-            }
-            label="Confirm Date"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={visibleColumns.comment}
-                onChange={() => handleColumnToggle('comment')}
-              />
-            }
-            label="Comment"
-          />
-        </FormGroup>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <ColumnSelector
+          visibleColumns={visibleColumns}
+          onColumnToggle={handleColumnToggle}
+          columnLabels={columnLabels}
+        />
       </Box>
 
       {/* Display items grouped by order_id */}
@@ -209,6 +173,7 @@ function ConfirmedItems() {
                     {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
                     {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
                     {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
+                    {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
                     {visibleColumns.comment && <TableCell>Comment</TableCell>}
                   </TableRow>
                 </TableHead>
@@ -219,6 +184,13 @@ function ConfirmedItems() {
                       {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
                       {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
                       {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
+                      {visibleColumns.orderedBy && (
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {item.ordered_by || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                      )}
                       {visibleColumns.comment && (
                         <TableCell>
                           {orderComments[orderId] ? (
