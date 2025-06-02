@@ -220,9 +220,21 @@ function OrderSummary() {
                       </Button>
                     </Box>
                   ) : (
-                    <Typography variant="h6" onClick={(e) => { e.stopPropagation(); handleEditOrderId(orderId); }}>
-                      Order ID: {orderId}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="h6">
+                        Order ID: {orderId}
+                      </Typography>
+                      <Button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditOrderId(orderId);
+                        }} 
+                        size="small"
+                        variant="outlined"
+                      >
+                        Edit
+                      </Button>
+                    </Box>
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -265,7 +277,7 @@ function OrderSummary() {
                       <TableRow key={order.id}>
                         {visibleColumns.productImage && (
                           <TableCell>
-                            <img src={`http://10.167.49.200:3007${order.product_image}`} alt={order.product_name} style={{ width: '100px' }} />
+                            <img src={`http://10.167.49.200:3007${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
                           </TableCell>
                         )}
                         {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}
