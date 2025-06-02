@@ -19,7 +19,11 @@ import {
   Typography,
   InputLabel,
   FormControl,
+  Fab,
+  Box,
 } from '@mui/material';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import ColumnSelector from '../components/ColumnSelector';
 
 const categories = ['Notebooks', 'Monitors', 'Accessories'];
 
@@ -29,11 +33,27 @@ function ProductList() {
   const [order, setOrder] = useState({});
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [orderedByOpen, setOrderedByOpen] = useState(false);
+  const [orderedBy, setOrderedBy] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [newProduct, setNewProduct] = useState({ name: '', category: 'Notebooks', image: null });
   const navigate = useNavigate();
 
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    image: true,
+    name: true,
+    quantity: true,
+  });
+
+  const columnLabels = {
+    image: 'Product Image',
+    name: 'Product Name',
+    quantity: 'Quantity',
+  };
+
   useEffect(() => {
-    fetch('http://10.167.49.200:3004/products')
+    fetch('http://10.167.49.200:3007/products')
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(err => console.error('Error fetching products:', err));
@@ -43,8 +63,33 @@ function ProductList() {
     setOrder(prev => ({ ...prev, [productId]: quantity }));
   };
 
+  const handleColumnToggle = (column) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
+  // Email validation function
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleOrder = () => {
-    fetch('http://10.167.49.200:3004/latest-order-id')
+    if (!orderedBy.trim()) {
+      setEmailError('Please enter an email address.');
+      return;
+    }
+
+    if (!validateEmail(orderedBy)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    setEmailError(''); // Clear any previous errors
+
+    fetch('http://10.167.49.200:3007/latest-order-id')
       .then(res => res.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
@@ -57,10 +102,11 @@ function ProductList() {
           product_id: parseInt(productId, 10),
           quantity,
           order_date,
+          ordered_by: orderedBy,
         }));
 
         return Promise.all(currentOrder.map(o =>
-          fetch('http://10.167.49.200:3004/orders', {
+          fetch('http://10.167.49.200:3007/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(o),
@@ -70,7 +116,11 @@ function ProductList() {
           })
         ));
       })
-      .then(() => navigate('/order-summary'))
+      .then(() => {
+        setOrderedByOpen(false);
+        setOrderedBy('');
+        navigate('/order-summary');
+      })
       .catch(err => console.error('Error placing order:', err));
   };
 
@@ -89,7 +139,7 @@ function ProductList() {
     formData.append('category', newProduct.category);
     formData.append('image', newProduct.image);
 
-    fetch('http://10.167.49.200:3004/products', {
+    fetch('http://10.167.49.200:3007/products', {
       method: 'POST',
       body: formData,
     })
@@ -113,83 +163,137 @@ function ProductList() {
   const handleClose = () => setOpen(false);
   const handleConfirmOpen = () => setConfirmOpen(true);
   const handleConfirmClose = () => setConfirmOpen(false);
+  const handleOrderedByOpen = () => setOrderedByOpen(true);
+  const handleOrderedByClose = () => setOrderedByOpen(false);
 
   const filteredProducts = products.filter(p => p.category === selectedCategory);
+
+  // Check if there are any items in the order
+  const hasOrderItems = Object.values(order).some(quantity => quantity > 0);
 
   return (
     <div>
       <Typography variant="h4" gutterBottom>Product List</Typography>
 
-      {/* Category Buttons */}
-      <div style={{display: 'flex',  marginBottom: 16 }}>
-        {categories.map(cat => (
-          <Button
-            key={cat}
-            variant={selectedCategory === cat ? 'contained' : 'outlined'}
-            onClick={() => setSelectedCategory(cat)}
-            style={{ marginRight: 8 }}
-          >
-            {cat}
+      {/* Header with Category Buttons and Column Selector */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {categories.map(cat => (
+            <Button
+              key={cat}
+              variant={selectedCategory === cat ? 'contained' : 'outlined'}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </Button>
+          ))}
+        </Box>
+        
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <ColumnSelector
+            visibleColumns={visibleColumns}
+            onColumnToggle={handleColumnToggle}
+            columnLabels={columnLabels}
+          />
+          <Button variant="contained" color="primary" onClick={handleClickOpen}>
+            Add Product
           </Button>
-        ))}
-        <Button variant="contained" color="primary"  style={{ marginLeft: 'auto' }}  onClick={handleClickOpen}>
-          Add Product
-        </Button>
-      </div>
+        </Box>
+      </Box>
 
       {/* Product Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Image</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Quantity</TableCell>
+              {visibleColumns.image && <TableCell>Image</TableCell>}
+              {visibleColumns.name && <TableCell>Name</TableCell>}
+              {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredProducts.map(product => (
               <TableRow key={product.id}>
-                <TableCell>
-                  <img
-                    src={`http://10.167.49.200:3004${product.image}`}
-                    alt={product.name}
-                    style={{ width: 80, height: 80, objectFit: 'cover' }}
-                  />
-                </TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={order[product.id] || 0}
-                    onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
-                    inputProps={{ min: 0 }}
-                    style={{ width: 80 }}
-                  />
-                </TableCell>
+                {visibleColumns.image && (
+                  <TableCell>
+                    <img
+                      src={`http://10.167.49.200:3007${product.image}`}
+                      alt={product.name}
+                      style={{ width: 80, height: 80, objectFit: 'cover' }}
+                    />
+                  </TableCell>
+                )}
+                {visibleColumns.name && <TableCell>{product.name}</TableCell>}
+                {visibleColumns.quantity && (
+                  <TableCell>
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={order[product.id] || 0}
+                      onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
+                      inputProps={{ min: 0 }}
+                      style={{ width: 80 }}
+                    />
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Confirm Order */}
-      <div style={{ marginTop: 24 }}>
-        <Button variant="contained" color="error" onClick={handleConfirmOpen}>
+      {/* Floating Place Order Button */}
+      {hasOrderItems && (
+        <Fab
+          color="error"
+          variant="extended"
+          onClick={handleOrderedByOpen}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 1000,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            '&:hover': {
+              transform: 'scale(1.05)',
+              transition: 'transform 0.2s ease-in-out',
+            },
+          }}
+        >
+          <ShoppingCartIcon sx={{ mr: 1 }} />
           Place Order
-        </Button>
-      </div>
+        </Fab>
+      )}
 
-      {/* Confirm Dialog */}
-      <Dialog open={confirmOpen} onClose={handleConfirmClose}>
-        <DialogTitle>Confirm Order</DialogTitle>
+      {/* Ordered By Dialog */}
+      <Dialog open={orderedByOpen} onClose={handleOrderedByClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Place Order</DialogTitle>
         <DialogContent>
-          Are you sure you want to place this order?
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Please enter your email address to place this order:
+          </Typography>
+          <TextField
+            autoFocus
+            label="Email Address"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={orderedBy}
+            onChange={(e) => {
+              setOrderedBy(e.target.value);
+              if (emailError) setEmailError(''); // Clear error when user starts typing
+            }}
+            placeholder="Enter your email address"
+            error={!!emailError}
+            helperText={emailError}
+            sx={{ mt: 1 }}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleConfirmClose}>Cancel</Button>
-          <Button onClick={handleOrder} color="error">Confirm</Button>
+          <Button onClick={handleOrderedByClose}>Cancel</Button>
+          <Button onClick={handleOrder} variant="contained" color="error">
+            Confirm Order
+          </Button>
         </DialogActions>
       </Dialog>
 
