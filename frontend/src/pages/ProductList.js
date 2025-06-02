@@ -33,7 +33,7 @@ function ProductList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3004/products')
+    fetch('http://10.167.49.200:3007/products')
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(err => console.error('Error fetching products:', err));
@@ -44,7 +44,7 @@ function ProductList() {
   };
 
   const handleOrder = () => {
-    fetch('http://10.167.49.200:3004/latest-order-id')
+    fetch('http://10.167.49.200:3007/latest-order-id')
       .then(res => res.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
@@ -60,7 +60,7 @@ function ProductList() {
         }));
 
         return Promise.all(currentOrder.map(o =>
-          fetch('http://10.167.49.200:3004/orders', {
+          fetch('http://10.167.49.200:3007/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(o),
@@ -89,7 +89,7 @@ function ProductList() {
     formData.append('category', newProduct.category);
     formData.append('image', newProduct.image);
 
-    fetch('http://10.167.49.200:3004/products', {
+    fetch('http://10.167.49.200:3007/products', {
       method: 'POST',
       body: formData,
     })
@@ -152,7 +152,7 @@ function ProductList() {
               <TableRow key={product.id}>
                 <TableCell>
                   <img
-                    src={`http://10.167.49.200:3004${product.image}`}
+                    src={`http://10.167.49.200:3007${product.image}`}
                     alt={product.name}
                     style={{ width: 80, height: 80, objectFit: 'cover' }}
                   />
