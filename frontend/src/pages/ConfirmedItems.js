@@ -11,6 +11,9 @@ import {
   Paper, 
   TextField, 
   Button, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails,
   Box,
   Dialog,
   DialogTitle,
@@ -18,13 +21,15 @@ import {
   DialogActions,
   Chip
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
 import ColumnSelector from '../components/ColumnSelector';
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // State for search input
   const [filteredItems, setFilteredItems] = useState([]);
+  const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [itemComments, setItemComments] = useState({});
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
@@ -36,26 +41,24 @@ function ConfirmedItems() {
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
-    orderId: true,
     productName: true,
-    itemNumber: true,
     serialNumber: true,
+    quantity: true,
     orderDate: true,
     confirmDate: true,
     orderedBy: true,
-    orderComment: true,
+    comment: true,
     itemComment: true
   });
 
   const columnLabels = {
-    orderId: 'Order ID',
     productName: 'Product Name',
-    itemNumber: 'Item #',
     serialNumber: 'Serial Number',
+    quantity: 'Quantity',
     orderDate: 'Order Date',
     confirmDate: 'Confirm Date',
     orderedBy: 'Ordered By',
-    orderComment: 'Order Comment',
+    comment: 'Order Comment',
     itemComment: 'Item Comment'
   };
 
@@ -71,7 +74,7 @@ function ConfirmedItems() {
       .then(response => response.json())
       .then(data => {
         setConfirmedItems(data);
-        setFilteredItems(data);
+        setFilteredItems(data); // Initialize filtered items with all items
         
         // Extract order-level comments from confirmed items
         const comments = {};
@@ -105,6 +108,7 @@ function ConfirmedItems() {
   // Function to handle search when search button is clicked
   const handleSearch = () => {
     const value = searchTerm.toLowerCase();
+
     const filtered = confirmedItems.filter(item =>
       (item.product_name && item.product_name.toLowerCase().includes(value)) ||
       (item.order_id && item.order_id.toLowerCase().includes(value)) ||
@@ -114,6 +118,13 @@ function ConfirmedItems() {
       (item.ordered_by && item.ordered_by.toLowerCase().includes(value))
     );
     setFilteredItems(filtered);
+  };
+
+  const handleAccordionChange = (orderId) => (event, isExpanded) => {
+    setExpandedOrders(prev => ({
+      ...prev,
+      [orderId]: isExpanded
+    }));
   };
 
   const handleColumnToggle = (column) => {
@@ -201,44 +212,19 @@ function ConfirmedItems() {
     }
   };
 
-  // Create individual rows for each confirmed item
-  const individualItems = [];
-  filteredItems.forEach(item => {
-    if (item.serial_numbers) {
-      try {
-        const parsedSerialNumbers = JSON.parse(item.serial_numbers);
-        Object.keys(parsedSerialNumbers).forEach(itemIndex => {
-          individualItems.push({
-            ...item,
-            itemIndex: parseInt(itemIndex),
-            serialNumber: parsedSerialNumbers[itemIndex],
-            itemKey: `${item.order_id}-${item.product_id}-${itemIndex}`
-          });
-        });
-      } catch (e) {
-        // If parsing fails, create a single item
-        individualItems.push({
-          ...item,
-          itemIndex: 0,
-          serialNumber: item.serial_numbers,
-          itemKey: `${item.order_id}-${item.product_id}-0`
-        });
-      }
-    } else {
-      // If no serial numbers, still create an item
-      individualItems.push({
-        ...item,
-        itemIndex: 0,
-        serialNumber: 'N/A',
-        itemKey: `${item.order_id}-${item.product_id}-0`
-      });
+  // Grouping confirmed items by order_id
+  const groupedItems = filteredItems.reduce((acc, item) => {
+    if (!acc[item.order_id]) {
+      acc[item.order_id] = [];
     }
-  });
+    acc[item.order_id].push(item);
+    return acc;
+  }, {});
 
   return (
     <Container>
       <Typography variant="h4" component="h1" gutterBottom>
-        Individual Confirmed Items
+        Orders Fulfilled
       </Typography>
 
       {/* Search Input */}
@@ -266,111 +252,164 @@ function ConfirmedItems() {
         />
       </Box>
 
-      {/* Display individual items in a table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {visibleColumns.orderId && <TableCell>Order ID</TableCell>}
-              {visibleColumns.productName && <TableCell>Product Name</TableCell>}
-              {visibleColumns.itemNumber && <TableCell>Item #</TableCell>}
-              {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-              {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-              {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
-              {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-              {visibleColumns.orderComment && <TableCell>Order Comment</TableCell>}
-              {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {individualItems.map((item, index) => (
-              <TableRow key={`${item.itemKey}-${index}`}>
-                {visibleColumns.orderId && (
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {item.order_id}
-                    </Typography>
-                  </TableCell>
+      {/* Display items grouped by order_id */}
+      {Object.keys(groupedItems).map(orderId => (
+        <Accordion 
+          key={orderId} 
+          expanded={expandedOrders[orderId] || false}
+          onChange={handleAccordionChange(orderId)}
+          sx={{ marginBottom: 2 }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls={`panel-${orderId}-content`}
+            id={`panel-${orderId}-header`}
+            sx={{ backgroundColor: '#f5f5f5' }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+              <Typography variant="h6">
+                Order ID: {orderId}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {orderComments[orderId] && (
+                  <Chip 
+                    label="Has Order Comment" 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                  />
                 )}
-                {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
-                {visibleColumns.itemNumber && <TableCell>{item.itemIndex + 1}</TableCell>}
-                {visibleColumns.serialNumber && (
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
-                      {item.serialNumber}
-                    </Typography>
-                  </TableCell>
+                {groupedItems[orderId].some(item => 
+                  Object.keys(itemComments).some(key => key.startsWith(`${orderId}-${item.product_id}-`))
+                ) && (
+                  <Chip 
+                    label="Has Item Comments" 
+                    size="small" 
+                    color="secondary" 
+                    variant="outlined"
+                  />
                 )}
-                {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
-                {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
-                {visibleColumns.orderedBy && (
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {getDisplayName(item.ordered_by)}
-                    </Typography>
-                  </TableCell>
-                )}
-                {visibleColumns.orderComment && (
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {orderComments[item.order_id] ? (
-                        <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {orderComments[item.order_id]}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="textSecondary">
-                          No order comment
-                        </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenCommentDialog(orderId);
+                  }}
+                >
+                  {orderComments[orderId] ? 'Edit Order Comment' : 'Add Order Comment'}
+                </Button>
+              </Box>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    {visibleColumns.productName && <TableCell>Product Name</TableCell>}
+                    {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
+                    {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
+                    {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
+                    {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
+                    {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
+                    {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
+                    {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {groupedItems[orderId].map((item) => (
+                    <TableRow key={item.id}>
+                      {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
+                      {visibleColumns.serialNumber && (
+                        <TableCell>
+                          {item.serial_numbers ? (
+                            <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {JSON.parse(item.serial_numbers).join(', ')}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="textSecondary">
+                              No serial numbers
+                            </Typography>
+                          )}
+                        </TableCell>
                       )}
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => handleOpenCommentDialog(item.order_id)}
-                        sx={{ minWidth: 'auto', px: 1 }}
-                      >
-                        {orderComments[item.order_id] ? 'Edit' : 'Add'}
-                      </Button>
-                    </Box>
-                  </TableCell>
-                )}
-                {visibleColumns.itemComment && (
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {itemComments[item.itemKey] ? (
-                        <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {itemComments[item.itemKey]}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="textSecondary">
-                          No item comment
-                        </Typography>
+                      {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
+                      {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
+                      {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
+                      {visibleColumns.orderedBy && (
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {getDisplayName(item.ordered_by)}
+                          </Typography>
+                        </TableCell>
                       )}
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="secondary"
-                        onClick={() => handleOpenItemCommentDialog(item.order_id, item.product_id, item.itemIndex)}
-                        sx={{ minWidth: 'auto', px: 1 }}
-                      >
-                        {itemComments[item.itemKey] ? 'Edit' : 'Add'}
-                      </Button>
-                    </Box>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {individualItems.length === 0 && (
-        <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Typography variant="h6" color="textSecondary">
-            No confirmed items found
-          </Typography>
-        </Box>
-      )}
+                      {visibleColumns.comment && (
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {orderComments[orderId] ? (
+                              <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {orderComments[orderId]}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" color="textSecondary">
+                                No order comment
+                              </Typography>
+                            )}
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              onClick={() => handleOpenCommentDialog(orderId)}
+                              sx={{ minWidth: 'auto', px: 1 }}
+                            >
+                              {orderComments[orderId] ? 'Edit' : 'Add'}
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      )}
+                      {visibleColumns.itemComment && (
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {(() => {
+                              // Get all item comments for this item
+                              const itemCommentsForThisItem = Object.keys(itemComments)
+                                .filter(key => key.startsWith(`${orderId}-${item.product_id}-`))
+                                .map(key => {
+                                  const itemIndex = key.split('-')[2];
+                                  return { itemIndex: parseInt(itemIndex), comment: itemComments[key] };
+                                });
+                              
+                              return itemCommentsForThisItem.length > 0 ? (
+                                <Typography variant="body2" sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {itemCommentsForThisItem.map(ic => `Item ${ic.itemIndex + 1}: ${ic.comment}`).join('; ')}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" color="textSecondary">
+                                  No item comments
+                                </Typography>
+                              );
+                            })()}
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                              onClick={() => handleOpenItemCommentDialog(orderId, item.product_id, 0)}
+                              sx={{ minWidth: 'auto', px: 1 }}
+                            >
+                              Edit Items
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </AccordionDetails>
+        </Accordion>
+      ))}
 
       {/* Order Comment Dialog */}
       <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
