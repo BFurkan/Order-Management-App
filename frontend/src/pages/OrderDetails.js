@@ -43,7 +43,7 @@ function OrderDetails() {
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
     orderDate: true,
-    totalQuantity: true,
+    itemNumber: true,
     orderedBy: true,
     serialNumber: true,
     action: true,  
@@ -54,7 +54,7 @@ function OrderDetails() {
   const columnLabels = {
     productName: 'Product Name',
     orderDate: 'Order Date',
-    totalQuantity: 'Total Quantity',
+    itemNumber: 'Item #',
     orderedBy: 'Ordered By',
     serialNumber: 'Serial Number',
     action: 'Action',
@@ -140,7 +140,15 @@ function OrderDetails() {
        const itemComments = {};
        data.forEach(order => {
          if (order.item_comment) {
-           itemComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
+           try {
+             const parsedComments = JSON.parse(order.item_comment);
+             Object.keys(parsedComments).forEach(itemIndex => {
+               itemComments[`${order.order_id}-${order.product_id}-${itemIndex}`] = parsedComments[itemIndex];
+             });
+           } catch (e) {
+             // Handle old format (single string comment)
+             itemComments[`${order.order_id}-${order.product_id}-0`] = order.item_comment;
+           }
          }
        });
        setItemComments(itemComments);
@@ -148,10 +156,10 @@ function OrderDetails() {
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
 
-  const handleSerialNumberChange = (order_id, product_id, value) => {
+  const handleSerialNumberChange = (order_id, product_id, itemIndex, value) => {
     setSerialNumbers(prev => ({
       ...prev,
-      [`${order_id}-${product_id}`]: value,
+      [`${order_id}-${product_id}-${itemIndex}`]: value,
     }));
   };
 
@@ -192,9 +200,9 @@ function OrderDetails() {
     }
   };
 
-  const handleOpenItemCommentDialog = (orderId, productId) => {
-    setCurrentItemComment({ orderId, productId });
-    setItemCommentText(itemComments[`${orderId}-${productId}`] || '');
+  const handleOpenItemCommentDialog = (orderId, productId, itemIndex) => {
+    setCurrentItemComment({ orderId, productId, itemIndex });
+    setItemCommentText(itemComments[`${orderId}-${productId}-${itemIndex}`] || '');
     setItemCommentDialogOpen(true);
   };
 
@@ -208,6 +216,7 @@ function OrderDetails() {
         body: JSON.stringify({
           orderId: currentItemComment.orderId,
           productId: currentItemComment.productId,
+          itemIndex: currentItemComment.itemIndex,
           comment: itemCommentText,
         }),
       });
@@ -216,10 +225,10 @@ function OrderDetails() {
         // Update local state
         setItemComments(prev => ({
           ...prev,
-          [`${currentItemComment.orderId}-${currentItemComment.productId}`]: itemCommentText
+          [`${currentItemComment.orderId}-${currentItemComment.productId}-${currentItemComment.itemIndex}`]: itemCommentText
         }));
         setItemCommentDialogOpen(false);
-        setCurrentItemComment({ orderId: null, productId: null });
+        setCurrentItemComment({ orderId: null, productId: null, itemIndex: null });
         setItemCommentText('');
       } else {
         alert('Failed to update item comment');
@@ -230,8 +239,8 @@ function OrderDetails() {
     }
   };
 
-  const handleConfirm = (order_id, product_id) => {
-    const serialNumber = serialNumbers[`${order_id}-${product_id}`];
+  const handleConfirm = (order_id, product_id, itemIndex) => {
+    const serialNumber = serialNumbers[`${order_id}-${product_id}-${itemIndex}`];
     if (!serialNumber) {
       alert('Please enter a serial number before confirming.');
       return;
@@ -264,7 +273,7 @@ function OrderDetails() {
         // Clear the serial number input
         setSerialNumbers(prev => ({
           ...prev,
-          [`${order_id}-${product_id}`]: '',
+          [`${order_id}-${product_id}-${itemIndex}`]: '',
         }));
       })
       .catch(error => console.error('Error confirming order:', error));
@@ -327,7 +336,11 @@ function OrderDetails() {
                       variant="outlined"
                     />
                   )}
-                  {groupedOrders[order_id].some(order => itemComments[`${order_id}-${order.product_id}`]) && (
+                  {groupedOrders[order_id].some(order => 
+                    Array.from({length: order.quantity}, (_, i) => i).some(i => 
+                      itemComments[`${order_id}-${order.product_id}-${i}`]
+                    )
+                  ) && (
                     <Chip 
                       label="Has Item Comments" 
                       size="small" 
@@ -355,7 +368,7 @@ function OrderDetails() {
                     <TableRow>
                       {visibleColumns.productName && <TableCell>Product Name</TableCell>}
                       {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.totalQuantity && <TableCell>Total Quantity</TableCell>}
+                      {visibleColumns.itemNumber && <TableCell>Item #</TableCell>}
                       {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
                       {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
                       {visibleColumns.action && <TableCell>Action</TableCell>}
@@ -366,11 +379,12 @@ function OrderDetails() {
                   <TableBody>
                     {groupedOrders[order_id].map(order => {
                       const product = products[order.product_id];
-                      return (
-                        <TableRow key={`${order.product_id}-${order.order_id}`}>
+                      // Create individual rows for each item in the quantity
+                      return Array.from({length: order.quantity}, (_, itemIndex) => (
+                        <TableRow key={`${order.product_id}-${order.order_id}-${itemIndex}`}>
                           {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
                           {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
-                          {visibleColumns.totalQuantity && <TableCell>{order.quantity}</TableCell>}
+                          {visibleColumns.itemNumber && <TableCell>{itemIndex + 1}</TableCell>}
                           {visibleColumns.orderedBy && (
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -383,8 +397,9 @@ function OrderDetails() {
                               <TextField
                                 type="text"
                                 label="Serial Number"
-                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
-                                value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
+                                size="small"
+                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, itemIndex, e.target.value)}
+                                value={serialNumbers[`${order_id}-${order.product_id}-${itemIndex}`] || ''}
                                 placeholder="Enter Serial Number"
                               />
                             </TableCell>
@@ -394,7 +409,8 @@ function OrderDetails() {
                               <Button
                                 variant="contained"
                                 color="primary"
-                                onClick={() => handleConfirm(order_id, order.product_id)}
+                                size="small"
+                                onClick={() => handleConfirm(order_id, order.product_id, itemIndex)}
                                 disabled={order.quantity <= 0}
                               >
                                 Confirm
@@ -417,9 +433,9 @@ function OrderDetails() {
                           {visibleColumns.itemComment && (
                             <TableCell>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {itemComments[`${order_id}-${order.product_id}`] ? (
-                                  <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {itemComments[`${order_id}-${order.product_id}`]}
+                                {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? (
+                                  <Typography variant="body2" sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {itemComments[`${order_id}-${order.product_id}-${itemIndex}`]}
                                   </Typography>
                                 ) : (
                                   <Typography variant="body2" color="textSecondary">
@@ -430,17 +446,17 @@ function OrderDetails() {
                                   size="small"
                                   variant="outlined"
                                   color="secondary"
-                                  onClick={() => handleOpenItemCommentDialog(order_id, order.product_id)}
+                                  onClick={() => handleOpenItemCommentDialog(order_id, order.product_id, itemIndex)}
                                   sx={{ minWidth: 'auto', px: 1 }}
                                 >
-                                  {itemComments[`${order_id}-${order.product_id}`] ? 'Edit' : 'Add'}
+                                  {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? 'Edit' : 'Add'}
                                 </Button>
                               </Box>
                             </TableCell>
                           )}
                         </TableRow>
-                      );
-                    })}
+                      ));
+                    }).flat()}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -479,11 +495,11 @@ function OrderDetails() {
       {/* Item Comment Dialog */}
       <Dialog open={itemCommentDialogOpen} onClose={() => setItemCommentDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {itemComments[`${currentItemComment.orderId}-${currentItemComment.productId}`] ? 'Edit Item Comment' : 'Add Item Comment'}
+          {itemComments[`${currentItemComment.orderId}-${currentItemComment.productId}-${currentItemComment.itemIndex}`] ? 'Edit Item Comment' : 'Add Item Comment'}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            This comment applies to the specific item in Order ID: {currentItemComment.orderId}
+            This comment applies to Item #{(currentItemComment.itemIndex || 0) + 1} in Order ID: {currentItemComment.orderId}
           </Typography>
           <TextField
             autoFocus

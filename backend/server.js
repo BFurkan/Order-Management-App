@@ -221,7 +221,7 @@ app.post('/update-order-id', async (req, res) => {
 app.get('/confirmed-items', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.ordered_by
+      SELECT o.id, o.product_id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.item_comment, o.ordered_by, o.serial_numbers
       FROM orders o
       JOIN products p ON o.product_id = p.id
       WHERE o.confirmed_quantity > 0
@@ -257,18 +257,49 @@ app.post('/update-order-comment', async (req, res) => {
   }
 });
 
-// Add new endpoint for item-level comments
+// Add new endpoint for item-level comments with item index support
 app.post('/update-item-comment', async (req, res) => {
   try {
-    const { orderId, productId, comment } = req.body;
+    const { orderId, productId, itemIndex, comment } = req.body;
     
-    if (!orderId || !productId) {
-      return res.status(400).json({ message: 'Order ID and Product ID are required' });
+    if (!orderId || !productId || itemIndex === undefined) {
+      return res.status(400).json({ message: 'Order ID, Product ID, and Item Index are required' });
     }
+
+    // Get existing item comments
+    const [rows] = await pool.query(
+      'SELECT item_comment FROM orders WHERE order_id = ? AND product_id = ?',
+      [orderId, productId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Order item not found' });
+    }
+
+    // Parse existing item comments (JSON object with itemIndex as key)
+    let itemComments = {};
+    if (rows[0].item_comment) {
+      try {
+        itemComments = JSON.parse(rows[0].item_comment);
+      } catch (e) {
+        // If it's an old format (string), convert to object
+        itemComments = { "0": rows[0].item_comment };
+      }
+    }
+
+    // Update the comment for the specific item index
+    if (comment && comment.trim()) {
+      itemComments[itemIndex] = comment.trim();
+    } else {
+      delete itemComments[itemIndex];
+    }
+
+    // Store back as JSON string
+    const updatedItemComment = Object.keys(itemComments).length > 0 ? JSON.stringify(itemComments) : null;
 
     const [result] = await pool.query(
       'UPDATE orders SET item_comment = ? WHERE order_id = ? AND product_id = ?',
-      [comment || null, orderId, productId]
+      [updatedItemComment, orderId, productId]
     );
 
     if (result.affectedRows > 0) {
