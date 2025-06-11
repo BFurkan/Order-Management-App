@@ -153,6 +153,24 @@ function OrderDetails() {
          }
        });
        setItemComments(itemComments);
+
+       // Initialize confirmed items state from backend data
+       const confirmedItemsState = {};
+       data.forEach(order => {
+         if (order.confirmed_items) {
+           try {
+             const parsedConfirmedItems = JSON.parse(order.confirmed_items);
+             Object.keys(parsedConfirmedItems).forEach(itemIndex => {
+               if (parsedConfirmedItems[itemIndex]) {
+                 confirmedItemsState[`${order.order_id}-${order.product_id}-${itemIndex}`] = true;
+               }
+             });
+           } catch (e) {
+             console.error('Error parsing confirmed_items:', e);
+           }
+         }
+       });
+       setConfirmedItems(confirmedItemsState);
       })
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
@@ -257,11 +275,13 @@ function OrderDetails() {
     fetch('http://10.167.49.200:3007/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id, product_id, serialNumber }),
+      body: JSON.stringify({ order_id, product_id, serialNumber, itemIndex }),
     })
       .then(response => {
         if (!response.ok) {
-          throw new Error('Confirmation failed');
+          return response.text().then(text => {
+            throw new Error(text || 'Confirmation failed');
+          });
         }
         return response.json();
       })
@@ -277,8 +297,14 @@ function OrderDetails() {
           ...prev,
           [`${order_id}-${product_id}-${itemIndex}`]: '',
         }));
+        
+        // Show success message
+        alert('Item confirmed successfully!');
       })
-      .catch(error => console.error('Error confirming order:', error));
+      .catch(error => {
+        console.error('Error confirming order:', error);
+        alert(`Error confirming order: ${error.message}`);
+      });
   };
 
   const handleAccordionChange = (orderId) => (event, isExpanded) => {

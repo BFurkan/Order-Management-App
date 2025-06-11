@@ -146,7 +146,7 @@ app.post('/orders', async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.item_comment, o.ordered_by, p.name AS product_name, p.image
+      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.item_comment, o.ordered_by, o.confirmed_items, p.name AS product_name, p.image
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
@@ -159,38 +159,45 @@ app.get('/orders', async (req, res) => {
 
 app.post('/confirm', async (req, res) => {
   try {
-    const { order_id, product_id, serialNumber } = req.body;
-    const confirmQuantity = 1;
+    const { order_id, product_id, serialNumber, itemIndex } = req.body;
 
     const [rows] = await pool.query(
-      'SELECT quantity, confirmed_quantity, serial_numbers FROM orders WHERE order_id = ? AND product_id = ?',
+      'SELECT quantity, confirmed_quantity, serial_numbers, confirmed_items FROM orders WHERE order_id = ? AND product_id = ?',
       [order_id, product_id]
     );
 
     if (rows.length === 0) return res.status(404).send('Order not found');
 
-    const currentQuantity = rows[0].quantity;
-    const currentConfirmedQuantity = rows[0].confirmed_quantity;
+    // Get existing serial numbers and confirmed items
+    const existingSerialNumbers = rows[0].serial_numbers
+      ? JSON.parse(rows[0].serial_numbers)
+      : {};
+    
+    const existingConfirmedItems = rows[0].confirmed_items
+      ? JSON.parse(rows[0].confirmed_items)
+      : {};
 
-    if (currentQuantity <= 0) {
-      return res.status(400).send('Cannot confirm more than available quantity');
+    // Check if this specific item is already confirmed
+    if (existingConfirmedItems[itemIndex]) {
+      return res.status(400).send('This item has already been confirmed');
     }
 
-    const newConfirmedQuantity = currentConfirmedQuantity + confirmQuantity;
-    const newTotalQuantity = currentQuantity - confirmQuantity;
-    const updatedSerialNumbers = rows[0].serial_numbers
-      ? JSON.parse(rows[0].serial_numbers)
-      : [];
+    // Add the serial number for this specific item index
+    existingSerialNumbers[itemIndex] = serialNumber;
+    
+    // Mark this specific item as confirmed
+    existingConfirmedItems[itemIndex] = true;
 
-    updatedSerialNumbers.push(serialNumber);
+    // Count total confirmed items
+    const totalConfirmedItems = Object.keys(existingConfirmedItems).length;
 
     await pool.query(
-      'UPDATE orders SET confirmed_quantity = ?, quantity = ?, confirm_date = ?, serial_numbers = ? WHERE order_id = ? AND product_id = ?',
+      'UPDATE orders SET confirmed_quantity = ?, confirm_date = ?, serial_numbers = ?, confirmed_items = ? WHERE order_id = ? AND product_id = ?',
       [
-        newConfirmedQuantity,
-        newTotalQuantity,
+        totalConfirmedItems,
         new Date(),
-        JSON.stringify(updatedSerialNumbers),
+        JSON.stringify(existingSerialNumbers),
+        JSON.stringify(existingConfirmedItems),
         order_id,
         product_id,
       ]
