@@ -156,6 +156,7 @@ function OrderDetails() {
 
        // Initialize confirmed items state from backend data
        const confirmedItemsState = {};
+       const serialNumbersState = {};
        data.forEach(order => {
          if (order.confirmed_items) {
            try {
@@ -169,8 +170,27 @@ function OrderDetails() {
              console.error('Error parsing confirmed_items:', e);
            }
          }
+         
+         // Initialize serial numbers from backend data
+         if (order.serial_numbers) {
+           try {
+             const parsedSerialNumbers = JSON.parse(order.serial_numbers);
+             Object.keys(parsedSerialNumbers).forEach(itemIndex => {
+               if (parsedSerialNumbers[itemIndex]) {
+                 serialNumbersState[`${order.order_id}-${order.product_id}-${itemIndex}`] = parsedSerialNumbers[itemIndex];
+               }
+             });
+           } catch (e) {
+             console.error('Error parsing serial_numbers:', e);
+           }
+         }
        });
+       
+       console.log('Debug: Loaded confirmed items state:', confirmedItemsState);
+       console.log('Debug: Loaded serial numbers state:', serialNumbersState);
+       
        setConfirmedItems(confirmedItemsState);
+       setSerialNumbers(serialNumbersState);
       })
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
@@ -491,10 +511,7 @@ function OrderDetails() {
                                   sx={{ minWidth: 'auto', px: 1 }}
                                   disabled={confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`]}
                                 >
-
                                   {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? 'Edit Comment' : 'Add Comment'}
-
-                                  {itemComments[`${order_id}-${order.product_id}`] ? 'Edit' : 'Add Comment'}
                                 </Button>
                               </Box>
                             </TableCell>

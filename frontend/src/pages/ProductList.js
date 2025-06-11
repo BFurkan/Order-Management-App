@@ -32,7 +32,7 @@ function ProductList() {
   const [products, setProducts] = useState([]);
   const [order, setOrder] = useState({});
   const [open, setOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+
   const [orderedByOpen, setOrderedByOpen] = useState(false);
   const [orderedBy, setOrderedBy] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -161,8 +161,6 @@ function ProductList() {
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const handleConfirmOpen = () => setConfirmOpen(true);
-  const handleConfirmClose = () => setConfirmOpen(false);
   const handleOrderedByOpen = () => setOrderedByOpen(true);
   const handleOrderedByClose = () => setOrderedByOpen(false);
 
