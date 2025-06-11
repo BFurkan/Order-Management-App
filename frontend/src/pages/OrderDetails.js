@@ -491,7 +491,10 @@ function OrderDetails() {
                                   sx={{ minWidth: 'auto', px: 1 }}
                                   disabled={confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`]}
                                 >
+
                                   {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? 'Edit Comment' : 'Add Comment'}
+
+                                  {itemComments[`${order_id}-${order.product_id}`] ? 'Edit' : 'Add Comment'}
                                 </Button>
                               </Box>
                             </TableCell>
