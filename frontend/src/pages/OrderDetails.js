@@ -357,7 +357,7 @@ function OrderDetails() {
       </Box>
 
       {Object.keys(groupedOrders)
-        .filter(order_id => groupedOrders[order_id].some(order => (order.quantity + (order.confirmed_quantity || 0)) > 0))
+        .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0))
         .map(order_id => (
           <Accordion 
             key={order_id} 
@@ -385,7 +385,7 @@ function OrderDetails() {
                     />
                   )}
                   {groupedOrders[order_id].some(order => {
-                    const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
+                    const originalQuantity = order.quantity;
                     return Array.from({length: originalQuantity}, (_, i) => i).some(i => 
                       itemComments[`${order_id}-${order.product_id}-${i}`]
                     );
@@ -429,7 +429,7 @@ function OrderDetails() {
                     {groupedOrders[order_id].map(order => {
                       const product = products[order.product_id];
                       // Create individual rows for each item in the original quantity
-                      const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
+                      const originalQuantity = order.quantity;
                       return Array.from({length: originalQuantity}, (_, itemIndex) => (
                         <TableRow key={`${order.product_id}-${order.order_id}-${itemIndex}`}>
                           {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
