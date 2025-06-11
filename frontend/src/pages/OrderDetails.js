@@ -357,7 +357,14 @@ function OrderDetails() {
       </Box>
 
       {Object.keys(groupedOrders)
-        .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0))
+        .filter(order_id => groupedOrders[order_id].some(order => {
+          // Show order only if there are still unconfirmed items
+          const totalOriginalItems = order.quantity;
+          const confirmedCount = Object.keys(confirmedItems).filter(key => 
+            key.startsWith(`${order_id}-${order.product_id}-`) && confirmedItems[key]
+          ).length;
+          return confirmedCount < totalOriginalItems;
+        }))
         .map(order_id => (
           <Accordion 
             key={order_id} 
