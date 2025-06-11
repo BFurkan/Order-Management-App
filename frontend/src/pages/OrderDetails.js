@@ -31,9 +31,13 @@ function OrderDetails() {
   const [serialNumbers, setSerialNumbers] = useState({});
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
+  const [itemComments, setItemComments] = useState({});
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [itemCommentDialogOpen, setItemCommentDialogOpen] = useState(false);
   const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
+  const [currentItemComment, setCurrentItemComment] = useState({ orderId: null, productId: null });
   const [commentText, setCommentText] = useState('');
+  const [itemCommentText, setItemCommentText] = useState('');
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -42,8 +46,9 @@ function OrderDetails() {
     totalQuantity: true,
     orderedBy: true,
     serialNumber: true,
-    action: true,
-    comment: true
+    action: true,  
+    comment: true,
+    itemComment: true
   });
 
   const columnLabels = {
@@ -53,7 +58,8 @@ function OrderDetails() {
     orderedBy: 'Ordered By',
     serialNumber: 'Serial Number',
     action: 'Action',
-    comment: 'Comment'
+    comment: 'Order Comment',
+    itemComment: 'Item Comment'
   };
 
   // Function to extract username from email (part before @)
@@ -121,7 +127,7 @@ function OrderDetails() {
         }, {});
        setGroupedOrders(grouped);
        
-       // Extract comments from orders
+       // Extract order-level comments from orders
        const comments = {};
        data.forEach(order => {
          if (order.comment) {
@@ -129,6 +135,15 @@ function OrderDetails() {
          }
        });
        setOrderComments(comments);
+
+       // Extract item-level comments from orders
+       const itemComments = {};
+       data.forEach(order => {
+         if (order.item_comment) {
+           itemComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
+         }
+       });
+       setItemComments(itemComments);
       })
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
@@ -174,6 +189,44 @@ function OrderDetails() {
     } catch (error) {
       console.error('Error updating comment:', error);
       alert('Error updating comment');
+    }
+  };
+
+  const handleOpenItemCommentDialog = (orderId, productId) => {
+    setCurrentItemComment({ orderId, productId });
+    setItemCommentText(itemComments[`${orderId}-${productId}`] || '');
+    setItemCommentDialogOpen(true);
+  };
+
+  const handleSaveItemComment = async () => {
+    try {
+      const response = await fetch('http://10.167.49.200:3007/update-item-comment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: currentItemComment.orderId,
+          productId: currentItemComment.productId,
+          comment: itemCommentText,
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setItemComments(prev => ({
+          ...prev,
+          [`${currentItemComment.orderId}-${currentItemComment.productId}`]: itemCommentText
+        }));
+        setItemCommentDialogOpen(false);
+        setCurrentItemComment({ orderId: null, productId: null });
+        setItemCommentText('');
+      } else {
+        alert('Failed to update item comment');
+      }
+    } catch (error) {
+      console.error('Error updating item comment:', error);
+      alert('Error updating item comment');
     }
   };
 
@@ -268,9 +321,17 @@ function OrderDetails() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   {orderComments[order_id] && (
                     <Chip 
-                      label="Has Comment" 
+                      label="Has Order Comment" 
                       size="small" 
                       color="primary" 
+                      variant="outlined"
+                    />
+                  )}
+                  {groupedOrders[order_id].some(order => itemComments[`${order_id}-${order.product_id}`]) && (
+                    <Chip 
+                      label="Has Item Comments" 
+                      size="small" 
+                      color="secondary" 
                       variant="outlined"
                     />
                   )}
@@ -282,7 +343,7 @@ function OrderDetails() {
                       handleOpenCommentDialog(order_id);
                     }}
                   >
-                    {orderComments[order_id] ? 'Edit Comment' : 'Add Comment'}
+                    {orderComments[order_id] ? 'Edit Order Comment' : 'Add Order Comment'}
                   </Button>
                 </Box>
               </Box>
@@ -298,7 +359,8 @@ function OrderDetails() {
                       {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
                       {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
                       {visibleColumns.action && <TableCell>Action</TableCell>}
-                      {visibleColumns.comment && <TableCell>Comment</TableCell>}
+                      {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
+                      {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -347,9 +409,33 @@ function OrderDetails() {
                                 </Typography>
                               ) : (
                                 <Typography variant="body2" color="textSecondary">
-                                  No comment
+                                  No order comment
                                 </Typography>
                               )}
+                            </TableCell>
+                          )}
+                          {visibleColumns.itemComment && (
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {itemComments[`${order_id}-${order.product_id}`] ? (
+                                  <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {itemComments[`${order_id}-${order.product_id}`]}
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="body2" color="textSecondary">
+                                    No item comment
+                                  </Typography>
+                                )}
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="secondary"
+                                  onClick={() => handleOpenItemCommentDialog(order_id, order.product_id)}
+                                  sx={{ minWidth: 'auto', px: 1 }}
+                                >
+                                  {itemComments[`${order_id}-${order.product_id}`] ? 'Edit' : 'Add'}
+                                </Button>
+                              </Box>
                             </TableCell>
                           )}
                         </TableRow>
@@ -362,28 +448,59 @@ function OrderDetails() {
           </Accordion>
         ))}
 
-      {/* Comment Dialog */}
+      {/* Order Comment Dialog */}
       <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {orderComments[currentCommentOrderId] ? 'Edit Comment' : 'Add Comment'}
+          {orderComments[currentCommentOrderId] ? 'Edit Order Comment' : 'Add Order Comment'}
         </DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            This comment applies to the entire order (Order ID: {currentCommentOrderId})
+          </Typography>
           <TextField
             autoFocus
             multiline
             rows={4}
             fullWidth
             variant="outlined"
-            label="Comment"
+            label="Order Comment"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Enter your comment here..."
+            placeholder="Enter your order comment here..."
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleSaveComment} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Item Comment Dialog */}
+      <Dialog open={itemCommentDialogOpen} onClose={() => setItemCommentDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {itemComments[`${currentItemComment.orderId}-${currentItemComment.productId}`] ? 'Edit Item Comment' : 'Add Item Comment'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            This comment applies to the specific item in Order ID: {currentItemComment.orderId}
+          </Typography>
+          <TextField
+            autoFocus
+            multiline
+            rows={4}
+            fullWidth
+            variant="outlined"
+            label="Item Comment"
+            value={itemCommentText}
+            onChange={(e) => setItemCommentText(e.target.value)}
+            placeholder="Enter your item comment here..."
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setItemCommentDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveItemComment} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
     </Container>

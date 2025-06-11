@@ -146,7 +146,7 @@ app.post('/orders', async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.ordered_by, p.name AS product_name, p.image
+      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.item_comment, o.ordered_by, p.name AS product_name, p.image
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
@@ -254,6 +254,31 @@ app.post('/update-order-comment', async (req, res) => {
   } catch (err) {
     console.error('Error updating comment:', err.message);
     res.status(500).send('Error updating comment');
+  }
+});
+
+// Add new endpoint for item-level comments
+app.post('/update-item-comment', async (req, res) => {
+  try {
+    const { orderId, productId, comment } = req.body;
+    
+    if (!orderId || !productId) {
+      return res.status(400).json({ message: 'Order ID and Product ID are required' });
+    }
+
+    const [result] = await pool.query(
+      'UPDATE orders SET item_comment = ? WHERE order_id = ? AND product_id = ?',
+      [comment || null, orderId, productId]
+    );
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Item comment updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Order item not found' });
+    }
+  } catch (err) {
+    console.error('Error updating item comment:', err.message);
+    res.status(500).send('Error updating item comment');
   }
 });
 
