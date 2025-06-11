@@ -29,13 +29,14 @@ function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [products, setProducts] = useState({});
   const [serialNumbers, setSerialNumbers] = useState({});
+  const [confirmedItems, setConfirmedItems] = useState({}); // Track confirmed items
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [itemComments, setItemComments] = useState({});
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [itemCommentDialogOpen, setItemCommentDialogOpen] = useState(false);
   const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
-  const [currentItemComment, setCurrentItemComment] = useState({ orderId: null, productId: null });
+  const [currentItemComment, setCurrentItemComment] = useState({ orderId: null, productId: null, itemIndex: null });
   const [commentText, setCommentText] = useState('');
   const [itemCommentText, setItemCommentText] = useState('');
   
@@ -246,6 +247,13 @@ function OrderDetails() {
       return;
     }
 
+    // Check if this item is already confirmed
+    const itemKey = `${order_id}-${product_id}-${itemIndex}`;
+    if (confirmedItems[itemKey]) {
+      alert('This item has already been confirmed.');
+      return;
+    }
+
     fetch('http://10.167.49.200:3007/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -258,17 +266,11 @@ function OrderDetails() {
         return response.json();
       })
       .then(() => {
-        // Update the local state to reflect the confirmation
-        setGroupedOrders(prevGroupedOrders => {
-          const updatedOrders = { ...prevGroupedOrders };
-          updatedOrders[order_id] = updatedOrders[order_id].map(order => {
-            if (order.product_id === product_id && order.quantity > 0) {
-              return { ...order, quantity: order.quantity - 1 };
-            }
-            return order;
-          });
-          return updatedOrders;
-        });
+        // Mark this specific item as confirmed
+        setConfirmedItems(prev => ({
+          ...prev,
+          [itemKey]: true
+        }));
 
         // Clear the serial number input
         setSerialNumbers(prev => ({
@@ -309,7 +311,7 @@ function OrderDetails() {
       </Box>
 
       {Object.keys(groupedOrders)
-        .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0))
+        .filter(order_id => groupedOrders[order_id].some(order => (order.quantity + (order.confirmed_quantity || 0)) > 0))
         .map(order_id => (
           <Accordion 
             key={order_id} 
@@ -336,11 +338,12 @@ function OrderDetails() {
                       variant="outlined"
                     />
                   )}
-                  {groupedOrders[order_id].some(order => 
-                    Array.from({length: order.quantity}, (_, i) => i).some(i => 
+                  {groupedOrders[order_id].some(order => {
+                    const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
+                    return Array.from({length: originalQuantity}, (_, i) => i).some(i => 
                       itemComments[`${order_id}-${order.product_id}-${i}`]
-                    )
-                  ) && (
+                    );
+                  }) && (
                     <Chip 
                       label="Has Item Comments" 
                       size="small" 
@@ -379,8 +382,9 @@ function OrderDetails() {
                   <TableBody>
                     {groupedOrders[order_id].map(order => {
                       const product = products[order.product_id];
-                      // Create individual rows for each item in the quantity
-                      return Array.from({length: order.quantity}, (_, itemIndex) => (
+                      // Create individual rows for each item in the original quantity
+                      const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
+                      return Array.from({length: originalQuantity}, (_, itemIndex) => (
                         <TableRow key={`${order.product_id}-${order.order_id}-${itemIndex}`}>
                           {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
                           {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
@@ -401,20 +405,31 @@ function OrderDetails() {
                                 onChange={(e) => handleSerialNumberChange(order_id, order.product_id, itemIndex, e.target.value)}
                                 value={serialNumbers[`${order_id}-${order.product_id}-${itemIndex}`] || ''}
                                 placeholder="Enter Serial Number"
+                                disabled={confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`]}
                               />
                             </TableCell>
                           )}
                           {visibleColumns.action && (
                             <TableCell>
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick={() => handleConfirm(order_id, order.product_id, itemIndex)}
-                                disabled={order.quantity <= 0}
-                              >
-                                Confirm
-                              </Button>
+                              {confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`] ? (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled
+                                >
+                                  Confirmed
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  onClick={() => handleConfirm(order_id, order.product_id, itemIndex)}
+                                >
+                                  Confirm
+                                </Button>
+                              )}
                             </TableCell>
                           )}
                           {visibleColumns.comment && (
@@ -448,8 +463,9 @@ function OrderDetails() {
                                   color="secondary"
                                   onClick={() => handleOpenItemCommentDialog(order_id, order.product_id, itemIndex)}
                                   sx={{ minWidth: 'auto', px: 1 }}
+                                  disabled={confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`]}
                                 >
-                                  {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? 'Edit' : 'Add'}
+                                  {itemComments[`${order_id}-${order.product_id}-${itemIndex}`] ? 'Edit Comment' : 'Add Comment'}
                                 </Button>
                               </Box>
                             </TableCell>
