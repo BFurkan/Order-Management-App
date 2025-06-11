@@ -70,7 +70,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3007/products')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/products`)
       .then(response => response.json())
       .then(data => {
         const productMap = data.reduce((acc, product) => {
@@ -111,7 +111,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3007/orders')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/orders`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -210,7 +210,7 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-order-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ function OrderDetails() {
 
   const handleSaveItemComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-item-comment', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-item-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ function OrderDetails() {
       return;
     }
 
-    fetch('http://10.167.49.200:3007/confirm', {
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_id, product_id, serialNumber, itemIndex }),
@@ -357,14 +357,7 @@ function OrderDetails() {
       </Box>
 
       {Object.keys(groupedOrders)
-        .filter(order_id => groupedOrders[order_id].some(order => {
-          // Show order only if there are still unconfirmed items
-          const totalOriginalItems = order.quantity;
-          const confirmedCount = Object.keys(confirmedItems).filter(key => 
-            key.startsWith(`${order_id}-${order.product_id}-`) && confirmedItems[key]
-          ).length;
-          return confirmedCount < totalOriginalItems;
-        }))
+        .filter(order_id => groupedOrders[order_id].some(order => (order.quantity + (order.confirmed_quantity || 0)) > 0))
         .map(order_id => (
           <Accordion 
             key={order_id} 
@@ -392,7 +385,7 @@ function OrderDetails() {
                     />
                   )}
                   {groupedOrders[order_id].some(order => {
-                    const originalQuantity = order.quantity;
+                    const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
                     return Array.from({length: originalQuantity}, (_, i) => i).some(i => 
                       itemComments[`${order_id}-${order.product_id}-${i}`]
                     );
@@ -436,7 +429,7 @@ function OrderDetails() {
                     {groupedOrders[order_id].map(order => {
                       const product = products[order.product_id];
                       // Create individual rows for each item in the original quantity
-                      const originalQuantity = order.quantity;
+                      const originalQuantity = order.quantity + (order.confirmed_quantity || 0);
                       return Array.from({length: originalQuantity}, (_, itemIndex) => (
                         <TableRow key={`${order.product_id}-${order.order_id}-${itemIndex}`}>
                           {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}

@@ -270,7 +270,7 @@ npm start
 
 ### Database Setup
 ```sql
-CREATE DATABASE order_management;
+CREATE DATABASE inventory_system;
 
 CREATE TABLE products (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -303,7 +303,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=your_username
 DB_PASSWORD=your_password
-DB_NAME=order_management
+DB_NAME=inventory_system
 SERVER_PORT=3007
 ```
 
@@ -324,7 +324,7 @@ const db = mysql.createConnection({
   port: 3306,
   user: 'your_username',
   password: 'your_password',
-  database: 'order_management'
+  database: 'inventory_system'
 });
 ```
 

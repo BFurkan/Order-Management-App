@@ -15,10 +15,10 @@ const port = process.env.PORT || 3007;
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'asset',
-  password: process.env.DB_PASSWORD || 'AssetJito2024$',
-  database: process.env.DB_NAME || 'order_tracking',
-  port: 3306,
+  user: process.env.DB_USER || 'your_username',
+  password: process.env.DB_PASSWORD || 'your_password',
+  database: process.env.DB_NAME || 'inventory_system',
+  port: process.env.DB_PORT || 3306,
   connectionLimit: 10,
   queueLimit: 0,
 });
