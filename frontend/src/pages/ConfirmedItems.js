@@ -42,8 +42,8 @@ function ConfirmedItems() {
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
+    itemNumber: true,
     serialNumber: true,
-    quantity: true,
     orderDate: true,
     confirmDate: true,
     orderedBy: true,
@@ -53,8 +53,8 @@ function ConfirmedItems() {
 
   const columnLabels = {
     productName: 'Product Name',
+    itemNumber: 'Item #',
     serialNumber: 'Serial Number',
-    quantity: 'Quantity',
     orderDate: 'Order Date',
     confirmDate: 'Confirm Date',
     orderedBy: 'Ordered By',
@@ -308,8 +308,8 @@ function ConfirmedItems() {
                 <TableHead>
                   <TableRow>
                     {visibleColumns.productName && <TableCell>Product Name</TableCell>}
+                    {visibleColumns.itemNumber && <TableCell>Item #</TableCell>}
                     {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-                    {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
                     {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
                     {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
                     {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
@@ -318,92 +318,155 @@ function ConfirmedItems() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {groupedItems[orderId].map((item) => (
-                    <TableRow key={item.id}>
-                      {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
-                      {visibleColumns.serialNumber && (
-                        <TableCell>
-                          {item.serial_numbers ? (
-                            <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {JSON.parse(item.serial_numbers).join(', ')}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              No serial numbers
-                            </Typography>
-                          )}
-                        </TableCell>
-                      )}
-                      {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.orderedBy && (
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {getDisplayName(item.ordered_by)}
-                          </Typography>
-                        </TableCell>
-                      )}
-                      {visibleColumns.comment && (
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {orderComments[orderId] ? (
-                              <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {orderComments[orderId]}
-                              </Typography>
-                            ) : (
-                              <Typography variant="body2" color="textSecondary">
-                                No order comment
-                              </Typography>
-                            )}
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                              onClick={() => handleOpenCommentDialog(orderId)}
-                              sx={{ minWidth: 'auto', px: 1 }}
-                            >
-                              {orderComments[orderId] ? 'Edit' : 'Add'}
-                            </Button>
-                          </Box>
-                        </TableCell>
-                      )}
-                      {visibleColumns.itemComment && (
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {(() => {
-                              // Get all item comments for this item
-                              const itemCommentsForThisItem = Object.keys(itemComments)
-                                .filter(key => key.startsWith(`${orderId}-${item.product_id}-`))
-                                .map(key => {
-                                  const itemIndex = key.split('-')[2];
-                                  return { itemIndex: parseInt(itemIndex), comment: itemComments[key] };
-                                });
-                              
-                              return itemCommentsForThisItem.length > 0 ? (
-                                <Typography variant="body2" sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {itemCommentsForThisItem.map(ic => `Item ${ic.itemIndex + 1}: ${ic.comment}`).join('; ')}
-                                </Typography>
-                              ) : (
+                  {groupedItems[orderId].map((item) => {
+                    // Create individual rows for each confirmed item
+                    const individualRows = [];
+                    if (item.serial_numbers) {
+                      try {
+                        const parsedSerialNumbers = JSON.parse(item.serial_numbers);
+                        Object.keys(parsedSerialNumbers).forEach(itemIndex => {
+                          const itemKey = `${orderId}-${item.product_id}-${itemIndex}`;
+                          individualRows.push(
+                            <TableRow key={`${item.id}-${itemIndex}`}>
+                              {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
+                              {visibleColumns.itemNumber && <TableCell>{parseInt(itemIndex) + 1}</TableCell>}
+                              {visibleColumns.serialNumber && (
+                                <TableCell>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
+                                    {parsedSerialNumbers[itemIndex]}
+                                  </Typography>
+                                </TableCell>
+                              )}
+                              {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
+                              {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
+                              {visibleColumns.orderedBy && (
+                                <TableCell>
+                                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                    {getDisplayName(item.ordered_by)}
+                                  </Typography>
+                                </TableCell>
+                              )}
+                              {visibleColumns.comment && (
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {orderComments[orderId] ? (
+                                      <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {orderComments[orderId]}
+                                      </Typography>
+                                    ) : (
+                                      <Typography variant="body2" color="textSecondary">
+                                        No order comment
+                                      </Typography>
+                                    )}
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                      onClick={() => handleOpenCommentDialog(orderId)}
+                                      sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                      {orderComments[orderId] ? 'Edit' : 'Add'}
+                                    </Button>
+                                  </Box>
+                                </TableCell>
+                              )}
+                              {visibleColumns.itemComment && (
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {itemComments[itemKey] ? (
+                                      <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {itemComments[itemKey]}
+                                      </Typography>
+                                    ) : (
+                                      <Typography variant="body2" color="textSecondary">
+                                        No item comment
+                                      </Typography>
+                                    )}
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="secondary"
+                                      onClick={() => handleOpenItemCommentDialog(orderId, item.product_id, parseInt(itemIndex))}
+                                      sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                      {itemComments[itemKey] ? 'Edit' : 'Add'}
+                                    </Button>
+                                  </Box>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        });
+                      } catch (e) {
+                        // If parsing fails, create a single row
+                        individualRows.push(
+                          <TableRow key={`${item.id}-0`}>
+                            {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
+                            {visibleColumns.itemNumber && <TableCell>1</TableCell>}
+                            {visibleColumns.serialNumber && (
+                              <TableCell>
                                 <Typography variant="body2" color="textSecondary">
-                                  No item comments
+                                  {item.serial_numbers || 'No serial number'}
                                 </Typography>
-                              );
-                            })()}
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="secondary"
-                              onClick={() => handleOpenItemCommentDialog(orderId, item.product_id, 0)}
-                              sx={{ minWidth: 'auto', px: 1 }}
-                            >
-                              Edit Items
-                            </Button>
-                          </Box>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
+                            {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
+                            {visibleColumns.orderedBy && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {getDisplayName(item.ordered_by)}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.comment && (
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {orderComments[orderId] ? (
+                                    <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {orderComments[orderId]}
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="body2" color="textSecondary">
+                                      No order comment
+                                    </Typography>
+                                  )}
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                    onClick={() => handleOpenCommentDialog(orderId)}
+                                    sx={{ minWidth: 'auto', px: 1 }}
+                                  >
+                                    {orderComments[orderId] ? 'Edit' : 'Add'}
+                                  </Button>
+                                </Box>
+                              </TableCell>
+                            )}
+                            {visibleColumns.itemComment && (
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="body2" color="textSecondary">
+                                    No item comment
+                                  </Typography>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={() => handleOpenItemCommentDialog(orderId, item.product_id, 0)}
+                                    sx={{ minWidth: 'auto', px: 1 }}
+                                  >
+                                    Add
+                                  </Button>
+                                </Box>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      }
+                    }
+                    return individualRows;
+                  }).flat()}
                 </TableBody>
               </Table>
             </TableContainer>
