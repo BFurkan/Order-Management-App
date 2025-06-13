@@ -33,6 +33,7 @@ function OrderDetails() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [itemComments, setItemComments] = useState({});
+  const [productComments, setProductComments] = useState({});
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [itemCommentDialogOpen, setItemCommentDialogOpen] = useState(false);
   const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
