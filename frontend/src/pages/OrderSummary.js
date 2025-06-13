@@ -253,7 +253,11 @@ function OrderSummary() {
                           orderTotals.monitors += order.quantity;
                         } else if (productName.includes('notebook') || productName.includes('laptop') || 
                                    productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                   productName.includes('macbook') || productName.includes('surface')) {
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook')) {
                           orderTotals.notebooks += order.quantity;
                         } else {
                           orderTotals.accessories += order.quantity;
