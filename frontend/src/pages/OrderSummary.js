@@ -248,13 +248,12 @@ function OrderSummary() {
                     {(() => {
                       const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
                       filteredOrders.forEach(order => {
-                        // Determine category based on product name or use a mapping
-                        // Since we don't have direct access to product category here,
-                        // we'll need to make an assumption based on naming or add category info
                         const productName = order.product_name.toLowerCase();
-                        if (productName.includes('monitor')) {
+                        if (productName.includes('monitor') || productName.includes('display')) {
                           orderTotals.monitors += order.quantity;
-                        } else if (productName.includes('notebook') || productName.includes('laptop')) {
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface')) {
                           orderTotals.notebooks += order.quantity;
                         } else {
                           orderTotals.accessories += order.quantity;
@@ -281,20 +280,35 @@ function OrderSummary() {
                       );
                     })()}
                   </Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenCommentDialog(orderId);
-                    }}
-                  >
-                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
-                  </Button>
                 </Box>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
+              {/* Order Comment Section */}
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    Order Comment
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleOpenCommentDialog(orderId)}
+                  >
+                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
+                  </Button>
+                </Box>
+                {orderComments[orderId] ? (
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    {orderComments[orderId]}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                    No order comment added yet
+                  </Typography>
+                )}
+              </Box>
+
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
