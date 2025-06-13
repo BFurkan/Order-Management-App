@@ -138,10 +138,12 @@ function OrderDetails() {
 
   const handleExport = (orderId) => {
     const orders = groupedOrders[orderId] || [];
+    // Only export items that still have quantity > 0 (not fully confirmed)
+    const activeOrders = orders.filter(order => order.quantity > 0);
     
     const csvContent = [
       ['Product Name', 'Order Date', 'Total Quantity', 'Ordered By'].join(','),
-      ...orders.map(order => [
+      ...activeOrders.map(order => [
         `"${order.product_name}"`,
         `"${format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}"`,
         order.quantity,
@@ -382,7 +384,15 @@ function OrderDetails() {
 
         {Object.keys(groupedOrders).map(orderId => {
           const orders = groupedOrders[orderId];
-          const processedOrders = sortData(filterData(orders));
+          // Filter out fully confirmed items (quantity = 0)
+          const activeOrders = orders.filter(order => order.quantity > 0);
+          
+          // If no active orders, don't render the accordion
+          if (activeOrders.length === 0) {
+            return null;
+          }
+
+          const processedOrders = sortData(filterData(activeOrders));
 
           return (
             <Accordion 
@@ -403,10 +413,10 @@ function OrderDetails() {
                       Order ID: {orderId}
                     </Typography>
                     
-                    {/* Category totals beside Order ID */}
+                    {/* Category totals beside Order ID - only count active orders */}
                     {(() => {
                       const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                      orders.forEach(order => {
+                      activeOrders.forEach(order => {
                         const productName = order.product_name.toLowerCase();
                         // First check for accessories (to avoid misclassification)
                         if (productName.includes('dock') || productName.includes('docking') ||
@@ -463,7 +473,7 @@ function OrderDetails() {
                   {/* Order date on the right */}
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {orders.length > 0 && format(new Date(orders[0].order_date), 'MMM dd, yyyy HH:mm')}
+                      {activeOrders.length > 0 && format(new Date(activeOrders[0].order_date), 'MMM dd, yyyy HH:mm')}
                     </Typography>
                   </Box>
                 </Box>

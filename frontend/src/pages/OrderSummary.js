@@ -23,8 +23,7 @@ import {
   TableSortLabel,
   IconButton,
   Menu,
-  MenuItem,
-  Divider
+  MenuItem
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,

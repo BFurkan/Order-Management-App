@@ -30,7 +30,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
 import theme from './theme';
-import ColumnSelector from '../components/ColumnSelector';
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
@@ -234,15 +233,6 @@ function ConfirmedItems() {
         <Button variant="contained" color="primary" onClick={handleSearch} sx={{ marginBottom: '20px' }}>
           Search
         </Button>
-
-        {/* Column Selection */}
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <ColumnSelector
-            visibleColumns={visibleColumns}
-            onColumnToggle={handleColumnToggle}
-            columnLabels={columnLabels}
-          />
-        </Box>
 
         {/* Display items grouped by order_id */}
         {Object.keys(groupedItems).map(orderId => {
