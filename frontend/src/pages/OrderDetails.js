@@ -70,16 +70,47 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/products`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/products`)
       .then(response => response.json())
       .then(data => {
-        const productMap = data.reduce((acc, product) => {
-          acc[product.id] = product;
-          return acc;
-        }, {});
+        const productMap = {};
+        data.forEach(product => {
+          productMap[product.id] = product;
+        });
         setProducts(productMap);
       })
       .catch(error => console.error('Error fetching products:', error));
+
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/orders`)
+      .then(response => response.json())
+      .then(data => {
+        // Group orders by order_id
+        const grouped = data.reduce((acc, order) => {
+          if (!acc[order.order_id]) {
+            acc[order.order_id] = [];
+          }
+          acc[order.order_id].push(order);
+          return acc;
+        }, {});
+        
+        setGroupedOrders(grouped);
+        
+        // Extract comments from orders
+        const orderComments = {};
+        const productComments = {};
+        data.forEach(order => {
+          if (order.comment) {
+            orderComments[order.order_id] = order.comment;
+          }
+          if (order.item_comment) {
+            productComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
+          }
+        });
+        setOrderComments(orderComments);
+        setProductComments(productComments);
+        
+      })
+      .catch(error => console.error('Error fetching orders:', error));
   }, []);
 
   const calculateTotals = useCallback((orders) => {
@@ -110,95 +141,10 @@ function OrderDetails() {
     }));
   };
 
-  useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/orders`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        const grouped = data.reduce((acc, order) => {
-          if (!acc[order.order_id]) {
-            acc[order.order_id] = [];
-          }
-          acc[order.order_id].push(order);
-          return acc;
-        }, {});
-       setGroupedOrders(grouped);
-       
-       // Extract order-level comments from orders
-       const comments = {};
-       data.forEach(order => {
-         if (order.comment) {
-           comments[order.order_id] = order.comment;
-         }
-       });
-       setOrderComments(comments);
-
-       // Extract item-level comments from orders
-       const itemComments = {};
-       data.forEach(order => {
-         if (order.item_comment) {
-           try {
-             const parsedComments = JSON.parse(order.item_comment);
-             Object.keys(parsedComments).forEach(itemIndex => {
-               itemComments[`${order.order_id}-${order.product_id}-${itemIndex}`] = parsedComments[itemIndex];
-             });
-           } catch (e) {
-             // Handle old format (single string comment)
-             itemComments[`${order.order_id}-${order.product_id}-0`] = order.item_comment;
-           }
-         }
-       });
-       setItemComments(itemComments);
-
-       // Initialize confirmed items state from backend data
-       const confirmedItemsState = {};
-       const serialNumbersState = {};
-       data.forEach(order => {
-         if (order.confirmed_items) {
-           try {
-             const parsedConfirmedItems = JSON.parse(order.confirmed_items);
-             Object.keys(parsedConfirmedItems).forEach(itemIndex => {
-               if (parsedConfirmedItems[itemIndex]) {
-                 confirmedItemsState[`${order.order_id}-${order.product_id}-${itemIndex}`] = true;
-               }
-             });
-           } catch (e) {
-             console.error('Error parsing confirmed_items:', e);
-           }
-         }
-         
-         // Initialize serial numbers from backend data
-         if (order.serial_numbers) {
-           try {
-             const parsedSerialNumbers = JSON.parse(order.serial_numbers);
-             Object.keys(parsedSerialNumbers).forEach(itemIndex => {
-               if (parsedSerialNumbers[itemIndex]) {
-                 serialNumbersState[`${order.order_id}-${order.product_id}-${itemIndex}`] = parsedSerialNumbers[itemIndex];
-               }
-             });
-           } catch (e) {
-             console.error('Error parsing serial_numbers:', e);
-           }
-         }
-       });
-       
-       console.log('Debug: Loaded confirmed items state:', confirmedItemsState);
-       console.log('Debug: Loaded serial numbers state:', serialNumbersState);
-       
-       setConfirmedItems(confirmedItemsState);
-       setSerialNumbers(serialNumbersState);
-      })
-      .catch(error => console.error('Error fetching orders:', error));
-  }, []);
-
-  const handleSerialNumberChange = (order_id, product_id, itemIndex, value) => {
+  const handleSerialNumberChange = (order_id, product_id, value) => {
     setSerialNumbers(prev => ({
       ...prev,
-      [`${order_id}-${product_id}-${itemIndex}`]: value,
+      [`${order_id}-${product_id}`]: value
     }));
   };
 
@@ -210,7 +156,7 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/update-order-comment`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/update-order-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +193,7 @@ function OrderDetails() {
 
   const handleSaveItemComment = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/update-item-comment`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/update-item-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +238,7 @@ function OrderDetails() {
       return;
     }
 
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/confirm`, {
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_id, product_id, serialNumber, itemIndex }),
@@ -448,10 +394,9 @@ function OrderDetails() {
                                 type="text"
                                 label="Serial Number"
                                 size="small"
-                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, itemIndex, e.target.value)}
-                                value={serialNumbers[`${order_id}-${order.product_id}-${itemIndex}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
+                                value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
                                 placeholder="Enter Serial Number"
-                                disabled={confirmedItems[`${order_id}-${order.product_id}-${itemIndex}`]}
                               />
                             </TableCell>
                           )}

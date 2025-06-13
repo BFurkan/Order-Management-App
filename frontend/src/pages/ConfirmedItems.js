@@ -60,7 +60,7 @@ function ConfirmedItems() {
 
   useEffect(() => {
     // Fetch the confirmed items from the backend
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/confirmed-items`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/confirmed-items`)
       .then(response => response.json())
       .then(data => {
         setConfirmedItems(data);
