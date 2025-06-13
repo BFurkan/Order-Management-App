@@ -321,46 +321,51 @@ function OrderDetails() {
               sx={{ backgroundColor: '#f5f5f5' }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Typography variant="h6">
-                  Order ID: {order_id}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
-                    {(() => {
-                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                      groupedOrders[order_id].forEach(order => {
-                        const product = products[order.product_id];
-                        if (product) {
-                          if (product.category === 'Monitors') {
-                            orderTotals.monitors += order.quantity;
-                          } else if (product.category === 'Notebooks') {
-                            orderTotals.notebooks += order.quantity;
-                          } else if (product.category === 'Accessories') {
-                            orderTotals.accessories += order.quantity;
-                          }
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="h6">
+                    Order ID: {order_id}
+                  </Typography>
+                  {/* Category totals beside Order ID */}
+                  {(() => {
+                    const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                    groupedOrders[order_id].forEach(order => {
+                      const product = products[order.product_id];
+                      if (product) {
+                        if (product.category === 'Monitors') {
+                          orderTotals.monitors += order.quantity;
+                        } else if (product.category === 'Notebooks') {
+                          orderTotals.notebooks += order.quantity;
+                        } else if (product.category === 'Accessories') {
+                          orderTotals.accessories += order.quantity;
                         }
-                      });
-                      return (
-                        <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
-                          {orderTotals.monitors > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Monitors: {orderTotals.monitors}
-                            </Typography>
-                          )}
-                          {orderTotals.notebooks > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Notebooks: {orderTotals.notebooks}
-                            </Typography>
-                          )}
-                          {orderTotals.accessories > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Accessories: {orderTotals.accessories}
-                            </Typography>
-                          )}
-                        </Box>
-                      );
-                    })()}
-                  </Box>
+                      }
+                    });
+                    return (
+                      <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                        {orderTotals.monitors > 0 && (
+                          <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                            Monitors: {orderTotals.monitors}
+                          </Typography>
+                        )}
+                        {orderTotals.notebooks > 0 && (
+                          <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                            Notebooks: {orderTotals.notebooks}
+                          </Typography>
+                        )}
+                        {orderTotals.accessories > 0 && (
+                          <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                            Accessories: {orderTotals.accessories}
+                          </Typography>
+                        )}
+                      </Box>
+                    );
+                  })()}
+                </Box>
+                {/* Order date on the right side */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
+                    {groupedOrders[order_id].length > 0 && format(new Date(groupedOrders[order_id][0].order_date), 'MMM dd, yyyy')}
+                  </Typography>
                 </Box>
               </Box>
             </AccordionSummary>
