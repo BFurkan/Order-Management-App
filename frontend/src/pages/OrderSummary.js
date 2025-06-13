@@ -249,7 +249,16 @@ function OrderSummary() {
                       const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
                       filteredOrders.forEach(order => {
                         const productName = order.product_name.toLowerCase();
-                        if (productName.includes('monitor') || productName.includes('display')) {
+                        // First check for accessories (to avoid misclassification)
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
                           orderTotals.monitors += order.quantity;
                         } else if (productName.includes('notebook') || productName.includes('laptop') || 
                                    productName.includes('thinkpad') || productName.includes('elitebook') || 
@@ -257,7 +266,8 @@ function OrderSummary() {
                                    productName.includes('k14') || productName.includes('lenovo') ||
                                    productName.includes('ideapad') || productName.includes('yoga') ||
                                    productName.includes('inspiron') || productName.includes('latitude') ||
-                                   productName.includes('pavilion') || productName.includes('probook')) {
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
                           orderTotals.notebooks += order.quantity;
                         } else {
                           orderTotals.accessories += order.quantity;
