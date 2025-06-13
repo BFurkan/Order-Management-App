@@ -152,7 +152,7 @@ app.post('/orders', async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.product_comment, o.ordered_by, p.name AS product_name, p.image
+      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.item_comment, o.ordered_by, p.name AS product_name, p.image
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
@@ -272,7 +272,7 @@ app.post('/update-product-comment', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'UPDATE orders SET product_comment = ? WHERE order_id = ? AND product_id = ?',
+      'UPDATE orders SET item_comment = ? WHERE order_id = ? AND product_id = ?',
       [comment || null, orderId, productId]
     );
 

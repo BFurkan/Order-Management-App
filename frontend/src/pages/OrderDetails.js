@@ -143,8 +143,8 @@ function OrderDetails() {
        // Extract product-level comments from orders
        const productComments = {};
        data.forEach(order => {
-         if (order.product_comment) {
-           productComments[`${order.order_id}-${order.product_id}`] = order.product_comment;
+         if (order.item_comment) {
+           productComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
          }
        });
        setProductComments(productComments);
