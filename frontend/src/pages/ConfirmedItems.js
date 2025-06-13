@@ -275,65 +275,54 @@ function ConfirmedItems() {
             Advanced Search & Filters
           </Typography>
           
-          <Grid container spacing={2}>
-            {/* Text Search */}
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Search"
-                variant="outlined"
-                fullWidth
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Product, Order ID, User, Serial Number..."
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
-                }}
-              />
-            </Grid>
+          {/* Full Width Search Bar */}
+          <TextField
+            label="Search"
+            variant="outlined"
+            fullWidth
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Product, Order ID, User, Serial Number..."
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+            }}
+          />
 
-            {/* Date Range */}
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="Start Date"
-                type="date"
-                fullWidth
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                helperText="Confirm date from"
-              />
-            </Grid>
+          {/* Date Range in smaller boxes */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              helperText="Confirm date from"
+              sx={{ width: 200 }}
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              helperText="Confirm date to"
+              sx={{ width: 200 }}
+            />
+          </Box>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="End Date"
-                type="date"
-                fullWidth
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                helperText="Confirm date to"
-              />
-            </Grid>
-
-            {/* Action Buttons */}
-            <Grid item xs={12} md={2}>
-              <Box sx={{ display: 'flex', gap: 1, height: '100%', alignItems: 'flex-end' }}>
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  onClick={handleAdvancedSearch}
-                  startIcon={<SearchIcon />}
-                  fullWidth
-                >
-                  Search
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-
-          {/* Export All Button */}
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          {/* Search Button on its own line */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={handleAdvancedSearch}
+              startIcon={<SearchIcon />}
+              sx={{ minWidth: 120 }}
+            >
+              Search
+            </Button>
+            
             <Button
               variant="contained"
               color="secondary"
@@ -345,14 +334,6 @@ function ConfirmedItems() {
             </Button>
           </Box>
         </Paper>
-
-        {/* Results Summary */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body1" color="text.secondary">
-            Showing {filteredItems.length} of {confirmedItems.length} confirmed items 
-            {Object.keys(groupedItems).length > 0 && ` across ${Object.keys(groupedItems).length} orders`}
-          </Typography>
-        </Box>
 
         {/* Display items grouped by order_id */}
         {Object.keys(groupedItems).map(orderId => {
@@ -472,8 +453,34 @@ function ConfirmedItems() {
                   </Box>
                 </Box>
 
-                <TableContainer component={Paper}>
-                  <Table size="small">
+                <TableContainer 
+                  component={Paper} 
+                  sx={{ 
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    '& .MuiTable-root': {
+                      minWidth: 650,
+                    }
+                  }}
+                >
+                  <Table sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
                     <TableHead>
                       <TableRow>
                         {visibleColumns.productName && (
@@ -548,11 +555,41 @@ function ConfirmedItems() {
                     <TableBody>
                       {processedItems.map((item) => (
                         <TableRow key={item.id} hover>
-                          {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
-                          {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
-                          {visibleColumns.serialNumber && <TableCell>{item.serial_number || 'N/A'}</TableCell>}
-                          {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'MMM dd, yyyy HH:mm')}</TableCell>}
-                          {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'MMM dd, yyyy HH:mm')}</TableCell>}
+                          {visibleColumns.productName && (
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {item.product_name || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.quantity && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {item.quantity || 0}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.serialNumber && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {item.serial_number || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.orderDate && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {format(new Date(item.order_date), 'MMM dd, yyyy HH:mm')}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.confirmDate && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {format(new Date(item.confirm_date), 'MMM dd, yyyy HH:mm')}
+                              </Typography>
+                            </TableCell>
+                          )}
                           {visibleColumns.orderedBy && (
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
