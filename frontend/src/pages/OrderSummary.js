@@ -45,7 +45,7 @@ function OrderSummary() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/orders`);
+      const response = await fetch('http://10.167.49.200:3007/orders');
       const data = await response.json();
       
       // Group orders by order_id
@@ -87,7 +87,7 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/update-order-id`, {
+      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/update-order-comment`, {
+      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,42 +230,128 @@ function OrderSummary() {
                       <Typography variant="h6">
                         Order ID: {orderId}
                       </Typography>
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditOrderId(orderId);
-                        }} 
-                        size="small"
-                        variant="outlined"
-                      >
-                        Edit
-                      </Button>
                     </Box>
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {orderComments[orderId] && (
-                    <Chip 
-                      label="Has Comment" 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
-                    />
-                  )}
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenCommentDialog(orderId);
-                    }}
-                  >
-                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
-                  </Button>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      filteredOrders.forEach(order => {
+                        const productName = order.product_name.toLowerCase();
+                        // First check for accessories (to avoid misclassification)
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
+                          orderTotals.monitors += order.quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
+                          orderTotals.notebooks += order.quantity;
+                        } else {
+                          orderTotals.accessories += order.quantity;
+                        }
+                      });
+                      return (
+                        <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                          {orderTotals.monitors > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Monitors: {orderTotals.monitors}
+                            </Typography>
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Notebooks: {orderTotals.notebooks}
+                            </Typography>
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Accessories: {orderTotals.accessories}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
                 </Box>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
+              {/* Edit Order ID Section */}
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f0f8ff', borderRadius: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    Order ID Management
+                  </Typography>
+                  {editingOrderId !== orderId ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleEditOrderId(orderId)}
+                    >
+                      Edit Order ID
+                    </Button>
+                  ) : null}
+                </Box>
+                {editingOrderId === orderId ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    <TextField
+                      size="small"
+                      value={newOrderId}
+                      onChange={(e) => setNewOrderId(e.target.value)}
+                      label="New Order ID"
+                      variant="outlined"
+                    />
+                    <Button size="small" variant="contained" onClick={handleSaveOrderId}>
+                      Save
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={handleCancelEdit}>
+                      Cancel
+                    </Button>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: '#f8f9fa', borderRadius: 1, color: '#6c757d', fontStyle: 'italic' }}>
+                    Current Order ID: <strong style={{ color: '#495057' }}>{orderId}</strong>
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Order Comment Section */}
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    Order Comment
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleOpenCommentDialog(orderId)}
+                  >
+                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
+                  </Button>
+                </Box>
+                {orderComments[orderId] ? (
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    {orderComments[orderId]}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                    No order comment added yet
+                  </Typography>
+                )}
+              </Box>
+
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
@@ -283,7 +369,7 @@ function OrderSummary() {
                       <TableRow key={order.id}>
                         {visibleColumns.productImage && (
                           <TableCell>
-                            <img src={`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
+                            <img src={`http://10.167.49.200:3007${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
                           </TableCell>
                         )}
                         {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}

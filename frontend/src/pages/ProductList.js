@@ -32,11 +32,18 @@ function ProductList() {
   const [products, setProducts] = useState([]);
   const [order, setOrder] = useState({});
   const [open, setOpen] = useState(false);
-
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [orderedByOpen, setOrderedByOpen] = useState(false);
   const [orderedBy, setOrderedBy] = useState('');
   const [emailError, setEmailError] = useState('');
   const [newProduct, setNewProduct] = useState({ name: '', category: 'Notebooks', image: null });
+  // Initialize orderDate with current date
+  const getCurrentDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+  
+  const [orderDate, setOrderDate] = useState(getCurrentDate());
   const navigate = useNavigate();
 
   // Column visibility state
@@ -53,10 +60,10 @@ function ProductList() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/products`)
-      .then(response => response.json())
+    fetch('http://10.167.49.200:3007/products')
+      .then(res => res.json())
       .then(data => setProducts(data))
-      .catch(error => console.error('Error fetching products:', error));
+      .catch(err => console.error('Error fetching products:', err));
   }, []);
 
   const handleQuantityChange = (productId, quantity) => {
@@ -89,24 +96,21 @@ function ProductList() {
 
     setEmailError(''); // Clear any previous errors
 
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/latest-order-id`)
+    fetch('http://10.167.49.200:3007/latest-order-id')
       .then(res => res.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
-        const today = new Date();
-        today.setDate(today.getDate() + 1);
-        const order_date = today.toISOString().split('T')[0];
 
         const currentOrder = Object.entries(order).map(([productId, quantity]) => ({
           order_id: newOrderId,
           product_id: parseInt(productId, 10),
           quantity,
-          order_date,
+          order_date: orderDate, // Use the selected date
           ordered_by: orderedBy,
         }));
 
         return Promise.all(currentOrder.map(o =>
-          fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/orders`, {
+          fetch('http://10.167.49.200:3007/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(o),
@@ -119,6 +123,7 @@ function ProductList() {
       .then(() => {
         setOrderedByOpen(false);
         setOrderedBy('');
+        setOrderDate(getCurrentDate()); // Reset to current date
         navigate('/order-summary');
       })
       .catch(err => console.error('Error placing order:', err));
@@ -139,7 +144,7 @@ function ProductList() {
     formData.append('category', newProduct.category);
     formData.append('image', newProduct.image);
 
-    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}/products`, {
+    fetch('http://10.167.49.200:3007/products', {
       method: 'POST',
       body: formData,
     })
@@ -161,6 +166,8 @@ function ProductList() {
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+  const handleConfirmOpen = () => setConfirmOpen(true);
+  const handleConfirmClose = () => setConfirmOpen(false);
   const handleOrderedByOpen = () => setOrderedByOpen(true);
   const handleOrderedByClose = () => setOrderedByOpen(false);
 
@@ -215,7 +222,7 @@ function ProductList() {
                 {visibleColumns.image && (
                   <TableCell>
                     <img
-                      src={`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3004'}${product.image}`}
+                      src={`http://10.167.49.200:3007${product.image}`}
                       alt={product.name}
                       style={{ width: 80, height: 80, objectFit: 'cover' }}
                     />
@@ -268,7 +275,7 @@ function ProductList() {
         <DialogTitle>Place Order</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Please enter your email address to place this order:
+            Please enter your email address and select order date:
           </Typography>
           <TextField
             autoFocus
@@ -284,7 +291,19 @@ function ProductList() {
             placeholder="Enter your email address"
             error={!!emailError}
             helperText={emailError}
-            sx={{ mt: 1 }}
+            sx={{ mt: 1, mb: 2 }}
+          />
+          <TextField
+            label="Order Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={orderDate}
+            onChange={(e) => setOrderDate(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{ mb: 1 }}
           />
         </DialogContent>
         <DialogActions>
@@ -299,55 +318,41 @@ function ProductList() {
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Add New Product</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <TextField
-              name="name"
-              label="Product Name"
-              value={newProduct.name}
+          <TextField
+            label="Product Name"
+            name="name"
+            fullWidth
+            value={newProduct.name}
+            onChange={handleInputChange}
+            margin="dense"
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Category</InputLabel>
+            <Select
+              name="category"
+              value={newProduct.category}
               onChange={handleInputChange}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Category</InputLabel>
-              <Select
-                name="category"
-                value={newProduct.category}
-                onChange={handleInputChange}
-                label="Category"
-              >
-                {categories.map(cat => (
-                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography variant="subtitle2">Product Image</Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<ShoppingCartIcon />}
-              >
-                Choose Image (JPG, JPEG, PNG)
-                <input
-                  type="file"
-                  hidden
-                  accept=".jpg,.jpeg,.png"
-                  onChange={handleFileChange}
-                />
-              </Button>
-              {newProduct.image && (
-                <Typography variant="caption" color="textSecondary">
-                  Selected file: {newProduct.image.name}
-                </Typography>
-              )}
-            </Box>
-          </Box>
+              label="Category"
+            >
+              {categories.map(cat => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            type="file"
+            inputProps={{
+              accept: "image/jpeg,image/jpg,image/png,image/gif"
+            }}
+            onChange={(e) => setNewProduct({ ...newProduct, image: e.target.files[0] })}
+            fullWidth
+            margin="normal"
+            helperText="Supported formats: JPG, JPEG, PNG, GIF"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleFormSubmit} variant="contained" color="primary">
-            Add Product
-          </Button>
+          <Button onClick={handleFormSubmit} variant="contained">Add</Button>
         </DialogActions>
       </Dialog>
     </div>
