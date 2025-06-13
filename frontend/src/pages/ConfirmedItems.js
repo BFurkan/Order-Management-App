@@ -19,12 +19,14 @@ import {
   TableSortLabel,
   IconButton,
   Menu,
-  MenuItem
+  MenuItem,
+  Grid
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
   ViewColumn as ColumnsIcon,
-  FilterList as FilterIcon
+  FilterList as FilterIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -33,10 +35,14 @@ import theme from './theme';
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // State for search input
   const [filteredItems, setFilteredItems] = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
+  
+  // Enhanced search features
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Enhanced table features
   const [sortBy, setSortBy] = useState('confirmDate');
@@ -91,18 +97,39 @@ function ConfirmedItems() {
       .catch(error => console.error('Error fetching confirmed items:', error));
   }, []);
 
-  // Function to handle search when search button is clicked
-  const handleSearch = () => {
-    const value = searchTerm.toLowerCase();
+  // Enhanced search function with multiple criteria
+  const handleAdvancedSearch = () => {
+    let filtered = [...confirmedItems];
 
-    const filtered = confirmedItems.filter(item =>
-      (item.product_name && item.product_name.toLowerCase().includes(value)) ||
-      (item.order_id && item.order_id.toLowerCase().includes(value)) ||
-      (item.quantity && item.quantity.toString().includes(value)) ||
-      (item.order_date && item.order_date.toLowerCase().includes(value)) ||
-      (item.confirm_date && item.confirm_date.toLowerCase().includes(value)) ||
-      (item.ordered_by && item.ordered_by.toLowerCase().includes(value))
-    );
+    // Apply text search
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        (item.product_name && item.product_name.toLowerCase().includes(searchLower)) ||
+        (item.order_id && item.order_id.toLowerCase().includes(searchLower)) ||
+        (item.ordered_by && item.ordered_by.toLowerCase().includes(searchLower)) ||
+        (item.serial_number && item.serial_number.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Apply date range filter
+    if (startDate || endDate) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.confirm_date);
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        
+        if (start && end) {
+          return itemDate >= start && itemDate <= end;
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+        return true;
+      });
+    }
+
     setFilteredItems(filtered);
   };
 
@@ -147,6 +174,30 @@ function ConfirmedItems() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `confirmed-items-${orderId}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportAll = () => {
+    const csvContent = [
+      ['Order ID', 'Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Ordered By', 'Comment'].join(','),
+      ...filteredItems.map(item => [
+        `"${item.order_id}"`,
+        `"${item.product_name}"`,
+        item.quantity,
+        `"${item.serial_number || 'N/A'}"`,
+        `"${format(new Date(item.order_date), 'MMM dd, yyyy HH:mm')}"`,
+        `"${format(new Date(item.confirm_date), 'MMM dd, yyyy HH:mm')}"`,
+        `"${getDisplayName(item.ordered_by)}"`,
+        `"${orderComments[item.order_id] || 'No comment'}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all-confirmed-items-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -218,21 +269,90 @@ function ConfirmedItems() {
           Orders Fulfilled
         </Typography>
 
-        {/* Search Input */}
-        <TextField
-          label="Search"
-          variant="outlined"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by product name, order ID, quantity, ordered by, etc."
-          sx={{ marginBottom: '20px' }}
-        />
+        {/* Advanced Search Section */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Advanced Search & Filters
+          </Typography>
+          
+          <Grid container spacing={2}>
+            {/* Text Search */}
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Search"
+                variant="outlined"
+                fullWidth
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Product, Order ID, User, Serial Number..."
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                }}
+              />
+            </Grid>
 
-        {/* Search Button */}
-        <Button variant="contained" color="primary" onClick={handleSearch} sx={{ marginBottom: '20px' }}>
-          Search
-        </Button>
+            {/* Date Range */}
+            <Grid item xs={12} md={3}>
+              <TextField
+                label="Start Date"
+                type="date"
+                fullWidth
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Confirm date from"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <TextField
+                label="End Date"
+                type="date"
+                fullWidth
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Confirm date to"
+              />
+            </Grid>
+
+            {/* Action Buttons */}
+            <Grid item xs={12} md={2}>
+              <Box sx={{ display: 'flex', gap: 1, height: '100%', alignItems: 'flex-end' }}>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  onClick={handleAdvancedSearch}
+                  startIcon={<SearchIcon />}
+                  fullWidth
+                >
+                  Search
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+
+          {/* Export All Button */}
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleExportAll}
+              startIcon={<ExportIcon />}
+              disabled={filteredItems.length === 0}
+            >
+              Export All Results ({filteredItems.length} items)
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* Results Summary */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body1" color="text.secondary">
+            Showing {filteredItems.length} of {confirmedItems.length} confirmed items 
+            {Object.keys(groupedItems).length > 0 && ` across ${Object.keys(groupedItems).length} orders`}
+          </Typography>
+        </Box>
 
         {/* Display items grouped by order_id */}
         {Object.keys(groupedItems).map(orderId => {
@@ -327,7 +447,7 @@ function ConfirmedItems() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <TextField
                     size="small"
-                    placeholder="Filter items..."
+                    placeholder="Filter items in this order..."
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
                     InputProps={{
@@ -342,13 +462,13 @@ function ConfirmedItems() {
                     >
                       <ColumnsIcon />
                     </IconButton>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleExport(orderId)}
-                      title="Export to CSV"
-                    >
-                      <ExportIcon />
-                    </IconButton>
+                                          <IconButton 
+                        size="small" 
+                        onClick={() => handleExport(orderId)}
+                        title="Export this Order"
+                      >
+                        <ExportIcon />
+                      </IconButton>
                   </Box>
                 </Box>
 
@@ -461,6 +581,18 @@ function ConfirmedItems() {
             </Accordion>
           );
         })}
+
+        {/* No Results Message */}
+        {Object.keys(groupedItems).length === 0 && (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h6" color="text.secondary">
+              No confirmed items found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Try adjusting your search criteria or date range
+            </Typography>
+          </Paper>
+        )}
 
         {/* Column Visibility Menu */}
         <Menu
