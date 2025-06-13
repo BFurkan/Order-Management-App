@@ -60,7 +60,7 @@ function ConfirmedItems() {
 
   useEffect(() => {
     // Fetch the confirmed items from the backend
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/confirmed-items`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/confirmed-items`)
       .then(response => response.json())
       .then(data => {
         setConfirmedItems(data);
@@ -124,15 +124,6 @@ function ConfirmedItems() {
     }));
   };
 
-  // Grouping confirmed items by order_id
-  const groupedItems = filteredItems.reduce((acc, item) => {
-    if (!acc[item.order_id]) {
-      acc[item.order_id] = [];
-    }
-    acc[item.order_id].push(item);
-    return acc;
-  }, {});
-
   return (
     <Container>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -164,132 +155,79 @@ function ConfirmedItems() {
         />
       </Box>
 
-      {/* Display items grouped by order_id */}
-      {Object.keys(groupedItems).map(orderId => (
-        <Accordion 
-          key={orderId} 
-          expanded={expandedOrders[orderId] || false}
-          onChange={handleAccordionChange(orderId)}
-          sx={{ marginBottom: 2 }}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls={`panel-${orderId}-content`}
-            id={`panel-${orderId}-header`}
-            sx={{ backgroundColor: '#f5f5f5' }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-              <Typography variant="h6">
-                Order ID: {orderId}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {orderComments[orderId] && (
-                  <Chip 
-                    label="Has Order Comment" 
-                    size="small" 
-                    color="primary" 
-                    variant="outlined"
-                  />
+      {/* Display each item individually */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {visibleColumns.productName && <TableCell>Product Name</TableCell>}
+              {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
+              {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
+              {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
+              {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
+              {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
+              {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
+              {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredItems.map((item) => (
+              <TableRow key={item.id}>
+                {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
+                {visibleColumns.serialNumber && (
+                  <TableCell>
+                    {item.serial_numbers ? (
+                      <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {JSON.parse(item.serial_numbers).join(', ')}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        No serial numbers
+                      </Typography>
+                    )}
+                  </TableCell>
                 )}
-                {groupedItems[orderId].some(item => 
-                  Object.keys(itemComments).some(key => key.startsWith(`${orderId}-${item.product_id}-`))
-                ) && (
-                  <Chip 
-                    label="Has Item Comments" 
-                    size="small" 
-                    color="secondary" 
-                    variant="outlined"
-                  />
+                {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
+                {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
+                {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
+                {visibleColumns.orderedBy && (
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {getDisplayName(item.ordered_by)}
+                    </Typography>
+                  </TableCell>
                 )}
-              </Box>
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <TableContainer component={Paper}>
-              <Table>
-                                  <TableHead>
-                    <TableRow>
-                      {visibleColumns.productName && <TableCell>Product Name</TableCell>}
-                      {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-                      {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
-                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                      {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
-                      {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                <TableBody>
-                  {groupedItems[orderId].map((item) => (
-                    <TableRow key={item.id}>
-                      {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
-                      {visibleColumns.serialNumber && (
-                        <TableCell>
-                          {item.serial_numbers ? (
-                            <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {JSON.parse(item.serial_numbers).join(', ')}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              No serial numbers
-                            </Typography>
-                          )}
-                        </TableCell>
-                      )}
-                      {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.orderedBy && (
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {getDisplayName(item.ordered_by)}
-                          </Typography>
-                        </TableCell>
-                      )}
-                      {visibleColumns.comment && (
-                        <TableCell>
-                          {orderComments[orderId] ? (
-                            <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {orderComments[orderId]}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              No order comment
-                            </Typography>
-                          )}
-                        </TableCell>
-                      )}
-                      {visibleColumns.itemComment && (
-                        <TableCell>
-                          {(() => {
-                            // Get all item comments for this item
-                            const itemCommentsForThisItem = Object.keys(itemComments)
-                              .filter(key => key.startsWith(`${orderId}-${item.product_id}-`))
-                              .map(key => {
-                                const itemIndex = key.split('-')[2];
-                                return `Item ${parseInt(itemIndex) + 1}: ${itemComments[key]}`;
-                              });
-                            
-                            return itemCommentsForThisItem.length > 0 ? (
-                              <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {itemCommentsForThisItem.join('; ')}
-                              </Typography>
-                            ) : (
-                              <Typography variant="body2" color="textSecondary">
-                                No item comments
-                              </Typography>
-                            );
-                          })()}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+                {visibleColumns.comment && (
+                  <TableCell>
+                    {orderComments[item.order_id] ? (
+                      <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {orderComments[item.order_id]}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        No order comment
+                      </Typography>
+                    )}
+                  </TableCell>
+                )}
+                {visibleColumns.itemComment && (
+                  <TableCell>
+                    {itemComments[`${item.order_id}-${item.product_id}-0`] ? (
+                      <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {itemComments[`${item.order_id}-${item.product_id}-0`]}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        No item comment
+                      </Typography>
+                    )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Container>
   );
 }

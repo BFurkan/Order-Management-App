@@ -70,7 +70,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/products`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/products`)
       .then(response => response.json())
       .then(data => {
         const productMap = data.reduce((acc, product) => {
@@ -111,7 +111,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/orders`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/orders`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -210,7 +210,7 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-order-comment`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/update-order-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ function OrderDetails() {
 
   const handleSaveItemComment = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-item-comment`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/update-item-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ function OrderDetails() {
       return;
     }
 
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/confirm`, {
+    fetch(`${process.env.REACT_APP_API_URL || 'http://10.167.49.200:3007'}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_id, product_id, serialNumber, itemIndex }),
