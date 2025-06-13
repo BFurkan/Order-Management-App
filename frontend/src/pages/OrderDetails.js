@@ -33,7 +33,6 @@ function OrderDetails() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [itemComments, setItemComments] = useState({});
-  const [productComments, setProductComments] = useState({});
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [itemCommentDialogOpen, setItemCommentDialogOpen] = useState(false);
   const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
@@ -98,17 +97,12 @@ function OrderDetails() {
         
         // Extract comments from orders
         const orderComments = {};
-        const productCommentsData = {};
         data.forEach(order => {
           if (order.comment) {
             orderComments[order.order_id] = order.comment;
           }
-          if (order.item_comment) {
-            productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
-          }
         });
         setOrderComments(orderComments);
-        setProductComments(productCommentsData);
         
       })
       .catch(error => console.error('Error fetching orders:', error));

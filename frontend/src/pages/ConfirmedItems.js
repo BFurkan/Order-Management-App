@@ -11,13 +11,8 @@ import {
   Paper, 
   TextField, 
   Button, 
-  Accordion, 
-  AccordionSummary, 
-  AccordionDetails,
-  Box,
-  Chip
+  Box
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
 import ColumnSelector from '../components/ColumnSelector';
 
@@ -25,7 +20,6 @@ function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState(""); // State for search input
   const [filteredItems, setFilteredItems] = useState([]);
-  const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [itemComments, setItemComments] = useState({});
   
@@ -108,13 +102,6 @@ function ConfirmedItems() {
       (item.ordered_by && item.ordered_by.toLowerCase().includes(value))
     );
     setFilteredItems(filtered);
-  };
-
-  const handleAccordionChange = (orderId) => (event, isExpanded) => {
-    setExpandedOrders(prev => ({
-      ...prev,
-      [orderId]: isExpanded
-    }));
   };
 
   const handleColumnToggle = (column) => {
