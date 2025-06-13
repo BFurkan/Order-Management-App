@@ -227,12 +227,35 @@ app.post('/update-order-id', async (req, res) => {
 app.get('/confirmed-items', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.ordered_by
+      SELECT o.id, p.name AS product_name, o.confirmed_quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.ordered_by, o.serial_numbers
       FROM orders o
       JOIN products p ON o.product_id = p.id
       WHERE o.confirmed_quantity > 0
     `);
-    res.json(rows);
+    
+    // Expand each confirmed item to show individual serial numbers
+    const expandedItems = [];
+    rows.forEach(row => {
+      const serialNumbers = row.serial_numbers ? JSON.parse(row.serial_numbers) : [];
+      
+      // Create one entry for each confirmed item with its serial number
+      for (let i = 0; i < row.confirmed_quantity; i++) {
+        expandedItems.push({
+          id: `${row.id}-${i}`, // Unique ID for each individual item
+          original_id: row.id,
+          product_name: row.product_name,
+          quantity: 1, // Each individual item has quantity 1
+          order_date: row.order_date,
+          confirm_date: row.confirm_date,
+          order_id: row.order_id,
+          comment: row.comment,
+          ordered_by: row.ordered_by,
+          serial_number: serialNumbers[i] || 'N/A' // Get the specific serial number
+        });
+      }
+    });
+    
+    res.json(expandedItems);
   } catch (err) {
     console.error('Error fetching confirmed items:', err.message);
     res.status(500).send('Error fetching confirmed items');

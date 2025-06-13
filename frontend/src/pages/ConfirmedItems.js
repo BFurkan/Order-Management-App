@@ -32,6 +32,7 @@ function ConfirmedItems() {
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
     quantity: true,
+    serialNumber: true,
     orderDate: true,
     confirmDate: true,
     orderedBy: true,
@@ -41,6 +42,7 @@ function ConfirmedItems() {
   const columnLabels = {
     productName: 'Product Name',
     quantity: 'Quantity',
+    serialNumber: 'Serial Number',
     orderDate: 'Order Date',
     confirmDate: 'Confirm Date',
     orderedBy: 'Ordered By',
@@ -177,6 +179,7 @@ function ConfirmedItems() {
                   <TableRow>
                     {visibleColumns.productName && <TableCell>Product Name</TableCell>}
                     {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
+                    {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
                     {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
                     {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
                     {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
@@ -188,6 +191,7 @@ function ConfirmedItems() {
                     <TableRow key={item.id}>
                       {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
                       {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
+                      {visibleColumns.serialNumber && <TableCell>{item.serial_number || 'N/A'}</TableCell>}
                       {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
                       {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
                       {visibleColumns.orderedBy && (

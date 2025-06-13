@@ -230,16 +230,6 @@ function OrderSummary() {
                       <Typography variant="h6">
                         Order ID: {orderId}
                       </Typography>
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditOrderId(orderId);
-                        }} 
-                        size="small"
-                        variant="outlined"
-                      >
-                        Edit
-                      </Button>
                     </Box>
                   )}
                 </Box>
@@ -298,6 +288,45 @@ function OrderSummary() {
               </Box>
             </AccordionSummary>
             <AccordionDetails>
+              {/* Edit Order ID Section */}
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f0f8ff', borderRadius: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    Order ID Management
+                  </Typography>
+                  {editingOrderId !== orderId ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleEditOrderId(orderId)}
+                    >
+                      Edit Order ID
+                    </Button>
+                  ) : null}
+                </Box>
+                {editingOrderId === orderId ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    <TextField
+                      size="small"
+                      value={newOrderId}
+                      onChange={(e) => setNewOrderId(e.target.value)}
+                      label="New Order ID"
+                      variant="outlined"
+                    />
+                    <Button size="small" variant="contained" onClick={handleSaveOrderId}>
+                      Save
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={handleCancelEdit}>
+                      Cancel
+                    </Button>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    Current Order ID: <strong>{orderId}</strong>
+                  </Typography>
+                )}
+              </Box>
+
               {/* Order Comment Section */}
               <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
