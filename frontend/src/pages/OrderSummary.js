@@ -321,8 +321,8 @@ function OrderSummary() {
                     </Button>
                   </Box>
                 ) : (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    Current Order ID: <strong>{orderId}</strong>
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: '#f8f9fa', borderRadius: 1, color: '#6c757d', fontStyle: 'italic' }}>
+                    Current Order ID: <strong style={{ color: '#495057' }}>{orderId}</strong>
                   </Typography>
                 )}
               </Box>

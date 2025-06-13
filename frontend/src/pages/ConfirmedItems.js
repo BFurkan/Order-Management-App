@@ -31,7 +31,7 @@ function ConfirmedItems() {
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
-    quantity: true,
+    quantity: false,
     serialNumber: true,
     orderDate: true,
     confirmDate: true,
@@ -162,17 +162,71 @@ function ConfirmedItems() {
               <Typography variant="h6">
                 Order ID: {orderId}
               </Typography>
-              {orderComments[orderId] && (
-                <Chip 
-                  label="Has Comment" 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                />
-              )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+                {(() => {
+                  const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                  groupedItems[orderId].forEach(item => {
+                    const productName = item.product_name.toLowerCase();
+                    // First check for accessories (to avoid misclassification)
+                    if (productName.includes('dock') || productName.includes('docking') ||
+                        productName.includes('charger') || productName.includes('adapter') ||
+                        productName.includes('cable') || productName.includes('mouse') ||
+                        productName.includes('keyboard') || productName.includes('headset') ||
+                        productName.includes('webcam') || productName.includes('speaker') ||
+                        productName.includes('hub') || productName.includes('stand') ||
+                        productName.includes('bag') || productName.includes('case')) {
+                      orderTotals.accessories += item.quantity;
+                    } else if (productName.includes('monitor') || productName.includes('display')) {
+                      orderTotals.monitors += item.quantity;
+                    } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                               productName.includes('thinkpad') || productName.includes('elitebook') || 
+                               productName.includes('macbook') || productName.includes('surface') ||
+                               productName.includes('k14') || productName.includes('lenovo') ||
+                               productName.includes('ideapad') || productName.includes('yoga') ||
+                               productName.includes('inspiron') || productName.includes('latitude') ||
+                               productName.includes('pavilion') || productName.includes('probook') ||
+                               productName.includes('toughbook') || productName.includes('fz55')) {
+                      orderTotals.notebooks += item.quantity;
+                    } else {
+                      orderTotals.accessories += item.quantity;
+                    }
+                  });
+                  return (
+                    <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                      {orderTotals.monitors > 0 && (
+                        <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                          Monitors: {orderTotals.monitors}
+                        </Typography>
+                      )}
+                      {orderTotals.notebooks > 0 && (
+                        <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                          Notebooks: {orderTotals.notebooks}
+                        </Typography>
+                      )}
+                      {orderTotals.accessories > 0 && (
+                        <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                          Accessories: {orderTotals.accessories}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })()}
+              </Box>
             </Box>
           </AccordionSummary>
           <AccordionDetails>
+            {/* Order Comment Section */}
+            {orderComments[orderId] && (
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 1 }}>
+                  Order Comment
+                </Typography>
+                <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                  {orderComments[orderId]}
+                </Typography>
+              </Box>
+            )}
+
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
