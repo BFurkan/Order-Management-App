@@ -299,37 +299,55 @@ function ProductList() {
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Add New Product</DialogTitle>
         <DialogContent>
-          <TextField
-            label="Product Name"
-            name="name"
-            fullWidth
-            value={newProduct.name}
-            onChange={handleInputChange}
-            margin="dense"
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Category</InputLabel>
-            <Select
-              name="category"
-              value={newProduct.category}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              name="name"
+              label="Product Name"
+              value={newProduct.name}
               onChange={handleInputChange}
-              label="Category"
-            >
-              {categories.map(cat => (
-                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ marginTop: 16 }}
-          />
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select
+                name="category"
+                value={newProduct.category}
+                onChange={handleInputChange}
+                label="Category"
+              >
+                {categories.map(cat => (
+                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2">Product Image</Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<ShoppingCartIcon />}
+              >
+                Add Image (JPG, JPEG, PNG)
+                <input
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                />
+              </Button>
+              {newProduct.image && (
+                <Typography variant="caption" color="textSecondary">
+                  Selected file: {newProduct.image.name}
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleFormSubmit} variant="contained">Add</Button>
+          <Button onClick={handleFormSubmit} variant="contained" color="primary">
+            Add Product
+          </Button>
         </DialogActions>
       </Dialog>
     </div>
