@@ -25,7 +25,6 @@ import {
 import { 
   FileDownload as ExportIcon,
   ViewColumn as ColumnsIcon,
-  FilterList as FilterIcon,
   Search as SearchIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
@@ -47,7 +46,6 @@ function ConfirmedItems() {
   // Enhanced table features
   const [sortBy, setSortBy] = useState('confirmDate');
   const [sortDirection, setSortDirection] = useState('desc');
-  const [filterText, setFilterText] = useState('');
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   
   // Column visibility state
@@ -241,17 +239,7 @@ function ConfirmedItems() {
     });
   };
 
-  const filterData = (data) => {
-    if (!filterText) return data;
-    
-    return data.filter(item => 
-      item.product_name.toLowerCase().includes(filterText.toLowerCase()) ||
-      getDisplayName(item.ordered_by).toLowerCase().includes(filterText.toLowerCase()) ||
-      item.quantity.toString().includes(filterText) ||
-      (item.serial_number || '').toLowerCase().includes(filterText.toLowerCase()) ||
-      (orderComments[item.order_id] || '').toLowerCase().includes(filterText.toLowerCase())
-    );
-  };
+
 
   // Grouping confirmed items by order_id
   const groupedItems = filteredItems.reduce((acc, item) => {
@@ -323,21 +311,31 @@ function ConfirmedItems() {
               Search
             </Button>
             
-            <Button
-              variant="contained"
+            <IconButton
               color="secondary"
               onClick={handleExportAll}
-              startIcon={<ExportIcon />}
               disabled={filteredItems.length === 0}
+              title="Export All Results"
+              sx={{ 
+                backgroundColor: 'secondary.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'secondary.dark',
+                },
+                '&.Mui-disabled': {
+                  backgroundColor: 'grey.300',
+                  color: 'grey.500',
+                }
+              }}
             >
-              Export All Results ({filteredItems.length} items)
-            </Button>
+              <ExportIcon />
+            </IconButton>
           </Box>
         </Paper>
 
         {/* Display items grouped by order_id */}
         {Object.keys(groupedItems).map(orderId => {
-          const processedItems = sortData(filterData(groupedItems[orderId]));
+          const processedItems = sortData(groupedItems[orderId]);
           
           return (
             <Accordion 
@@ -424,17 +422,8 @@ function ConfirmedItems() {
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Enhanced Table Toolbar */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <TextField
-                    size="small"
-                    placeholder="Filter items in this order..."
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                    InputProps={{
-                      startAdornment: <FilterIcon sx={{ mr: 1, color: 'action.active' }} />
-                    }}
-                  />
+                {/* Table Toolbar - Column Controls Only */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <IconButton 
                       size="small" 
@@ -443,13 +432,13 @@ function ConfirmedItems() {
                     >
                       <ColumnsIcon />
                     </IconButton>
-                                          <IconButton 
-                        size="small" 
-                        onClick={() => handleExport(orderId)}
-                        title="Export this Order"
-                      >
-                        <ExportIcon />
-                      </IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleExport(orderId)}
+                      title="Export this Order"
+                    >
+                      <ExportIcon />
+                    </IconButton>
                   </Box>
                 </Box>
 
@@ -460,6 +449,7 @@ function ConfirmedItems() {
                     borderRadius: 2,
                     '& .MuiTable-root': {
                       minWidth: 650,
+                      tableLayout: 'auto',
                     }
                   }}
                 >
@@ -472,10 +462,22 @@ function ConfirmedItems() {
                       fontSize: '0.875rem',
                       color: theme.palette.text.primary,
                       borderBottom: `2px solid ${theme.palette.divider}`,
+                      position: 'relative',
+                      resize: 'horizontal',
+                      overflow: 'auto',
+                      borderRight: `1px solid ${theme.palette.divider}`,
+                      '&:hover': {
+                        cursor: 'col-resize',
+                      }
                     },
                     '& .MuiTableCell-body': {
                       fontSize: '0.875rem',
                       padding: '12px 16px',
+                      borderRight: `1px solid ${theme.palette.divider}`,
+                      maxWidth: 'none',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     },
                     '& .MuiTableRow-root:hover': {
                       backgroundColor: theme.palette.action.hover,
@@ -484,7 +486,7 @@ function ConfirmedItems() {
                     <TableHead>
                       <TableRow>
                         {visibleColumns.productName && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 200, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'productName'}
                               direction={sortBy === 'productName' ? sortDirection : 'asc'}
@@ -495,7 +497,7 @@ function ConfirmedItems() {
                           </TableCell>
                         )}
                         {visibleColumns.quantity && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 80, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'quantity'}
                               direction={sortBy === 'quantity' ? sortDirection : 'asc'}
@@ -506,7 +508,7 @@ function ConfirmedItems() {
                           </TableCell>
                         )}
                         {visibleColumns.serialNumber && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'serialNumber'}
                               direction={sortBy === 'serialNumber' ? sortDirection : 'asc'}
@@ -517,7 +519,7 @@ function ConfirmedItems() {
                           </TableCell>
                         )}
                         {visibleColumns.orderDate && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'orderDate'}
                               direction={sortBy === 'orderDate' ? sortDirection : 'asc'}
@@ -528,7 +530,7 @@ function ConfirmedItems() {
                           </TableCell>
                         )}
                         {visibleColumns.confirmDate && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'confirmDate'}
                               direction={sortBy === 'confirmDate' ? sortDirection : 'asc'}
@@ -539,7 +541,7 @@ function ConfirmedItems() {
                           </TableCell>
                         )}
                         {visibleColumns.orderedBy && (
-                          <TableCell>
+                          <TableCell sx={{ minWidth: 120, width: 'auto' }}>
                             <TableSortLabel
                               active={sortBy === 'orderedBy'}
                               direction={sortBy === 'orderedBy' ? sortDirection : 'asc'}
@@ -549,58 +551,57 @@ function ConfirmedItems() {
                             </TableSortLabel>
                           </TableCell>
                         )}
-                        {visibleColumns.comment && <TableCell>Comment</TableCell>}
+                        {visibleColumns.comment && <TableCell sx={{ minWidth: 200, width: 'auto' }}>Comment</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {processedItems.map((item) => (
                         <TableRow key={item.id} hover>
                           {visibleColumns.productName && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 200, width: 'auto' }}>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                 {item.product_name || 'N/A'}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.quantity && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 80, width: 'auto' }}>
                               <Typography variant="body2">
                                 {item.quantity || 0}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.serialNumber && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                               <Typography variant="body2">
                                 {item.serial_number || 'N/A'}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.orderDate && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                               <Typography variant="body2">
                                 {format(new Date(item.order_date), 'MMM dd, yyyy HH:mm')}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.confirmDate && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 150, width: 'auto' }}>
                               <Typography variant="body2">
                                 {format(new Date(item.confirm_date), 'MMM dd, yyyy HH:mm')}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.orderedBy && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 120, width: 'auto' }}>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                 {getDisplayName(item.ordered_by)}
                               </Typography>
                             </TableCell>
                           )}
                           {visibleColumns.comment && (
-                            <TableCell>
+                            <TableCell sx={{ minWidth: 200, width: 'auto' }}>
                               <Typography variant="body2" sx={{ 
-                                maxWidth: 200, 
                                 overflow: 'hidden', 
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap'
