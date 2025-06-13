@@ -159,10 +159,11 @@ function ConfirmedItems() {
             sx={{ backgroundColor: '#f5f5f5' }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-              <Typography variant="h6">
-                Order ID: {orderId}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h6">
+                  Order ID: {orderId}
+                </Typography>
+                {/* Category totals beside Order ID */}
                 {(() => {
                   const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
                   groupedItems[orderId].forEach(item => {
@@ -211,6 +212,12 @@ function ConfirmedItems() {
                     </Box>
                   );
                 })()}
+              </Box>
+              {/* Order date on the right side */}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
+                  {groupedItems[orderId].length > 0 && format(new Date(groupedItems[orderId][0].order_date), 'MMM dd, yyyy')}
+                </Typography>
               </Box>
             </Box>
           </AccordionSummary>
