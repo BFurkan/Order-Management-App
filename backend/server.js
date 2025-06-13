@@ -14,7 +14,7 @@ const port = process.env.PORT || 3004;
 
 // MySQL connection pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || '10.167.49.200',
+  host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'asset',
   password: process.env.DB_PASSWORD || 'AssetJito2024$',
   database: process.env.DB_NAME || 'order_tracking',
