@@ -97,17 +97,17 @@ function OrderDetails() {
         
         // Extract comments from orders
         const orderComments = {};
-        const productComments = {};
+        const productCommentsData = {};
         data.forEach(order => {
           if (order.comment) {
             orderComments[order.order_id] = order.comment;
           }
           if (order.item_comment) {
-            productComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
+            productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
           }
         });
         setOrderComments(orderComments);
-        setProductComments(productComments);
+        setProductComments(productCommentsData);
         
       })
       .catch(error => console.error('Error fetching orders:', error));
