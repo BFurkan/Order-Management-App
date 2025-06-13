@@ -121,18 +121,24 @@ app.post('/orders', async (req, res) => {
       return res.status(400).send('Missing required fields');
     }
 
+    // Parse the datetime string to a Date object
+    const parsedOrderDate = new Date(order_date);
+    if (isNaN(parsedOrderDate.getTime())) {
+      return res.status(400).send('Invalid date format');
+    }
+
     let newOrderId = order_id;
     if (!newOrderId) {
       const [result] = await pool.query(
         'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, NULL, ?)',
-        [product_id, quantity, order_date, ordered_by]
+        [product_id, quantity, parsedOrderDate, ordered_by]
       );
       newOrderId = result.insertId;
       await pool.query('UPDATE orders SET order_id = ? WHERE id = ?', [newOrderId, newOrderId]);
     } else {
       await pool.query(
         'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-        [product_id, quantity, order_date, newOrderId, ordered_by]
+        [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
       );
     }
 
