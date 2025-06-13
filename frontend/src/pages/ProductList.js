@@ -32,7 +32,7 @@ function ProductList() {
   const [products, setProducts] = useState([]);
   const [order, setOrder] = useState({});
   const [open, setOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+
   const [orderedByOpen, setOrderedByOpen] = useState(false);
   const [orderedBy, setOrderedBy] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -53,7 +53,7 @@ function ProductList() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3007/products')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/products`)
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(err => console.error('Error fetching products:', err));
@@ -89,7 +89,7 @@ function ProductList() {
 
     setEmailError(''); // Clear any previous errors
 
-    fetch('http://10.167.49.200:3007/latest-order-id')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/latest-order-id`)
       .then(res => res.json())
       .then(data => {
         const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
@@ -106,7 +106,7 @@ function ProductList() {
         }));
 
         return Promise.all(currentOrder.map(o =>
-          fetch('http://10.167.49.200:3007/orders', {
+          fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(o),
@@ -139,7 +139,7 @@ function ProductList() {
     formData.append('category', newProduct.category);
     formData.append('image', newProduct.image);
 
-    fetch('http://10.167.49.200:3007/products', {
+          fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/products`, {
       method: 'POST',
       body: formData,
     })
@@ -161,8 +161,6 @@ function ProductList() {
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const handleConfirmOpen = () => setConfirmOpen(true);
-  const handleConfirmClose = () => setConfirmOpen(false);
   const handleOrderedByOpen = () => setOrderedByOpen(true);
   const handleOrderedByClose = () => setOrderedByOpen(false);
 
@@ -217,7 +215,7 @@ function ProductList() {
                 {visibleColumns.image && (
                   <TableCell>
                     <img
-                      src={`http://10.167.49.200:3007${product.image}`}
+                      src={`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}${product.image}`}
                       alt={product.name}
                       style={{ width: 80, height: 80, objectFit: 'cover' }}
                     />
@@ -301,37 +299,55 @@ function ProductList() {
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Add New Product</DialogTitle>
         <DialogContent>
-          <TextField
-            label="Product Name"
-            name="name"
-            fullWidth
-            value={newProduct.name}
-            onChange={handleInputChange}
-            margin="dense"
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Category</InputLabel>
-            <Select
-              name="category"
-              value={newProduct.category}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              name="name"
+              label="Product Name"
+              value={newProduct.name}
               onChange={handleInputChange}
-              label="Category"
-            >
-              {categories.map(cat => (
-                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ marginTop: 16 }}
-          />
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select
+                name="category"
+                value={newProduct.category}
+                onChange={handleInputChange}
+                label="Category"
+              >
+                {categories.map(cat => (
+                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2">Product Image</Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<ShoppingCartIcon />}
+              >
+                Choose Image (JPG, JPEG, PNG)
+                <input
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                />
+              </Button>
+              {newProduct.image && (
+                <Typography variant="caption" color="textSecondary">
+                  Selected file: {newProduct.image.name}
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleFormSubmit} variant="contained">Add</Button>
+          <Button onClick={handleFormSubmit} variant="contained" color="primary">
+            Add Product
+          </Button>
         </DialogActions>
       </Dialog>
     </div>

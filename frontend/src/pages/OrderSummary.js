@@ -45,7 +45,7 @@ function OrderSummary() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/orders');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/orders`);
       const data = await response.json();
       
       // Group orders by order_id
@@ -87,7 +87,7 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-order-id`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/update-order-comment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ function OrderSummary() {
                       <TableRow key={order.id}>
                         {visibleColumns.productImage && (
                           <TableCell>
-                            <img src={`http://10.167.49.200:3007${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
+                            <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
                           </TableCell>
                         )}
                         {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}

@@ -27,24 +27,29 @@ function ConfirmedItems() {
   const [filteredItems, setFilteredItems] = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
+  const [itemComments, setItemComments] = useState({});
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
+    serialNumber: true,
     quantity: true,
     orderDate: true,
     confirmDate: true,
     orderedBy: true,
-    comment: true
+    comment: true,
+    itemComment: true
   });
 
   const columnLabels = {
     productName: 'Product Name',
+    serialNumber: 'Serial Number',
     quantity: 'Quantity',
     orderDate: 'Order Date',
     confirmDate: 'Confirm Date',
     orderedBy: 'Ordered By',
-    comment: 'Comment'
+    comment: 'Order Comment',
+    itemComment: 'Item Comment'
   };
 
   // Function to extract username from email (part before @)
@@ -55,13 +60,13 @@ function ConfirmedItems() {
 
   useEffect(() => {
     // Fetch the confirmed items from the backend
-    fetch('http://10.167.49.200:3007/confirmed-items')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/confirmed-items`)
       .then(response => response.json())
       .then(data => {
         setConfirmedItems(data);
         setFilteredItems(data); // Initialize filtered items with all items
         
-        // Extract comments from confirmed items
+        // Extract order-level comments from confirmed items
         const comments = {};
         data.forEach(item => {
           if (item.comment) {
@@ -69,6 +74,23 @@ function ConfirmedItems() {
           }
         });
         setOrderComments(comments);
+
+        // Extract item-level comments from confirmed items
+        const itemComments = {};
+        data.forEach(item => {
+          if (item.item_comment) {
+            try {
+              const parsedComments = JSON.parse(item.item_comment);
+              Object.keys(parsedComments).forEach(itemIndex => {
+                itemComments[`${item.order_id}-${item.product_id}-${itemIndex}`] = parsedComments[itemIndex];
+              });
+            } catch (e) {
+              // Handle old format (single string comment)
+              itemComments[`${item.order_id}-${item.product_id}-0`] = item.item_comment;
+            }
+          }
+        });
+        setItemComments(itemComments);
       })
       .catch(error => console.error('Error fetching confirmed items:', error));
   }, []);
@@ -160,33 +182,60 @@ function ConfirmedItems() {
               <Typography variant="h6">
                 Order ID: {orderId}
               </Typography>
-              {orderComments[orderId] && (
-                <Chip 
-                  label="Has Comment" 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                />
-              )}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {orderComments[orderId] && (
+                  <Chip 
+                    label="Has Order Comment" 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                )}
+                {groupedItems[orderId].some(item => 
+                  Object.keys(itemComments).some(key => key.startsWith(`${orderId}-${item.product_id}-`))
+                ) && (
+                  <Chip 
+                    label="Has Item Comments" 
+                    size="small" 
+                    color="secondary" 
+                    variant="outlined"
+                  />
+                )}
+              </Box>
             </Box>
           </AccordionSummary>
           <AccordionDetails>
             <TableContainer component={Paper}>
               <Table>
-                <TableHead>
-                  <TableRow>
-                    {visibleColumns.productName && <TableCell>Product Name</TableCell>}
-                    {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
-                    {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                    {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
-                    {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                    {visibleColumns.comment && <TableCell>Comment</TableCell>}
-                  </TableRow>
-                </TableHead>
+                                  <TableHead>
+                    <TableRow>
+                      {visibleColumns.productName && <TableCell>Product Name</TableCell>}
+                      {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
+                      {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
+                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
+                      {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
+                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
+                      {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
+                      {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
+                    </TableRow>
+                  </TableHead>
                 <TableBody>
                   {groupedItems[orderId].map((item) => (
                     <TableRow key={item.id}>
                       {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
+                      {visibleColumns.serialNumber && (
+                        <TableCell>
+                          {item.serial_numbers ? (
+                            <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {JSON.parse(item.serial_numbers).join(', ')}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="textSecondary">
+                              No serial numbers
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
                       {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
                       {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
                       {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
@@ -205,9 +254,32 @@ function ConfirmedItems() {
                             </Typography>
                           ) : (
                             <Typography variant="body2" color="textSecondary">
-                              No comment
+                              No order comment
                             </Typography>
                           )}
+                        </TableCell>
+                      )}
+                      {visibleColumns.itemComment && (
+                        <TableCell>
+                          {(() => {
+                            // Get all item comments for this item
+                            const itemCommentsForThisItem = Object.keys(itemComments)
+                              .filter(key => key.startsWith(`${orderId}-${item.product_id}-`))
+                              .map(key => {
+                                const itemIndex = key.split('-')[2];
+                                return `Item ${parseInt(itemIndex) + 1}: ${itemComments[key]}`;
+                              });
+                            
+                            return itemCommentsForThisItem.length > 0 ? (
+                              <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {itemCommentsForThisItem.join('; ')}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" color="textSecondary">
+                                No item comments
+                              </Typography>
+                            );
+                          })()}
                         </TableCell>
                       )}
                     </TableRow>

@@ -15,10 +15,10 @@ const port = process.env.PORT || 3007;
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'asset',
-  password: process.env.DB_PASSWORD || 'AssetJito2024$',
-  database: process.env.DB_NAME || 'order_tracking',
-  port: 3306,
+  user: process.env.DB_USER || 'your_username',
+  password: process.env.DB_PASSWORD || 'your_password',
+  database: process.env.DB_NAME || 'inventory_system',
+  port: process.env.DB_PORT || 3306,
   connectionLimit: 10,
   queueLimit: 0,
 });
@@ -146,7 +146,7 @@ app.post('/orders', async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.ordered_by, p.name AS product_name, p.image
+      SELECT o.id, o.product_id, o.quantity, o.order_date, o.confirmed_quantity, o.order_id, o.comment, o.item_comment, o.ordered_by, o.confirmed_items, o.serial_numbers, p.name AS product_name, p.image
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
@@ -159,38 +159,45 @@ app.get('/orders', async (req, res) => {
 
 app.post('/confirm', async (req, res) => {
   try {
-    const { order_id, product_id, serialNumber } = req.body;
-    const confirmQuantity = 1;
+    const { order_id, product_id, serialNumber, itemIndex } = req.body;
 
     const [rows] = await pool.query(
-      'SELECT quantity, confirmed_quantity, serial_numbers FROM orders WHERE order_id = ? AND product_id = ?',
+      'SELECT quantity, confirmed_quantity, serial_numbers, confirmed_items FROM orders WHERE order_id = ? AND product_id = ?',
       [order_id, product_id]
     );
 
     if (rows.length === 0) return res.status(404).send('Order not found');
 
-    const currentQuantity = rows[0].quantity;
-    const currentConfirmedQuantity = rows[0].confirmed_quantity;
+    // Get existing serial numbers and confirmed items
+    const existingSerialNumbers = rows[0].serial_numbers
+      ? JSON.parse(rows[0].serial_numbers)
+      : {};
+    
+    const existingConfirmedItems = rows[0].confirmed_items
+      ? JSON.parse(rows[0].confirmed_items)
+      : {};
 
-    if (currentQuantity <= 0) {
-      return res.status(400).send('Cannot confirm more than available quantity');
+    // Check if this specific item is already confirmed
+    if (existingConfirmedItems[itemIndex]) {
+      return res.status(400).send('This item has already been confirmed');
     }
 
-    const newConfirmedQuantity = currentConfirmedQuantity + confirmQuantity;
-    const newTotalQuantity = currentQuantity - confirmQuantity;
-    const updatedSerialNumbers = rows[0].serial_numbers
-      ? JSON.parse(rows[0].serial_numbers)
-      : [];
+    // Add the serial number for this specific item index
+    existingSerialNumbers[itemIndex] = serialNumber;
+    
+    // Mark this specific item as confirmed
+    existingConfirmedItems[itemIndex] = true;
 
-    updatedSerialNumbers.push(serialNumber);
+    // Count total confirmed items
+    const totalConfirmedItems = Object.keys(existingConfirmedItems).length;
 
     await pool.query(
-      'UPDATE orders SET confirmed_quantity = ?, quantity = ?, confirm_date = ?, serial_numbers = ? WHERE order_id = ? AND product_id = ?',
+      'UPDATE orders SET confirmed_quantity = ?, confirm_date = ?, serial_numbers = ?, confirmed_items = ? WHERE order_id = ? AND product_id = ?',
       [
-        newConfirmedQuantity,
-        newTotalQuantity,
+        totalConfirmedItems,
         new Date(),
-        JSON.stringify(updatedSerialNumbers),
+        JSON.stringify(existingSerialNumbers),
+        JSON.stringify(existingConfirmedItems),
         order_id,
         product_id,
       ]
@@ -221,7 +228,7 @@ app.post('/update-order-id', async (req, res) => {
 app.get('/confirmed-items', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT o.id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.ordered_by
+      SELECT o.id, o.product_id, p.name AS product_name, o.confirmed_quantity AS quantity, o.order_date, o.confirm_date, o.order_id, o.comment, o.item_comment, o.ordered_by, o.serial_numbers
       FROM orders o
       JOIN products p ON o.product_id = p.id
       WHERE o.confirmed_quantity > 0
@@ -254,6 +261,62 @@ app.post('/update-order-comment', async (req, res) => {
   } catch (err) {
     console.error('Error updating comment:', err.message);
     res.status(500).send('Error updating comment');
+  }
+});
+
+// Add new endpoint for item-level comments with item index support
+app.post('/update-item-comment', async (req, res) => {
+  try {
+    const { orderId, productId, itemIndex, comment } = req.body;
+    
+    if (!orderId || !productId || itemIndex === undefined) {
+      return res.status(400).json({ message: 'Order ID, Product ID, and Item Index are required' });
+    }
+
+    // Get existing item comments
+    const [rows] = await pool.query(
+      'SELECT item_comment FROM orders WHERE order_id = ? AND product_id = ?',
+      [orderId, productId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Order item not found' });
+    }
+
+    // Parse existing item comments (JSON object with itemIndex as key)
+    let itemComments = {};
+    if (rows[0].item_comment) {
+      try {
+        itemComments = JSON.parse(rows[0].item_comment);
+      } catch (e) {
+        // If it's an old format (string), convert to object
+        itemComments = { "0": rows[0].item_comment };
+      }
+    }
+
+    // Update the comment for the specific item index
+    if (comment && comment.trim()) {
+      itemComments[itemIndex] = comment.trim();
+    } else {
+      delete itemComments[itemIndex];
+    }
+
+    // Store back as JSON string
+    const updatedItemComment = Object.keys(itemComments).length > 0 ? JSON.stringify(itemComments) : null;
+
+    const [result] = await pool.query(
+      'UPDATE orders SET item_comment = ? WHERE order_id = ? AND product_id = ?',
+      [updatedItemComment, orderId, productId]
+    );
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Item comment updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Order item not found' });
+    }
+  } catch (err) {
+    console.error('Error updating item comment:', err.message);
+    res.status(500).send('Error updating item comment');
   }
 });
 

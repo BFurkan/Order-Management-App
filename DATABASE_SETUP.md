@@ -6,13 +6,14 @@
 
 ## Database Migration Required
 
-Before running the application, you need to add `comment` and `ordered_by` columns to the `orders` table.
+Before running the application, you need to add `comment`, `item_comment`, and `ordered_by` columns to the `orders` table.
 
 ### Option 1: Automatic Migration (Recommended)
-Run the dynamic SQL script:
+Run the dynamic SQL scripts:
 ```sql
 -- Connect to your MySQL database and run:
 source backend/add_comment_column.sql;
+source backend/add_item_comment_column.sql;
 ```
 
 ### Option 2: Manual Migration
@@ -20,6 +21,7 @@ If the automatic script doesn't work, run these commands:
 ```sql
 -- Connect to your MySQL database and run:
 ALTER TABLE orders ADD COLUMN comment TEXT NULL;
+ALTER TABLE orders ADD COLUMN item_comment TEXT NULL;
 ALTER TABLE orders ADD COLUMN ordered_by VARCHAR(255) NULL;
 ```
 
@@ -30,7 +32,8 @@ DESCRIBE orders;
 ```
 
 You should see:
-- A `comment` column of type `TEXT` that allows `NULL` values
+- A `comment` column of type `TEXT` that allows `NULL` values (for order-level comments)
+- An `item_comment` column of type `TEXT` that allows `NULL` values (for item-level comments)
 - An `ordered_by` column of type `VARCHAR(255)` that allows `NULL` values
 
 ## Running the Application
@@ -40,7 +43,7 @@ You should see:
 cd backend
 npm start
 ```
-The server will run on `http://10.167.49.200:3007`
+The server will run on `http://localhost:3007`
 
 ### Frontend (Port 3008)
 ```bash
@@ -51,10 +54,12 @@ The React app will run on `http://localhost:3008`
 
 ## New Features Added
 
-### 1. Comment System
-- Add/edit comments for orders in Order Summary page
-- View comments in Order Details and Confirmed Items pages
-- Visual indicators for orders with comments
+### 1. Dual Comment System
+- **Order-level comments**: Add/edit comments for entire orders
+- **Item-level comments**: Add/edit comments for individual items within orders
+- View both types of comments in Order Details and Confirmed Items pages
+- Visual indicators for orders with order comments and/or item comments
+- Separate dialog boxes for each comment type with clear labeling
 
 ### 2. Modern Column Selection
 - **NEW**: Replaced old checkbox layout with modern button + popup
