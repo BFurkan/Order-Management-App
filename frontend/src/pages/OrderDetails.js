@@ -325,24 +325,6 @@ function OrderDetails() {
                   Order ID: {order_id}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {orderComments[order_id] && (
-                    <Chip 
-                      label="Has Order Comment" 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
-                    />
-                  )}
-                  {groupedOrders[order_id].some(order => 
-                    productComments[`${order_id}-${order.product_id}`]
-                  ) && (
-                    <Chip 
-                      label="Has Product Comments" 
-                      size="small" 
-                      color="secondary" 
-                      variant="outlined"
-                    />
-                  )}
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
                     {(() => {
                       const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };

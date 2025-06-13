@@ -244,14 +244,43 @@ function OrderSummary() {
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {orderComments[orderId] && (
-                    <Chip 
-                      label="Has Comment" 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
-                    />
-                  )}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      filteredOrders.forEach(order => {
+                        // Determine category based on product name or use a mapping
+                        // Since we don't have direct access to product category here,
+                        // we'll need to make an assumption based on naming or add category info
+                        const productName = order.product_name.toLowerCase();
+                        if (productName.includes('monitor')) {
+                          orderTotals.monitors += order.quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop')) {
+                          orderTotals.notebooks += order.quantity;
+                        } else {
+                          orderTotals.accessories += order.quantity;
+                        }
+                      });
+                      return (
+                        <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                          {orderTotals.monitors > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Monitors: {orderTotals.monitors}
+                            </Typography>
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Notebooks: {orderTotals.notebooks}
+                            </Typography>
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Accessories: {orderTotals.accessories}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
                   <Button
                     size="small"
                     variant="outlined"
