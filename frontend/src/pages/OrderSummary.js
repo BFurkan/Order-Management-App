@@ -230,60 +230,63 @@ function OrderSummary() {
                       <Typography variant="h6">
                         Order ID: {orderId}
                       </Typography>
+                      {/* Category totals beside Order ID */}
+                      {(() => {
+                        const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                        filteredOrders.forEach(order => {
+                          const productName = order.product_name.toLowerCase();
+                          // First check for accessories (to avoid misclassification)
+                          if (productName.includes('dock') || productName.includes('docking') ||
+                              productName.includes('charger') || productName.includes('adapter') ||
+                              productName.includes('cable') || productName.includes('mouse') ||
+                              productName.includes('keyboard') || productName.includes('headset') ||
+                              productName.includes('webcam') || productName.includes('speaker') ||
+                              productName.includes('hub') || productName.includes('stand') ||
+                              productName.includes('bag') || productName.includes('case')) {
+                            orderTotals.accessories += order.quantity;
+                          } else if (productName.includes('monitor') || productName.includes('display')) {
+                            orderTotals.monitors += order.quantity;
+                          } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                     productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                     productName.includes('macbook') || productName.includes('surface') ||
+                                     productName.includes('k14') || productName.includes('lenovo') ||
+                                     productName.includes('ideapad') || productName.includes('yoga') ||
+                                     productName.includes('inspiron') || productName.includes('latitude') ||
+                                     productName.includes('pavilion') || productName.includes('probook') ||
+                                     productName.includes('toughbook') || productName.includes('fz55')) {
+                            orderTotals.notebooks += order.quantity;
+                          } else {
+                            orderTotals.accessories += order.quantity;
+                          }
+                        });
+                        return (
+                          <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                            {orderTotals.monitors > 0 && (
+                              <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                                Monitors: {orderTotals.monitors}
+                              </Typography>
+                            )}
+                            {orderTotals.notebooks > 0 && (
+                              <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                                Notebooks: {orderTotals.notebooks}
+                              </Typography>
+                            )}
+                            {orderTotals.accessories > 0 && (
+                              <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                                Accessories: {orderTotals.accessories}
+                              </Typography>
+                            )}
+                          </Box>
+                        );
+                      })()}
                     </Box>
                   )}
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
-                    {(() => {
-                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                      filteredOrders.forEach(order => {
-                        const productName = order.product_name.toLowerCase();
-                        // First check for accessories (to avoid misclassification)
-                        if (productName.includes('dock') || productName.includes('docking') ||
-                            productName.includes('charger') || productName.includes('adapter') ||
-                            productName.includes('cable') || productName.includes('mouse') ||
-                            productName.includes('keyboard') || productName.includes('headset') ||
-                            productName.includes('webcam') || productName.includes('speaker') ||
-                            productName.includes('hub') || productName.includes('stand') ||
-                            productName.includes('bag') || productName.includes('case')) {
-                          orderTotals.accessories += order.quantity;
-                        } else if (productName.includes('monitor') || productName.includes('display')) {
-                          orderTotals.monitors += order.quantity;
-                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
-                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                   productName.includes('macbook') || productName.includes('surface') ||
-                                   productName.includes('k14') || productName.includes('lenovo') ||
-                                   productName.includes('ideapad') || productName.includes('yoga') ||
-                                   productName.includes('inspiron') || productName.includes('latitude') ||
-                                   productName.includes('pavilion') || productName.includes('probook') ||
-                                   productName.includes('toughbook') || productName.includes('fz55')) {
-                          orderTotals.notebooks += order.quantity;
-                        } else {
-                          orderTotals.accessories += order.quantity;
-                        }
-                      });
-                      return (
-                        <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
-                          {orderTotals.monitors > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Monitors: {orderTotals.monitors}
-                            </Typography>
-                          )}
-                          {orderTotals.notebooks > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Notebooks: {orderTotals.notebooks}
-                            </Typography>
-                          )}
-                          {orderTotals.accessories > 0 && (
-                            <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
-                              Accessories: {orderTotals.accessories}
-                            </Typography>
-                          )}
-                        </Box>
-                      );
-                    })()}
-                  </Box>
+                {/* Order date on the right side */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
+                    {filteredOrders.length > 0 && format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
+                  </Typography>
                 </Box>
               </Box>
             </AccordionSummary>
