@@ -141,13 +141,13 @@ function OrderDetails() {
        setOrderComments(comments);
 
        // Extract product-level comments from orders
-       const productComments = {};
+       const productCommentsData = {};
        data.forEach(order => {
          if (order.item_comment) {
-           productComments[`${order.order_id}-${order.product_id}`] = order.item_comment;
+           productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
          }
        });
-       setProductComments(productComments);
+       setProductComments(productCommentsData);
       })
       .catch(error => console.error('Error fetching orders:', error));
   }, []);
