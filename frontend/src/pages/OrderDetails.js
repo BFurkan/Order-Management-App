@@ -343,20 +343,71 @@ function OrderDetails() {
                       variant="outlined"
                     />
                   )}
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenCommentDialog(order_id);
-                    }}
-                  >
-                    {orderComments[order_id] ? 'Edit Order Comment' : 'Add Order Comment'}
-                  </Button>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      groupedOrders[order_id].forEach(order => {
+                        const product = products[order.product_id];
+                        if (product) {
+                          if (product.category === 'Monitors') {
+                            orderTotals.monitors += order.quantity;
+                          } else if (product.category === 'Notebooks') {
+                            orderTotals.notebooks += order.quantity;
+                          } else if (product.category === 'Accessories') {
+                            orderTotals.accessories += order.quantity;
+                          }
+                        }
+                      });
+                      return (
+                        <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
+                          {orderTotals.monitors > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Monitors: {orderTotals.monitors}
+                            </Typography>
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Notebooks: {orderTotals.notebooks}
+                            </Typography>
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
+                              Accessories: {orderTotals.accessories}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
                 </Box>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
+              {/* Order Comment Section */}
+              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    Order Comment
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleOpenCommentDialog(order_id)}
+                  >
+                    {orderComments[order_id] ? 'Edit Order Comment' : 'Add Order Comment'}
+                  </Button>
+                </Box>
+                {orderComments[order_id] ? (
+                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    {orderComments[order_id]}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                    No order comment added yet
+                  </Typography>
+                )}
+              </Box>
+
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
