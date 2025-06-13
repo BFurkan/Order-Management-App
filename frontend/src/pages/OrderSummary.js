@@ -1,8 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, Button, TextField, Accordion, AccordionSummary, AccordionDetails, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from '@mui/material';
+import { 
+  Box, 
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Container, 
+  Typography, 
+  Button, 
+  TextField, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Chip,
+  TableSortLabel,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider
+} from '@mui/material';
+import { 
+  FileDownload as ExportIcon,
+  ViewColumn as ColumnsIcon,
+  FilterList as FilterIcon
+} from '@mui/icons-material';
+import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
-import ColumnSelector from '../components/ColumnSelector';
+import theme from './theme';
 
 function OrderSummary() {
   const [groupedOrders, setGroupedOrders] = useState({});
@@ -13,6 +45,12 @@ function OrderSummary() {
   const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
   const [commentText, setCommentText] = useState('');
   const [orderComments, setOrderComments] = useState({});
+  
+  // Enhanced table features
+  const [sortBy, setSortBy] = useState('orderDate');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [filterText, setFilterText] = useState('');
+  const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -73,11 +111,83 @@ function OrderSummary() {
     }
   };
 
+  const handleSort = (column) => {
+    const isAsc = sortBy === column && sortDirection === 'asc';
+    setSortDirection(isAsc ? 'desc' : 'asc');
+    setSortBy(column);
+  };
+
   const handleColumnToggle = (column) => {
     setVisibleColumns(prev => ({
       ...prev,
       [column]: !prev[column]
     }));
+  };
+
+  const handleExport = (orderId) => {
+    const orders = groupedOrders[orderId] || [];
+    const filteredOrders = orders.filter(order => order.quantity > 0);
+    
+    const csvContent = [
+      ['Product Name', 'Ordered Quantity', 'Order Date', 'Ordered By', 'Comment'].join(','),
+      ...filteredOrders.map(order => [
+        `"${order.product_name}"`,
+        order.quantity,
+        `"${format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}"`,
+        `"${getDisplayName(order.ordered_by)}"`,
+        `"${orderComments[orderId] || 'No comment'}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `order-${orderId}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const sortData = (data) => {
+    return [...data].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'product':
+          aValue = a.product_name;
+          bValue = b.product_name;
+          break;
+        case 'orderedQuantity':
+          aValue = a.quantity;
+          bValue = b.quantity;
+          break;
+        case 'orderDate':
+          aValue = new Date(a.order_date);
+          bValue = new Date(b.order_date);
+          break;
+        case 'orderedBy':
+          aValue = getDisplayName(a.ordered_by);
+          bValue = getDisplayName(b.ordered_by);
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const filterData = (data) => {
+    if (!filterText) return data;
+    
+    return data.filter(order => 
+      order.product_name.toLowerCase().includes(filterText.toLowerCase()) ||
+      getDisplayName(order.ordered_by).toLowerCase().includes(filterText.toLowerCase()) ||
+      order.quantity.toString().includes(filterText) ||
+      (orderComments[order.order_id] || '').toLowerCase().includes(filterText.toLowerCase())
+    );
   };
 
   const handleEditOrderId = (orderId) => {
@@ -174,265 +284,293 @@ function OrderSummary() {
   };
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Order Summary
-      </Typography>
-      
-      {/* Column Selection */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <ColumnSelector
-          visibleColumns={visibleColumns}
-          onColumnToggle={handleColumnToggle}
-          columnLabels={columnLabels}
-        />
-      </Box>
+    <ThemeProvider theme={theme}>
+      <Container>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Order Summary
+        </Typography>
 
-      {Object.keys(groupedOrders).map(orderId => {
-        const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
+        {Object.keys(groupedOrders).map(orderId => {
+          const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
 
-        if (filteredOrders.length === 0) {
-          return null; // Don't render anything if all orders have a quantity of 0
-        }
+          if (filteredOrders.length === 0) {
+            return null; // Don't render anything if all orders have a quantity of 0
+          }
 
-        return (
-          <Accordion 
-            key={orderId} 
-            expanded={expandedOrders[orderId] || false}
-            onChange={handleAccordionChange(orderId)}
-            sx={{ marginBottom: 2 }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`panel-${orderId}-content`}
-              id={`panel-${orderId}-header`}
-              sx={{ backgroundColor: '#f5f5f5' }}
+          const processedOrders = sortData(filterData(filteredOrders));
+
+          return (
+            <Accordion 
+              key={orderId} 
+              expanded={expandedOrders[orderId] || false}
+              onChange={handleAccordionChange(orderId)}
+              sx={{ marginBottom: 2 }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  {editingOrderId === orderId ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TextField
-                        size="small"
-                        value={newOrderId}
-                        onChange={(e) => setNewOrderId(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleSaveOrderId(); }}>
-                        Save
-                      </Button>
-                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}>
-                        Cancel
-                      </Button>
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h6">
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`panel-${orderId}-content`}
+                id={`panel-${orderId}-header`}
+                sx={{ backgroundColor: '#f5f5f5' }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {editingOrderId === orderId ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                          value={newOrderId}
+                          onChange={(e) => setNewOrderId(e.target.value)}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Button size="small" onClick={handleSaveOrderId}>Save</Button>
+                        <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
+                      </Box>
+                    ) : (
+                      <Typography variant="h6" onClick={() => handleEditOrderId(orderId)} sx={{ cursor: 'pointer' }}>
                         Order ID: {orderId}
                       </Typography>
-                      {/* Category totals beside Order ID */}
-                      {(() => {
-                        const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                        filteredOrders.forEach(order => {
-                          const productName = order.product_name.toLowerCase();
-                          // First check for accessories (to avoid misclassification)
-                          if (productName.includes('dock') || productName.includes('docking') ||
-                              productName.includes('charger') || productName.includes('adapter') ||
-                              productName.includes('cable') || productName.includes('mouse') ||
-                              productName.includes('keyboard') || productName.includes('headset') ||
-                              productName.includes('webcam') || productName.includes('speaker') ||
-                              productName.includes('hub') || productName.includes('stand') ||
-                              productName.includes('bag') || productName.includes('case')) {
-                            orderTotals.accessories += order.quantity;
-                          } else if (productName.includes('monitor') || productName.includes('display')) {
-                            orderTotals.monitors += order.quantity;
-                          } else if (productName.includes('notebook') || productName.includes('laptop') || 
-                                     productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                     productName.includes('macbook') || productName.includes('surface') ||
-                                     productName.includes('k14') || productName.includes('lenovo') ||
-                                     productName.includes('ideapad') || productName.includes('yoga') ||
-                                     productName.includes('inspiron') || productName.includes('latitude') ||
-                                     productName.includes('pavilion') || productName.includes('probook') ||
-                                     productName.includes('toughbook') || productName.includes('fz55')) {
-                            orderTotals.notebooks += order.quantity;
-                          } else {
-                            orderTotals.accessories += order.quantity;
-                          }
-                        });
-                        return (
-                          <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
-                            {orderTotals.monitors > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Monitors: {orderTotals.monitors}
-                              </Typography>
-                            )}
-                            {orderTotals.notebooks > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Notebooks: {orderTotals.notebooks}
-                              </Typography>
-                            )}
-                            {orderTotals.accessories > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Accessories: {orderTotals.accessories}
-                              </Typography>
-                            )}
-                          </Box>
-                        );
-                      })()}
-                    </Box>
-                  )}
-                </Box>
-                {/* Order date on the right side */}
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
-                    {filteredOrders.length > 0 && format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
-                  </Typography>
-                </Box>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {/* Edit Order ID Section */}
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f0f8ff', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    Order ID Management
-                  </Typography>
-                  {editingOrderId !== orderId ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => handleEditOrderId(orderId)}
-                    >
-                      Edit Order ID
-                    </Button>
-                  ) : null}
-                </Box>
-                {editingOrderId === orderId ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    <TextField
-                      size="small"
-                      value={newOrderId}
-                      onChange={(e) => setNewOrderId(e.target.value)}
-                      label="New Order ID"
-                      variant="outlined"
-                    />
-                    <Button size="small" variant="contained" onClick={handleSaveOrderId}>
-                      Save
-                    </Button>
-                    <Button size="small" variant="outlined" onClick={handleCancelEdit}>
-                      Cancel
+                    )}
+                    
+                    {/* Category totals beside Order ID */}
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      filteredOrders.forEach(order => {
+                        const productName = order.product_name.toLowerCase();
+                        // First check for accessories (to avoid misclassification)
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
+                          orderTotals.monitors += order.quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
+                          orderTotals.notebooks += order.quantity;
+                        } else {
+                          orderTotals.accessories += order.quantity;
+                        }
+                      });
+                      return (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          {orderTotals.monitors > 0 && (
+                            <Chip
+                              label={`Monitors: ${orderTotals.monitors}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
+                            />
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Chip
+                              label={`Notebooks: ${orderTotals.notebooks}`}
+                              size="small"
+                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
+                            />
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Chip
+                              label={`Accessories: ${orderTotals.accessories}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
+                            />
+                          )}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                  
+                  {/* Order date on the right */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy HH:mm')}
+                    </Typography>
+                    <Button size="small" onClick={() => handleOpenCommentDialog(orderId)}>
+                      Edit Comment
                     </Button>
                   </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: '#f8f9fa', borderRadius: 1, color: '#6c757d', fontStyle: 'italic' }}>
-                    Current Order ID: <strong style={{ color: '#495057' }}>{orderId}</strong>
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Order Comment Section */}
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    Order Comment
-                  </Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleOpenCommentDialog(orderId)}
-                  >
-                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
-                  </Button>
                 </Box>
-                {orderComments[orderId] ? (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    {orderComments[orderId]}
-                  </Typography>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                    No order comment added yet
-                  </Typography>
-                )}
-              </Box>
+              </AccordionSummary>
+              
+              <AccordionDetails>
+                {/* Enhanced Table Toolbar */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Filter items..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    InputProps={{
+                      startAdornment: <FilterIcon sx={{ mr: 1, color: 'action.active' }} />
+                    }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => setColumnsMenuAnchor(e.currentTarget)}
+                      title="Column Visibility"
+                    >
+                      <ColumnsIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleExport(orderId)}
+                      title="Export to CSV"
+                    >
+                      <ExportIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
 
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      {visibleColumns.productImage && <TableCell>Product Image</TableCell>}
-                      {visibleColumns.product && <TableCell>Product</TableCell>}
-                      {visibleColumns.orderedQuantity && <TableCell>Ordered Quantity</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                      {visibleColumns.comment && <TableCell>Comment</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        {visibleColumns.productImage && (
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        {visibleColumns.productImage && <TableCell>Product Image</TableCell>}
+                        {visibleColumns.product && (
                           <TableCell>
-                            <img src={`http://10.167.49.200:3007${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
+                            <TableSortLabel
+                              active={sortBy === 'product'}
+                              direction={sortBy === 'product' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('product')}
+                            >
+                              Product Name
+                            </TableSortLabel>
                           </TableCell>
                         )}
-                        {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}
-                        {visibleColumns.orderedQuantity && <TableCell>{order.quantity}</TableCell>}
-                        {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
+                        {visibleColumns.orderedQuantity && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'orderedQuantity'}
+                              direction={sortBy === 'orderedQuantity' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('orderedQuantity')}
+                            >
+                              Quantity
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
+                        {visibleColumns.orderDate && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'orderDate'}
+                              direction={sortBy === 'orderDate' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('orderDate')}
+                            >
+                              Order Date
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
                         {visibleColumns.orderedBy && (
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getDisplayName(order.ordered_by)}
-                            </Typography>
+                            <TableSortLabel
+                              active={sortBy === 'orderedBy'}
+                              direction={sortBy === 'orderedBy' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('orderedBy')}
+                            >
+                              Ordered By
+                            </TableSortLabel>
                           </TableCell>
                         )}
-                        {visibleColumns.comment && (
-                          <TableCell>
-                            {orderComments[orderId] ? (
-                              <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {orderComments[orderId]}
-                              </Typography>
-                            ) : (
-                              <Typography variant="body2" color="textSecondary">
-                                No comment
-                              </Typography>
-                            )}
-                          </TableCell>
-                        )}
+                        {visibleColumns.comment && <TableCell>Comment</TableCell>}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
+                    </TableHead>
+                    <TableBody>
+                      {processedOrders.map((order) => (
+                        <TableRow key={order.id} hover>
+                          {visibleColumns.productImage && (
+                            <TableCell>
+                              <img 
+                                src={`http://10.167.49.200:3007${order.image}`} 
+                                alt={order.product_name} 
+                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }} 
+                              />
+                            </TableCell>
+                          )}
+                          {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}
+                          {visibleColumns.orderedQuantity && <TableCell>{order.quantity}</TableCell>}
+                          {visibleColumns.orderDate && (
+                            <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}</TableCell>
+                          )}
+                          {visibleColumns.orderedBy && (
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {getDisplayName(order.ordered_by)}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.comment && (
+                            <TableCell>
+                              <Typography variant="body2" sx={{ 
+                                maxWidth: 200, 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {orderComments[orderId] || 'No comment'}
+                              </Typography>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
 
-      {/* Comment Dialog */}
-      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {orderComments[currentCommentOrderId] ? 'Edit Comment' : 'Add Comment'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            multiline
-            rows={4}
-            fullWidth
-            variant="outlined"
-            label="Comment"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Enter your comment here..."
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveComment} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+        {/* Column Visibility Menu */}
+        <Menu
+          anchorEl={columnsMenuAnchor}
+          open={Boolean(columnsMenuAnchor)}
+          onClose={() => setColumnsMenuAnchor(null)}
+        >
+          {Object.entries(columnLabels).map(([key, label]) => (
+            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleColumns[key]} 
+                  onChange={() => handleColumnToggle(key)}
+                />
+                {label}
+              </Box>
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Comment Dialog */}
+        <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Edit Order Comment</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Comment"
+              fullWidth
+              multiline
+              rows={4}
+              variant="outlined"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveComment} variant="contained">Save</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </ThemeProvider>
   );
 }
 

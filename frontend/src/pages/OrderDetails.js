@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper, 
   Container, 
   Typography, 
   TextField, 
@@ -19,10 +12,28 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TableSortLabel,
+  IconButton,
+  Menu,
+  MenuItem
 } from '@mui/material';
+import { 
+  FileDownload as ExportIcon,
+  ViewColumn as ColumnsIcon,
+  FilterList as FilterIcon
+} from '@mui/icons-material';
+import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
+import theme from './theme';
 import ColumnSelector from '../components/ColumnSelector';
 
 function OrderDetails() {
@@ -42,6 +53,12 @@ function OrderDetails() {
   const [productCommentDialogOpen, setProductCommentDialogOpen] = useState(false);
   const [currentProductComment, setCurrentProductComment] = useState({ orderId: null, productId: null });
   const [productCommentText, setProductCommentText] = useState('');
+  
+  // Enhanced table features
+  const [sortBy, setSortBy] = useState('orderDate');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [filterText, setFilterText] = useState('');
+  const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -111,6 +128,75 @@ function OrderDetails() {
       ...prev,
       [column]: !prev[column]
     }));
+  };
+
+  const handleSort = (column) => {
+    const isAsc = sortBy === column && sortDirection === 'asc';
+    setSortDirection(isAsc ? 'desc' : 'asc');
+    setSortBy(column);
+  };
+
+  const handleExport = (orderId) => {
+    const orders = groupedOrders[orderId] || [];
+    
+    const csvContent = [
+      ['Product Name', 'Order Date', 'Total Quantity', 'Ordered By'].join(','),
+      ...orders.map(order => [
+        `"${order.product_name}"`,
+        `"${format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}"`,
+        order.quantity,
+        `"${getDisplayName(order.ordered_by)}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `order-details-${orderId}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const sortData = (data) => {
+    return [...data].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'productName':
+          aValue = a.product_name;
+          bValue = b.product_name;
+          break;
+        case 'totalQuantity':
+          aValue = a.quantity;
+          bValue = b.quantity;
+          break;
+        case 'orderDate':
+          aValue = new Date(a.order_date);
+          bValue = new Date(b.order_date);
+          break;
+        case 'orderedBy':
+          aValue = getDisplayName(a.ordered_by);
+          bValue = getDisplayName(b.ordered_by);
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const filterData = (data) => {
+    if (!filterText) return data;
+    
+    return data.filter(order => 
+      order.product_name.toLowerCase().includes(filterText.toLowerCase()) ||
+      getDisplayName(order.ordered_by).toLowerCase().includes(filterText.toLowerCase()) ||
+      order.quantity.toString().includes(filterText)
+    );
   };
 
   useEffect(() => {
@@ -245,35 +331,30 @@ function OrderDetails() {
 
     fetch('http://10.167.49.200:3007/confirm', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id, product_id, serialNumber }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        order_id,
+        product_id,
+        serialNumber,
+      }),
     })
       .then(response => {
         if (!response.ok) {
-          throw new Error('Confirmation failed');
+          throw new Error('Network response was not ok');
         }
         return response.json();
       })
-      .then(() => {
-        // Update the local state to reflect the confirmation
-        setGroupedOrders(prevGroupedOrders => {
-          const updatedOrders = { ...prevGroupedOrders };
-          updatedOrders[order_id] = updatedOrders[order_id].map(order => {
-            if (order.product_id === product_id && order.quantity > 0) {
-              return { ...order, quantity: order.quantity - 1 };
-            }
-            return order;
-          });
-          return updatedOrders;
-        });
-
-        // Clear the serial number input
-        setSerialNumbers(prev => ({
-          ...prev,
-          [`${order_id}-${product_id}`]: '',
-        }));
+      .then(data => {
+        alert('Order confirmed successfully!');
+        // Refresh the page or update state
+        window.location.reload();
       })
-      .catch(error => console.error('Error confirming order:', error));
+      .catch(error => {
+        console.error('Error confirming order:', error);
+        alert('Failed to confirm order');
+      });
   };
 
   const handleAccordionChange = (orderId) => (event, isExpanded) => {
@@ -284,274 +365,332 @@ function OrderDetails() {
   };
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Order Details
-      </Typography>
+    <ThemeProvider theme={theme}>
+      <Container>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Order Details
+        </Typography>
 
-      <Box sx={{ marginBottom: 4 }}>
-        <Typography variant="h6">Totals</Typography>
-        <Typography>Monitors: {calculateTotals(groupedOrders).monitors}</Typography>
-        <Typography>Notebooks: {calculateTotals(groupedOrders).notebooks}</Typography>
-        <Typography>Accessories: {calculateTotals(groupedOrders).accessories}</Typography>
-      </Box>
+        {/* Column Selection */}
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <ColumnSelector
+            visibleColumns={visibleColumns}
+            onColumnToggle={handleColumnToggle}
+            columnLabels={columnLabels}
+          />
+        </Box>
 
-      {/* Column Selection */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <ColumnSelector
-          visibleColumns={visibleColumns}
-          onColumnToggle={handleColumnToggle}
-          columnLabels={columnLabels}
-        />
-      </Box>
+        {Object.keys(groupedOrders).map(orderId => {
+          const orders = groupedOrders[orderId];
+          const processedOrders = sortData(filterData(orders));
 
-      {Object.keys(groupedOrders)
-        .filter(order_id => groupedOrders[order_id].some(order => order.quantity > 0))
-        .map(order_id => (
-          <Accordion 
-            key={order_id} 
-            expanded={expandedOrders[order_id] || false}
-            onChange={handleAccordionChange(order_id)}
-            sx={{ marginBottom: 2 }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`panel-${order_id}-content`}
-              id={`panel-${order_id}-header`}
-              sx={{ backgroundColor: '#f5f5f5' }}
+          return (
+            <Accordion 
+              key={orderId} 
+              expanded={expandedOrders[orderId] || false}
+              onChange={handleAccordionChange(orderId)}
+              sx={{ marginBottom: 2 }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="h6">
-                    Order ID: {order_id}
-                  </Typography>
-                  {/* Category totals beside Order ID */}
-                  {(() => {
-                    const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                    groupedOrders[order_id].forEach(order => {
-                      const product = products[order.product_id];
-                      if (product) {
-                        if (product.category === 'Monitors') {
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`panel-${orderId}-content`}
+                id={`panel-${orderId}-header`}
+                sx={{ backgroundColor: '#f5f5f5' }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h6">
+                      Order ID: {orderId}
+                    </Typography>
+                    
+                    {/* Category totals beside Order ID */}
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      orders.forEach(order => {
+                        const productName = order.product_name.toLowerCase();
+                        // First check for accessories (to avoid misclassification)
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
                           orderTotals.monitors += order.quantity;
-                        } else if (product.category === 'Notebooks') {
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
                           orderTotals.notebooks += order.quantity;
-                        } else if (product.category === 'Accessories') {
+                        } else {
                           orderTotals.accessories += order.quantity;
                         }
-                      }
-                    });
-                    return (
-                      <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
-                        {orderTotals.monitors > 0 && (
-                          <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
-                            Monitors: {orderTotals.monitors}
-                          </Typography>
-                        )}
-                        {orderTotals.notebooks > 0 && (
-                          <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
-                            Notebooks: {orderTotals.notebooks}
-                          </Typography>
-                        )}
-                        {orderTotals.accessories > 0 && (
-                          <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
-                            Accessories: {orderTotals.accessories}
-                          </Typography>
-                        )}
-                      </Box>
-                    );
-                  })()}
-                </Box>
-                {/* Order date on the right side */}
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
-                    {groupedOrders[order_id].length > 0 && format(new Date(groupedOrders[order_id][0].order_date), 'MMM dd, yyyy')}
-                  </Typography>
-                </Box>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {/* Order Comment Section */}
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    Order Comment
-                  </Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleOpenCommentDialog(order_id)}
-                  >
-                    {orderComments[order_id] ? 'Edit Order Comment' : 'Add Order Comment'}
-                  </Button>
-                </Box>
-                {orderComments[order_id] ? (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    {orderComments[order_id]}
-                  </Typography>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                    No order comment added yet
-                  </Typography>
-                )}
-              </Box>
-
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      {visibleColumns.productName && <TableCell>Product Name</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.totalQuantity && <TableCell>Total Quantity</TableCell>}
-                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                      {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-                      {visibleColumns.action && <TableCell>Action</TableCell>}
-                      {visibleColumns.orderComment && <TableCell>Order Comment</TableCell>}
-                      {visibleColumns.productComment && <TableCell>Product Comment</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {groupedOrders[order_id].map(order => {
-                      const product = products[order.product_id];
+                      });
                       return (
-                        <TableRow key={`${order.product_id}-${order.order_id}`}>
-                          {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
-                          {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
-                          {visibleColumns.totalQuantity && <TableCell>{order.quantity}</TableCell>}
-                          {visibleColumns.orderedBy && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {getDisplayName(order.ordered_by)}
-                              </Typography>
-                            </TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          {orderTotals.monitors > 0 && (
+                            <Chip
+                              label={`Monitors: ${orderTotals.monitors}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
+                            />
                           )}
-                          {visibleColumns.serialNumber && (
-                            <TableCell>
-                              <TextField
-                                type="text"
-                                label="Serial Number"
-                                size="small"
-                                onChange={(e) => handleSerialNumberChange(order_id, order.product_id, e.target.value)}
-                                value={serialNumbers[`${order_id}-${order.product_id}`] || ''}
-                                placeholder="Enter Serial Number"
-                              />
-                            </TableCell>
+                          {orderTotals.notebooks > 0 && (
+                            <Chip
+                              label={`Notebooks: ${orderTotals.notebooks}`}
+                              size="small"
+                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
+                            />
                           )}
-                          {visibleColumns.action && (
-                            <TableCell>
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick={() => handleConfirm(order_id, order.product_id)}
-                                disabled={order.quantity <= 0}
-                              >
-                                Confirm
-                              </Button>
-                            </TableCell>
+                          {orderTotals.accessories > 0 && (
+                            <Chip
+                              label={`Accessories: ${orderTotals.accessories}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
+                            />
                           )}
-                          {visibleColumns.orderComment && (
-                            <TableCell>
-                              {orderComments[order_id] ? (
-                                <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {orderComments[order_id]}
-                                </Typography>
-                              ) : (
-                                <Typography variant="body2" color="textSecondary">
-                                  No order comment
-                                </Typography>
-                              )}
-                            </TableCell>
-                          )}
-                          {visibleColumns.productComment && (
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {productComments[`${order_id}-${order.product_id}`] ? (
-                                  <Typography variant="body2" sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {productComments[`${order_id}-${order.product_id}`]}
-                                  </Typography>
-                                ) : (
-                                  <Typography variant="body2" color="textSecondary">
-                                    No product comment
-                                  </Typography>
-                                )}
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color="secondary"
-                                  onClick={() => handleOpenProductCommentDialog(order_id, order.product_id)}
-                                  sx={{ minWidth: 'auto', px: 1 }}
-                                >
-                                  {productComments[`${order_id}-${order.product_id}`] ? 'Edit' : 'Add'}
-                                </Button>
-                              </Box>
-                            </TableCell>
-                          )}
-                        </TableRow>
+                        </Box>
                       );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </AccordionDetails>
-          </Accordion>
-        ))}
+                    })()}
+                  </Box>
+                  
+                  {/* Order date on the right */}
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {orders.length > 0 && format(new Date(orders[0].order_date), 'MMM dd, yyyy HH:mm')}
+                    </Typography>
+                  </Box>
+                </Box>
+              </AccordionSummary>
+              
+              <AccordionDetails>
+                {/* Enhanced Table Toolbar */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Filter items..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    InputProps={{
+                      startAdornment: <FilterIcon sx={{ mr: 1, color: 'action.active' }} />
+                    }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => setColumnsMenuAnchor(e.currentTarget)}
+                      title="Column Visibility"
+                    >
+                      <ColumnsIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleExport(orderId)}
+                      title="Export to CSV"
+                    >
+                      <ExportIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
 
-      {/* Order Comment Dialog */}
-      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {orderComments[currentCommentOrderId] ? 'Edit Order Comment' : 'Add Order Comment'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            This comment applies to the entire order (Order ID: {currentCommentOrderId})
-          </Typography>
-          <TextField
-            autoFocus
-            multiline
-            rows={4}
-            fullWidth
-            variant="outlined"
-            label="Order Comment"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Enter your order comment here..."
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveComment} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        {visibleColumns.productName && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'productName'}
+                              direction={sortBy === 'productName' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('productName')}
+                            >
+                              Product Name
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
+                        {visibleColumns.orderDate && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'orderDate'}
+                              direction={sortBy === 'orderDate' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('orderDate')}
+                            >
+                              Order Date
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
+                        {visibleColumns.totalQuantity && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'totalQuantity'}
+                              direction={sortBy === 'totalQuantity' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('totalQuantity')}
+                            >
+                              Total Quantity
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
+                        {visibleColumns.orderedBy && (
+                          <TableCell>
+                            <TableSortLabel
+                              active={sortBy === 'orderedBy'}
+                              direction={sortBy === 'orderedBy' ? sortDirection : 'asc'}
+                              onClick={() => handleSort('orderedBy')}
+                            >
+                              Ordered By
+                            </TableSortLabel>
+                          </TableCell>
+                        )}
+                        {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
+                        {visibleColumns.action && <TableCell>Action</TableCell>}
+                        {visibleColumns.orderComment && <TableCell>Order Comment</TableCell>}
+                        {visibleColumns.productComment && <TableCell>Product Comment</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {processedOrders.map(order => {
+                        const product = products[order.product_id];
+                        return (
+                          <TableRow key={`${order.product_id}-${order.order_id}`} hover>
+                            {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
+                            {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}</TableCell>}
+                            {visibleColumns.totalQuantity && <TableCell>{order.quantity}</TableCell>}
+                            {visibleColumns.orderedBy && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {getDisplayName(order.ordered_by)}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.serialNumber && (
+                              <TableCell>
+                                <TextField
+                                  type="text"
+                                  label="Serial Number"
+                                  size="small"
+                                  onChange={(e) => handleSerialNumberChange(orderId, order.product_id, e.target.value)}
+                                  value={serialNumbers[`${orderId}-${order.product_id}`] || ''}
+                                  placeholder="Enter Serial Number"
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumns.action && (
+                              <TableCell>
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  onClick={() => handleConfirm(orderId, order.product_id)}
+                                  disabled={order.quantity <= 0}
+                                >
+                                  Confirm
+                                </Button>
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderComment && (
+                              <TableCell>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleOpenCommentDialog(orderId)}
+                                >
+                                  Edit Comment
+                                </Button>
+                              </TableCell>
+                            )}
+                            {visibleColumns.productComment && (
+                              <TableCell>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleOpenProductCommentDialog(orderId, order.product_id)}
+                                >
+                                  Item Comment
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
 
-      {/* Product Comment Dialog */}
-      <Dialog open={productCommentDialogOpen} onClose={() => setProductCommentDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {productComments[`${currentProductComment.orderId}-${currentProductComment.productId}`] ? 'Edit Product Comment' : 'Add Product Comment'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            This comment applies to the specific product in Order ID: {currentProductComment.orderId}
-          </Typography>
-          <TextField
-            autoFocus
-            multiline
-            rows={4}
-            fullWidth
-            variant="outlined"
-            label="Product Comment"
-            value={productCommentText}
-            onChange={(e) => setProductCommentText(e.target.value)}
-            placeholder="Enter your product comment here..."
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setProductCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveProductComment} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+        {/* Column Visibility Menu */}
+        <Menu
+          anchorEl={columnsMenuAnchor}
+          open={Boolean(columnsMenuAnchor)}
+          onClose={() => setColumnsMenuAnchor(null)}
+        >
+          {Object.entries(columnLabels).map(([key, label]) => (
+            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleColumns[key]} 
+                  onChange={() => handleColumnToggle(key)}
+                />
+                {label}
+              </Box>
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Order Comment Dialog */}
+        <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Edit Order Comment</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Order Comment"
+              fullWidth
+              multiline
+              rows={4}
+              variant="outlined"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveComment} variant="contained">Save</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Product Comment Dialog */}
+        <Dialog open={productCommentDialogOpen} onClose={() => setProductCommentDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Edit Product Comment</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Product Comment"
+              fullWidth
+              multiline
+              rows={4}
+              variant="outlined"
+              value={productCommentText}
+              onChange={(e) => setProductCommentText(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setProductCommentDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveProductComment} variant="contained">Save</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </ThemeProvider>
   );
 }
 
