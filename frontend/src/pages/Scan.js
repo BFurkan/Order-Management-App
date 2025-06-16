@@ -24,7 +24,7 @@ import {
   Search as SearchIcon,
   QrCodeScanner as ScanIcon,
   Refresh as RefreshIcon,
-  Deploy as DeployIcon,
+  Send as DeployIcon,
   BrokenImage as BrokenImageIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
