@@ -277,13 +277,14 @@ app.get('/confirmed-items', async (req, res) => {
           original_id: row.id,
           product_id: row.product_id,
           product_name: row.product_name,
-          image: row.image, // Include product image
+          image: row.image, // Include product image from products table
           quantity: 1, // Each individual item has quantity 1
           order_date: row.order_date,
           confirm_date: row.confirm_date,
+          confirmed_date: row.confirm_date, // Also include as confirmed_date for consistency
           order_id: row.order_id,
-          comment: row.comment,
-          item_comment: row.item_comment, // Include item comment
+          comment: row.comment, // Order-level comment
+          item_comment: row.item_comment, // Item-level comment from orders table
           ordered_by: row.ordered_by,
           serial_number: serialNumbers[i] || 'N/A' // Get the specific serial number
         });

@@ -139,15 +139,17 @@ function ConfirmedItems() {
 
     // Filter by date range
     if (startDate) {
-      filtered = filtered.filter(item =>
-        new Date(item.confirm_date) >= new Date(startDate)
-      );
+      filtered = filtered.filter(item => {
+        const confirmDate = item.confirmed_date || item.confirm_date;
+        return confirmDate && new Date(confirmDate) >= new Date(startDate);
+      });
     }
 
     if (endDate) {
-      filtered = filtered.filter(item =>
-        new Date(item.confirm_date) <= new Date(endDate + 'T23:59:59')
-      );
+      filtered = filtered.filter(item => {
+        const confirmDate = item.confirmed_date || item.confirm_date;
+        return confirmDate && new Date(confirmDate) <= new Date(endDate + 'T23:59:59');
+      });
     }
 
     setFilteredItems(filtered);
@@ -163,7 +165,7 @@ function ConfirmedItems() {
         item.quantity || '',
         `"${item.serial_number || ''}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
-        `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
+        `"${format(new Date(item.confirmed_date || item.confirm_date), 'MMM dd, yyyy')}"`,
         `"${getDisplayName(item.ordered_by)}"`,
         `"${orderComments[orderId] || ''}"`,
         `"${item.item_comment || ''}"`
@@ -551,7 +553,8 @@ function ConfirmedItems() {
                             {visibleColumns.confirmedDate && (
                               <TableCell>
                                 <Typography variant="body2">
-                                  {item.confirmed_date ? format(new Date(item.confirmed_date), 'MMM dd, yyyy') : 'N/A'}
+                                  {item.confirmed_date || item.confirm_date ? 
+                                    format(new Date(item.confirmed_date || item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
                                 </Typography>
                               </TableCell>
                             )}
