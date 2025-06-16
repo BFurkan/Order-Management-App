@@ -17,13 +17,10 @@ import {
   TableRow,
   TableCell,
   Paper,
-  IconButton,
-  Tooltip,
   Menu,
   MenuItem,
   FormControlLabel,
-  Checkbox,
-  ListItemText
+  Checkbox
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
@@ -81,6 +78,7 @@ function ConfirmedItems() {
 
   // Handle image loading errors
   const handleImageError = (itemId) => {
+    console.log('Image failed to load for item:', itemId);
     setImageErrors(prev => ({
       ...prev,
       [itemId]: true
@@ -108,6 +106,7 @@ function ConfirmedItems() {
       .then(response => response.json())
       .then(data => {
         console.log('Confirmed items data:', data); // Debug log
+        console.log('Sample item structure:', data[0]); // Debug first item structure
         setConfirmedItems(data);
         setFilteredItems(data);
         
@@ -476,98 +475,103 @@ function ConfirmedItems() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {orderItems.map((item, index) => (
-                        <TableRow key={`${orderId}-${index}`} hover>
-                          {visibleColumns.image && (
-                            <TableCell>
-                              {imageErrors[`${orderId}-${index}`] ? (
-                                <Box sx={{ 
-                                  width: '60px', 
-                                  height: '60px', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  backgroundColor: '#f5f5f5',
-                                  borderRadius: 1,
-                                  border: '1px solid #e0e0e0'
-                                }}>
-                                  <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
-                                </Box>
-                              ) : (
-                                <img
-                                  src={`http://10.167.49.200:3007${item.image}`}
-                                  alt={item.product_name}
-                                  style={{ 
+                      {orderItems.map((item, index) => {
+                        console.log(`Item ${index} image:`, item.image); // Debug each item's image
+                        console.log(`Item ${index} item_comment:`, item.item_comment); // Debug each item's comment
+                        return (
+                          <TableRow key={`${orderId}-${index}`} hover>
+                            {visibleColumns.image && (
+                              <TableCell>
+                                {imageErrors[`${orderId}-${index}`] ? (
+                                  <Box sx={{ 
                                     width: '60px', 
                                     height: '60px', 
-                                    objectFit: 'cover', 
-                                    borderRadius: 4,
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    backgroundColor: '#f5f5f5',
+                                    borderRadius: 1,
                                     border: '1px solid #e0e0e0'
-                                  }}
-                                  onError={() => handleImageError(`${orderId}-${index}`)}
-                                  onLoad={() => {
-                                    // Remove from error state if image loads successfully
-                                    setImageErrors(prev => {
-                                      const newState = { ...prev };
-                                      delete newState[`${orderId}-${index}`];
-                                      return newState;
-                                    });
-                                  }}
-                                />
-                              )}
-                            </TableCell>
-                          )}
-                          {visibleColumns.productName && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
-                                {item.product_name}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.quantity && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {item.quantity || 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderDate && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {format(new Date(item.order_date), 'MMM dd, yyyy')}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderedBy && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {getDisplayName(item.ordered_by)}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.confirmedDate && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {item.confirmed_date ? format(new Date(item.confirmed_date), 'MMM dd, yyyy') : 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.serialNumber && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {item.serial_number || 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.itemComment && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                                {item.item_comment || 'No comment'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
+                                  }}>
+                                    <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
+                                  </Box>
+                                ) : (
+                                  <img
+                                    src={item.image ? `http://10.167.49.200:3007${item.image}` : '/placeholder.png'}
+                                    alt={item.product_name}
+                                    style={{ 
+                                      width: '60px', 
+                                      height: '60px', 
+                                      objectFit: 'cover', 
+                                      borderRadius: 4,
+                                      border: '1px solid #e0e0e0'
+                                    }}
+                                    onError={() => handleImageError(`${orderId}-${index}`)}
+                                    onLoad={() => {
+                                      console.log(`Image loaded successfully for item ${index}`);
+                                      // Remove from error state if image loads successfully
+                                      setImageErrors(prev => {
+                                        const newState = { ...prev };
+                                        delete newState[`${orderId}-${index}`];
+                                        return newState;
+                                      });
+                                    }}
+                                  />
+                                )}
+                              </TableCell>
+                            )}
+                            {visibleColumns.productName && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                                  {item.product_name}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.quantity && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.quantity || 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderDate && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderedBy && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {getDisplayName(item.ordered_by)}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.confirmedDate && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.confirmed_date ? format(new Date(item.confirmed_date), 'MMM dd, yyyy') : 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.serialNumber && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                  {item.serial_number || 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.itemComment && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                  {item.item_comment || 'No comment'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>

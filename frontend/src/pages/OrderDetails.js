@@ -33,7 +33,6 @@ import ColumnSelector from '../components/ColumnSelector';
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
-  const [products, setProducts] = useState({});
   const [serialNumbers, setSerialNumbers] = useState({});
   const [expandedOrders, setExpandedOrders] = useState({});
   
@@ -80,19 +79,8 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3007/products')
-      .then(response => response.json())
-      .then(data => {
-        const productMap = data.reduce((acc, product) => {
-          acc[product.id] = product;
-          return acc;
-        }, {});
-        setProducts(productMap);
-      })
-      .catch(error => console.error('Error fetching products:', error));
+    // No need to fetch products for this page - removed unused variable
   }, []);
-
-
 
   const handleColumnToggle = (column) => {
     setVisibleColumns(prev => ({
