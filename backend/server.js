@@ -265,6 +265,8 @@ app.get('/confirmed-items', async (req, res) => {
       WHERE o.confirmed_quantity > 0
     `);
     
+    console.log('Raw database rows:', rows.length > 0 ? rows[0] : 'No data');
+    
     // Expand each confirmed item to show individual serial numbers
     const expandedItems = [];
     rows.forEach(row => {
@@ -272,7 +274,7 @@ app.get('/confirmed-items', async (req, res) => {
       
       // Create one entry for each confirmed item with its serial number
       for (let i = 0; i < row.confirmed_quantity; i++) {
-        expandedItems.push({
+        const expandedItem = {
           id: `${row.id}-${i}`, // Unique ID for each individual item
           original_id: row.id,
           product_id: row.product_id,
@@ -287,9 +289,19 @@ app.get('/confirmed-items', async (req, res) => {
           item_comment: row.item_comment, // Item-level comment from orders table
           ordered_by: row.ordered_by,
           serial_number: serialNumbers[i] || 'N/A' // Get the specific serial number
+        };
+        
+        console.log(`Expanded item ${i}:`, {
+          id: expandedItem.id,
+          image: expandedItem.image,
+          item_comment: expandedItem.item_comment
         });
+        
+        expandedItems.push(expandedItem);
       }
     });
+    
+    console.log('Total expanded items:', expandedItems.length);
     
     res.json(expandedItems);
   } catch (err) {
@@ -343,6 +355,111 @@ app.post('/update-product-comment', async (req, res) => {
   } catch (err) {
     console.error('Error updating product comment:', err.message);
     res.status(500).send('Error updating product comment');
+  }
+});
+
+// Deploy item endpoint
+app.post('/deploy-item', async (req, res) => {
+  try {
+    const { itemId, originalId, productId, orderId, serialNumber, deployDate } = req.body;
+    
+    if (!originalId || !serialNumber) {
+      return res.status(400).json({ message: 'Original ID and Serial Number are required' });
+    }
+
+    // Check if item is already deployed
+    const [existingDeployment] = await pool.query(
+      'SELECT id FROM deployed_items WHERE original_order_id = ? AND serial_number = ?',
+      [originalId, serialNumber]
+    );
+
+    if (existingDeployment.length > 0) {
+      return res.status(400).json({ message: 'Item is already deployed' });
+    }
+
+    // Get the item details from confirmed items (via orders table)
+    const [orderRows] = await pool.query(`
+      SELECT o.id, o.product_id, o.order_id, o.order_date, o.confirm_date, o.comment, o.item_comment, o.ordered_by, p.name AS product_name, p.image
+      FROM orders o
+      JOIN products p ON o.product_id = p.id
+      WHERE o.id = ?
+    `, [originalId]);
+
+    if (orderRows.length === 0) {
+      return res.status(404).json({ message: 'Original order not found' });
+    }
+
+    const orderData = orderRows[0];
+
+    // Insert into deployed_items table
+    const [result] = await pool.query(
+      `INSERT INTO deployed_items 
+       (original_order_id, product_id, product_name, image, order_id, order_date, confirm_date, deploy_date, comment, item_comment, ordered_by, serial_number) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        originalId,
+        orderData.product_id,
+        orderData.product_name,
+        orderData.image,
+        orderData.order_id,
+        orderData.order_date,
+        orderData.confirm_date,
+        deployDate,
+        orderData.comment,
+        orderData.item_comment,
+        orderData.ordered_by,
+        serialNumber
+      ]
+    );
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ success: true, message: 'Item deployed successfully' });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to deploy item' });
+    }
+  } catch (err) {
+    console.error('Error deploying item:', err.message);
+    res.status(500).json({ success: false, message: 'Error deploying item' });
+  }
+});
+
+// Get deployed items endpoint
+app.get('/deployed-items', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM deployed_items ORDER BY deploy_date DESC
+    `);
+    
+    console.log('Deployed items found:', rows.length);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching deployed items:', err.message);
+    res.status(500).send('Error fetching deployed items');
+  }
+});
+
+// Undeploy item endpoint
+app.post('/undeploy-item', async (req, res) => {
+  try {
+    const { itemId, originalId, serialNumber } = req.body;
+    
+    if (!serialNumber) {
+      return res.status(400).json({ message: 'Serial Number is required' });
+    }
+
+    const [result] = await pool.query(
+      'DELETE FROM deployed_items WHERE serial_number = ?',
+      [serialNumber]
+    );
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ success: true, message: 'Item undeployed successfully' });
+    } else {
+      res.status(404).json({ success: false, message: 'Deployed item not found' });
+    }
+  } catch (err) {
+    console.error('Error undeploying item:', err.message);
+    res.status(500).json({ success: false, message: 'Error undeploying item' });
   }
 });
 

@@ -59,6 +59,9 @@ function ConfirmedItems() {
     itemComment: true
   });
 
+  // Debug column visibility
+  console.log('Visible columns:', visibleColumns);
+
   const columnLabels = {
     image: 'Product Image',
     productName: 'Product Name',
@@ -107,6 +110,18 @@ function ConfirmedItems() {
       .then(data => {
         console.log('Confirmed items data:', data); // Debug log
         console.log('Sample item structure:', data[0]); // Debug first item structure
+        
+        // Debug image and comment data specifically
+        data.forEach((item, idx) => {
+          console.log(`Item ${idx}:`, {
+            id: item.id,
+            product_name: item.product_name,
+            image: item.image,
+            item_comment: item.item_comment,
+            comment: item.comment
+          });
+        });
+        
         setConfirmedItems(data);
         setFilteredItems(data);
         
@@ -484,7 +499,7 @@ function ConfirmedItems() {
                           <TableRow key={`${orderId}-${index}`} hover>
                             {visibleColumns.image && (
                               <TableCell>
-                                {imageErrors[`${orderId}-${index}`] ? (
+                                {imageErrors[`${orderId}-${index}`] || !item.image ? (
                                   <Box sx={{ 
                                     width: '60px', 
                                     height: '60px', 
@@ -508,9 +523,12 @@ function ConfirmedItems() {
                                       borderRadius: 4,
                                       border: '1px solid #e0e0e0'
                                     }}
-                                    onError={() => handleImageError(`${orderId}-${index}`)}
+                                    onError={() => {
+                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.200:3007${item.image}`);
+                                      handleImageError(`${orderId}-${index}`);
+                                    }}
                                     onLoad={() => {
-                                      console.log(`Image loaded successfully for item ${index}`);
+                                      console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.200:3007${item.image}`);
                                       // Remove from error state if image loads successfully
                                       setImageErrors(prev => {
                                         const newState = { ...prev };
@@ -568,8 +586,14 @@ function ConfirmedItems() {
                             {visibleColumns.itemComment && (
                               <TableCell>
                                 <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                                  {item.item_comment || 'No comment'}
+                                  {item.item_comment ? item.item_comment : 'No comment'}
                                 </Typography>
+                                {/* Debug info */}
+                                {process.env.NODE_ENV === 'development' && (
+                                  <Typography variant="caption" sx={{ color: 'gray', fontSize: '0.7rem' }}>
+                                    Debug: {JSON.stringify({item_comment: item.item_comment})}
+                                  </Typography>
+                                )}
                               </TableCell>
                             )}
                           </TableRow>
