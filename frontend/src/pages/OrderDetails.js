@@ -12,24 +12,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TableSortLabel,
-  IconButton,
-  Menu,
-  MenuItem
+  Chip
 } from '@mui/material';
 import { 
-  FileDownload as ExportIcon,
-  ViewColumn as ColumnsIcon,
-  FilterList as FilterIcon
+  FileDownload as ExportIcon
 } from '@mui/icons-material';
+import { DataGrid } from '@mui/x-data-grid';
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
@@ -53,12 +41,6 @@ function OrderDetails() {
   const [productCommentDialogOpen, setProductCommentDialogOpen] = useState(false);
   const [currentProductComment, setCurrentProductComment] = useState({ orderId: null, productId: null });
   const [productCommentText, setProductCommentText] = useState('');
-  
-  // Enhanced table features
-  const [sortBy, setSortBy] = useState('orderDate');
-  const [sortDirection, setSortDirection] = useState('desc');
-  const [filterText, setFilterText] = useState('');
-  const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -130,22 +112,15 @@ function OrderDetails() {
     }));
   };
 
-  const handleSort = (column) => {
-    const isAsc = sortBy === column && sortDirection === 'asc';
-    setSortDirection(isAsc ? 'desc' : 'asc');
-    setSortBy(column);
-  };
-
   const handleExport = (orderId) => {
     const orders = groupedOrders[orderId] || [];
-    // Only export items that still have quantity > 0 (not fully confirmed)
     const activeOrders = orders.filter(order => order.quantity > 0);
     
     const csvContent = [
       ['Product Name', 'Order Date', 'Total Quantity', 'Ordered By'].join(','),
       ...activeOrders.map(order => [
         `"${order.product_name}"`,
-        `"${format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}"`,
+        `"${format(new Date(order.order_date), 'MMM dd, yyyy')}"`,
         order.quantity,
         `"${getDisplayName(order.ordered_by)}"`
       ].join(','))
@@ -158,47 +133,6 @@ function OrderDetails() {
     a.download = `order-details-${orderId}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
-
-  const sortData = (data) => {
-    return [...data].sort((a, b) => {
-      let aValue, bValue;
-      
-      switch (sortBy) {
-        case 'productName':
-          aValue = a.product_name;
-          bValue = b.product_name;
-          break;
-        case 'totalQuantity':
-          aValue = a.quantity;
-          bValue = b.quantity;
-          break;
-        case 'orderDate':
-          aValue = new Date(a.order_date);
-          bValue = new Date(b.order_date);
-          break;
-        case 'orderedBy':
-          aValue = getDisplayName(a.ordered_by);
-          bValue = getDisplayName(b.ordered_by);
-          break;
-        default:
-          return 0;
-      }
-      
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  };
-
-  const filterData = (data) => {
-    if (!filterText) return data;
-    
-    return data.filter(order => 
-      order.product_name.toLowerCase().includes(filterText.toLowerCase()) ||
-      getDisplayName(order.ordered_by).toLowerCase().includes(filterText.toLowerCase()) ||
-      order.quantity.toString().includes(filterText)
-    );
   };
 
   useEffect(() => {
@@ -366,6 +300,140 @@ function OrderDetails() {
     }));
   };
 
+  const getColumnsForOrder = (orderId) => {
+    const baseColumns = [
+      {
+        field: 'product_name',
+        headerName: 'Product Name',
+        flex: 1,
+        minWidth: 200,
+        resizable: true,
+        renderCell: (params) => {
+          const product = products[params.row.product_id];
+          return product?.name || 'Unknown Product';
+        },
+      },
+      {
+        field: 'order_date',
+        headerName: 'Order Date',
+        width: 150,
+        minWidth: 120,
+        maxWidth: 200,
+        resizable: true,
+        renderCell: (params) => format(new Date(params.row.order_date), 'MMM dd, yyyy'),
+      },
+      {
+        field: 'quantity',
+        headerName: 'Total Quantity',
+        width: 150,
+        minWidth: 100,
+        maxWidth: 200,
+        resizable: true,
+        type: 'number',
+      },
+      {
+        field: 'ordered_by',
+        headerName: 'Ordered By',
+        width: 150,
+        minWidth: 120,
+        maxWidth: 200,
+        resizable: true,
+        renderCell: (params) => getDisplayName(params.row.ordered_by),
+      },
+      {
+        field: 'serial_number',
+        headerName: 'Serial Number',
+        width: 200,
+        minWidth: 150,
+        maxWidth: 300,
+        resizable: true,
+        renderCell: (params) => (
+          <TextField
+            type="text"
+            label="Serial Number"
+            size="small"
+            onChange={(e) => handleSerialNumberChange(orderId, params.row.product_id, e.target.value)}
+            value={serialNumbers[`${orderId}-${params.row.product_id}`] || ''}
+            placeholder="Enter Serial Number"
+            sx={{ width: '100%' }}
+          />
+        ),
+        sortable: false,
+      },
+      {
+        field: 'action',
+        headerName: 'Action',
+        width: 120,
+        minWidth: 100,
+        maxWidth: 150,
+        resizable: true,
+        renderCell: (params) => (
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={() => handleConfirm(orderId, params.row.product_id)}
+            disabled={params.row.quantity <= 0}
+          >
+            Confirm
+          </Button>
+        ),
+        sortable: false,
+      },
+      {
+        field: 'order_comment',
+        headerName: 'Order Comment',
+        width: 150,
+        minWidth: 120,
+        maxWidth: 200,
+        resizable: true,
+        renderCell: () => (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => handleOpenCommentDialog(orderId)}
+          >
+            Edit Comment
+          </Button>
+        ),
+        sortable: false,
+      },
+      {
+        field: 'product_comment',
+        headerName: 'Product Comment',
+        width: 150,
+        minWidth: 120,
+        maxWidth: 200,
+        resizable: true,
+        renderCell: (params) => (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => handleOpenProductCommentDialog(orderId, params.row.product_id)}
+          >
+            Item Comment
+          </Button>
+        ),
+        sortable: false,
+      },
+    ];
+
+    // Filter columns based on visibility
+    return baseColumns.filter(column => {
+      switch (column.field) {
+        case 'product_name': return visibleColumns.productName;
+        case 'order_date': return visibleColumns.orderDate;
+        case 'quantity': return visibleColumns.totalQuantity;
+        case 'ordered_by': return visibleColumns.orderedBy;
+        case 'serial_number': return visibleColumns.serialNumber;
+        case 'action': return visibleColumns.action;
+        case 'order_comment': return visibleColumns.orderComment;
+        case 'product_comment': return visibleColumns.productComment;
+        default: return true;
+      }
+    });
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Container>
@@ -391,8 +459,6 @@ function OrderDetails() {
           if (activeOrders.length === 0) {
             return null;
           }
-
-          const processedOrders = sortData(filterData(activeOrders));
 
           return (
             <Accordion 
@@ -473,188 +539,57 @@ function OrderDetails() {
                   {/* Order date on the right */}
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {activeOrders.length > 0 && format(new Date(activeOrders[0].order_date), 'MMM dd, yyyy HH:mm')}
+                      {activeOrders.length > 0 && format(new Date(activeOrders[0].order_date), 'MMM dd, yyyy')}
                     </Typography>
                   </Box>
                 </Box>
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Enhanced Table Toolbar */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <TextField
+                {/* Export Button */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ExportIcon />}
+                    onClick={() => handleExport(orderId)}
                     size="small"
-                    placeholder="Filter items..."
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                    InputProps={{
-                      startAdornment: <FilterIcon sx={{ mr: 1, color: 'action.active' }} />
-                    }}
-                  />
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton 
-                      size="small" 
-                      onClick={(e) => setColumnsMenuAnchor(e.currentTarget)}
-                      title="Column Visibility"
-                    >
-                      <ColumnsIcon />
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleExport(orderId)}
-                      title="Export to CSV"
-                    >
-                      <ExportIcon />
-                    </IconButton>
-                  </Box>
+                  >
+                    Export to CSV
+                  </Button>
                 </Box>
 
-                <TableContainer component={Paper}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        {visibleColumns.productName && (
-                          <TableCell>
-                            <TableSortLabel
-                              active={sortBy === 'productName'}
-                              direction={sortBy === 'productName' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('productName')}
-                            >
-                              Product Name
-                            </TableSortLabel>
-                          </TableCell>
-                        )}
-                        {visibleColumns.orderDate && (
-                          <TableCell>
-                            <TableSortLabel
-                              active={sortBy === 'orderDate'}
-                              direction={sortBy === 'orderDate' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('orderDate')}
-                            >
-                              Order Date
-                            </TableSortLabel>
-                          </TableCell>
-                        )}
-                        {visibleColumns.totalQuantity && (
-                          <TableCell>
-                            <TableSortLabel
-                              active={sortBy === 'totalQuantity'}
-                              direction={sortBy === 'totalQuantity' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('totalQuantity')}
-                            >
-                              Total Quantity
-                            </TableSortLabel>
-                          </TableCell>
-                        )}
-                        {visibleColumns.orderedBy && (
-                          <TableCell>
-                            <TableSortLabel
-                              active={sortBy === 'orderedBy'}
-                              direction={sortBy === 'orderedBy' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('orderedBy')}
-                            >
-                              Ordered By
-                            </TableSortLabel>
-                          </TableCell>
-                        )}
-                        {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-                        {visibleColumns.action && <TableCell>Action</TableCell>}
-                        {visibleColumns.orderComment && <TableCell>Order Comment</TableCell>}
-                        {visibleColumns.productComment && <TableCell>Product Comment</TableCell>}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {processedOrders.map(order => {
-                        const product = products[order.product_id];
-                        return (
-                          <TableRow key={`${order.product_id}-${order.order_id}`} hover>
-                            {visibleColumns.productName && <TableCell>{product?.name || 'Unknown Product'}</TableCell>}
-                            {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm')}</TableCell>}
-                            {visibleColumns.totalQuantity && <TableCell>{order.quantity}</TableCell>}
-                            {visibleColumns.orderedBy && (
-                              <TableCell>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  {getDisplayName(order.ordered_by)}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {visibleColumns.serialNumber && (
-                              <TableCell>
-                                <TextField
-                                  type="text"
-                                  label="Serial Number"
-                                  size="small"
-                                  onChange={(e) => handleSerialNumberChange(orderId, order.product_id, e.target.value)}
-                                  value={serialNumbers[`${orderId}-${order.product_id}`] || ''}
-                                  placeholder="Enter Serial Number"
-                                />
-                              </TableCell>
-                            )}
-                            {visibleColumns.action && (
-                              <TableCell>
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  onClick={() => handleConfirm(orderId, order.product_id)}
-                                  disabled={order.quantity <= 0}
-                                >
-                                  Confirm
-                                </Button>
-                              </TableCell>
-                            )}
-                            {visibleColumns.orderComment && (
-                              <TableCell>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleOpenCommentDialog(orderId)}
-                                >
-                                  Edit Comment
-                                </Button>
-                              </TableCell>
-                            )}
-                            {visibleColumns.productComment && (
-                              <TableCell>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleOpenProductCommentDialog(orderId, order.product_id)}
-                                >
-                                  Item Comment
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                {/* DataGrid with resizable columns */}
+                <Box sx={{ height: 400, width: '100%' }}>
+                  <DataGrid
+                    rows={activeOrders.map((order, index) => ({ ...order, id: `${orderId}-${index}` }))}
+                    columns={getColumnsForOrder(orderId)}
+                    pageSize={5}
+                    rowsPerPageOptions={[5, 10, 20]}
+                    checkboxSelection={false}
+                    disableSelectionOnClick
+                    rowHeight={60}
+                    sx={{
+                      '& .MuiDataGrid-cell': {
+                        borderColor: '#e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                      },
+                      '& .MuiDataGrid-columnHeaders': {
+                        backgroundColor: '#f5f5f5',
+                        fontWeight: 'bold',
+                      },
+                      '& .MuiDataGrid-row': {
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      },
+                    }}
+                  />
+                </Box>
               </AccordionDetails>
             </Accordion>
           );
         })}
-
-        {/* Column Visibility Menu */}
-        <Menu
-          anchorEl={columnsMenuAnchor}
-          open={Boolean(columnsMenuAnchor)}
-          onClose={() => setColumnsMenuAnchor(null)}
-        >
-          {Object.entries(columnLabels).map(([key, label]) => (
-            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input 
-                  type="checkbox" 
-                  checked={visibleColumns[key]} 
-                  onChange={() => handleColumnToggle(key)}
-                />
-                {label}
-              </Box>
-            </MenuItem>
-          ))}
-        </Menu>
 
         {/* Order Comment Dialog */}
         <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="md" fullWidth>
