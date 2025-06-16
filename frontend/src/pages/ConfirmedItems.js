@@ -16,11 +16,14 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Paper
+  Paper,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  BrokenImage as BrokenImageIcon
 } from '@mui/icons-material';
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
@@ -33,6 +36,7 @@ function ConfirmedItems() {
   const [filteredItems, setFilteredItems] = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
   
   // Enhanced search features
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,6 +47,14 @@ function ConfirmedItems() {
   const getDisplayName = (email) => {
     if (!email) return 'N/A';
     return email.split('@')[0];
+  };
+
+  // Handle image loading errors
+  const handleImageError = (itemId) => {
+    setImageErrors(prev => ({
+      ...prev,
+      [itemId]: true
+    }));
   };
 
   useEffect(() => {
@@ -73,7 +85,8 @@ function ConfirmedItems() {
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.order_id.toString().includes(searchTerm)
+        item.order_id.toString().includes(searchTerm) ||
+        (orderComments[item.order_id] && orderComments[item.order_id].toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -91,7 +104,7 @@ function ConfirmedItems() {
     }
 
     setFilteredItems(filtered);
-  }, [searchTerm, startDate, endDate, confirmedItems]);
+  }, [searchTerm, startDate, endDate, confirmedItems, orderComments]);
 
   const handleExport = (orderId) => {
     const orderItems = filteredItems.filter(item => item.order_id === orderId);
@@ -100,12 +113,12 @@ function ConfirmedItems() {
       ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Ordered By', 'Comment'].join(','),
       ...orderItems.map(item => [
         `"${item.product_name}"`,
-        item.quantity || 1,
-        `"${item.serial_number}"`,
+        item.quantity || '',
+        `"${item.serial_number || ''}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
         `"${getDisplayName(item.ordered_by)}"`,
-        `"${orderComments[orderId] || 'No comment'}"`
+        `"${orderComments[orderId] || ''}"`
       ].join(','))
     ].join('\n');
 
@@ -134,11 +147,9 @@ function ConfirmedItems() {
     return acc;
   }, {});
 
-
-
   return (
     <ThemeProvider theme={theme}>
-      <Container>
+      <Container maxWidth="xl">
         <Typography variant="h4" component="h1" gutterBottom>
           Confirmed Items
         </Typography>
@@ -157,7 +168,7 @@ function ConfirmedItems() {
                 variant="outlined"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Product, Serial Number, Order ID, or Person"
+                placeholder="Product, Serial, Order ID, Person, or Comments"
                 InputProps={{
                   startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
                 }}
@@ -242,6 +253,7 @@ function ConfirmedItems() {
                       const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
                       orderItems.forEach(item => {
                         const productName = item.product_name.toLowerCase();
+                        const quantity = item.quantity || 0;
                         // First check for accessories (to avoid misclassification)
                         if (productName.includes('dock') || productName.includes('docking') ||
                             productName.includes('charger') || productName.includes('adapter') ||
@@ -250,9 +262,9 @@ function ConfirmedItems() {
                             productName.includes('webcam') || productName.includes('speaker') ||
                             productName.includes('hub') || productName.includes('stand') ||
                             productName.includes('bag') || productName.includes('case')) {
-                          orderTotals.accessories += (item.quantity || 1);
+                          orderTotals.accessories += quantity;
                         } else if (productName.includes('monitor') || productName.includes('display')) {
-                          orderTotals.monitors += (item.quantity || 1);
+                          orderTotals.monitors += quantity;
                         } else if (productName.includes('notebook') || productName.includes('laptop') || 
                                    productName.includes('thinkpad') || productName.includes('elitebook') || 
                                    productName.includes('macbook') || productName.includes('surface') ||
@@ -261,9 +273,9 @@ function ConfirmedItems() {
                                    productName.includes('inspiron') || productName.includes('latitude') ||
                                    productName.includes('pavilion') || productName.includes('probook') ||
                                    productName.includes('toughbook') || productName.includes('fz55')) {
-                          orderTotals.notebooks += (item.quantity || 1);
+                          orderTotals.notebooks += quantity;
                         } else {
-                          orderTotals.accessories += (item.quantity || 1);
+                          orderTotals.accessories += quantity;
                         }
                       });
                       return (
@@ -302,6 +314,18 @@ function ConfirmedItems() {
               </AccordionSummary>
               
               <AccordionDetails>
+                {/* Order Comment Display */}
+                {orderComments[orderId] && (
+                  <Box sx={{ mb: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                      Order Comment:
+                    </Typography>
+                    <Typography variant="body2">
+                      {orderComments[orderId]}
+                    </Typography>
+                  </Box>
+                )}
+
                 {/* Export Button */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                   <Button
@@ -314,18 +338,20 @@ function ConfirmedItems() {
                   </Button>
                 </Box>
 
-                {/* Table with enhanced styling */}
+                {/* Responsive Table Container */}
                 <TableContainer 
                   component={Paper} 
                   sx={{
                     boxShadow: theme.shadows[4],
                     borderRadius: 2,
+                    maxHeight: '70vh',
+                    overflow: 'auto',
                     '& .MuiTable-root': {
-                      minWidth: 650,
+                      minWidth: 800,
                     }
                   }}
                 >
-                  <Table sx={{
+                  <Table stickyHeader sx={{
                     '& .MuiTableHead-root': {
                       backgroundColor: theme.palette.grey[50],
                     },
@@ -334,6 +360,10 @@ function ConfirmedItems() {
                       fontSize: '0.875rem',
                       color: theme.palette.text.primary,
                       borderBottom: `2px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.grey[50],
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 100,
                     },
                     '& .MuiTableCell-body': {
                       fontSize: '0.875rem',
@@ -345,33 +375,64 @@ function ConfirmedItems() {
                   }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
-                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
-                        <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Confirmed Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Serial Number</TableCell>
+                        <TableCell sx={{ width: '100px', minWidth: '100px' }}>Image</TableCell>
+                        <TableCell sx={{ minWidth: '250px' }}>Product Name</TableCell>
+                        <TableCell sx={{ width: '80px', minWidth: '80px' }}>Qty</TableCell>
+                        <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>
+                        <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>
+                        <TableCell sx={{ width: '120px', minWidth: '120px' }}>Confirmed</TableCell>
+                        <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Comments</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {orderItems.map((item, index) => (
                         <TableRow key={`${orderId}-${index}`} hover>
                           <TableCell>
-                            <img
-                              src={`http://10.167.49.200:3007${item.image}`}
-                              alt={item.product_name}
-                              style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
-                            />
+                            {imageErrors[`${orderId}-${index}`] ? (
+                              <Box sx={{ 
+                                width: '60px', 
+                                height: '60px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: 1,
+                                border: '1px solid #e0e0e0'
+                              }}>
+                                <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
+                              </Box>
+                            ) : (
+                              <img
+                                src={`http://10.167.49.200:3007${item.image}`}
+                                alt={item.product_name}
+                                style={{ 
+                                  width: '60px', 
+                                  height: '60px', 
+                                  objectFit: 'cover', 
+                                  borderRadius: 4,
+                                  border: '1px solid #e0e0e0'
+                                }}
+                                onError={() => handleImageError(`${orderId}-${index}`)}
+                                onLoad={() => {
+                                  // Remove from error state if image loads successfully
+                                  setImageErrors(prev => {
+                                    const newState = { ...prev };
+                                    delete newState[`${orderId}-${index}`];
+                                    return newState;
+                                  });
+                                }}
+                              />
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
                               {item.product_name}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {item.quantity || 1}
+                              {item.quantity || 'N/A'}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -390,8 +451,13 @@ function ConfirmedItems() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
                               {item.serial_number || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                              {item.comment || 'No comment'}
                             </Typography>
                           </TableCell>
                         </TableRow>
