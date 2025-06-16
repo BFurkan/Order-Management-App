@@ -130,7 +130,7 @@ function ConfirmedItems() {
     if (searchTerm) {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
         getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.order_id.toString().includes(searchTerm) ||
         (orderComments[item.order_id] && orderComments[item.order_id].toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -495,7 +495,7 @@ function ConfirmedItems() {
                                 </Box>
                               ) : (
                                 <img
-                                  src={item.product_image ? `http://10.167.49.200:3007${item.product_image}` : `http://10.167.49.200:3007${item.image}`}
+                                  src={`http://10.167.49.200:3007${item.image}`}
                                   alt={item.product_name}
                                   style={{ 
                                     width: '60px', 
