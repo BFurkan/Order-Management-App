@@ -140,14 +140,14 @@ function ConfirmedItems() {
     // Filter by date range
     if (startDate) {
       filtered = filtered.filter(item => {
-        const confirmDate = item.confirmed_date || item.confirm_date;
+        const confirmDate = item.confirm_date;
         return confirmDate && new Date(confirmDate) >= new Date(startDate);
       });
     }
 
     if (endDate) {
       filtered = filtered.filter(item => {
-        const confirmDate = item.confirmed_date || item.confirm_date;
+        const confirmDate = item.confirm_date;
         return confirmDate && new Date(confirmDate) <= new Date(endDate + 'T23:59:59');
       });
     }
@@ -165,7 +165,7 @@ function ConfirmedItems() {
         item.quantity || '',
         `"${item.serial_number || ''}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
-        `"${format(new Date(item.confirmed_date || item.confirm_date), 'MMM dd, yyyy')}"`,
+        `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
         `"${getDisplayName(item.ordered_by)}"`,
         `"${orderComments[orderId] || ''}"`,
         `"${item.item_comment || ''}"`
@@ -499,7 +499,7 @@ function ConfirmedItems() {
                                   </Box>
                                 ) : (
                                   <img
-                                    src={item.image ? `http://10.167.49.200:3007${item.image}` : '/placeholder.png'}
+                                    src={`http://10.167.49.200:3007${item.image}`}
                                     alt={item.product_name}
                                     style={{ 
                                       width: '60px', 
@@ -553,8 +553,8 @@ function ConfirmedItems() {
                             {visibleColumns.confirmedDate && (
                               <TableCell>
                                 <Typography variant="body2">
-                                  {item.confirmed_date || item.confirm_date ? 
-                                    format(new Date(item.confirmed_date || item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                                  {item.confirm_date ? 
+                                    format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
                                 </Typography>
                               </TableCell>
                             )}
