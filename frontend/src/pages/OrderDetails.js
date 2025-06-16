@@ -49,6 +49,10 @@ function OrderDetails() {
   const [currentProductComment, setCurrentProductComment] = useState({ orderId: null, productId: null });
   const [productCommentText, setProductCommentText] = useState('');
   
+  // Order ID editing
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [newOrderId, setNewOrderId] = useState('');
+  
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
@@ -288,7 +292,54 @@ function OrderDetails() {
     }));
   };
 
+  const handleEditOrderId = (orderId) => {
+    setEditingOrderId(orderId);
+    setNewOrderId(orderId);
+  };
 
+  const handleSaveOrderId = async () => {
+    try {
+      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldOrderId: editingOrderId,
+          newOrderId: newOrderId,
+        }),
+      });
+
+      if (response.ok) {
+        // Update the local state
+        const updatedGroupedOrders = { ...groupedOrders };
+        updatedGroupedOrders[newOrderId] = updatedGroupedOrders[editingOrderId];
+        delete updatedGroupedOrders[editingOrderId];
+        setGroupedOrders(updatedGroupedOrders);
+        
+        // Update comments if they exist
+        if (orderComments[editingOrderId]) {
+          const updatedComments = { ...orderComments };
+          updatedComments[newOrderId] = updatedComments[editingOrderId];
+          delete updatedComments[editingOrderId];
+          setOrderComments(updatedComments);
+        }
+        
+        setEditingOrderId(null);
+        setNewOrderId('');
+      } else {
+        alert('Failed to update order ID');
+      }
+    } catch (error) {
+      console.error('Error updating order ID:', error);
+      alert('Error updating order ID');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingOrderId(null);
+    setNewOrderId('');
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -402,6 +453,60 @@ function OrderDetails() {
               </AccordionSummary>
               
               <AccordionDetails>
+                {/* Order ID Edit Section */}
+                <Box sx={{ mb: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Order Settings
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                      Order ID:
+                    </Typography>
+                    {editingOrderId === orderId ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                          value={newOrderId}
+                          onChange={(e) => setNewOrderId(e.target.value)}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Button size="small" onClick={handleSaveOrderId} variant="contained">Save</Button>
+                        <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {orderId}
+                        </Typography>
+                        <Button size="small" onClick={() => handleEditOrderId(orderId)} variant="outlined">
+                          Edit ID
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                  
+                  {/* Order Comment Section */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                      Order Comment:
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      {orderComments[orderId] && (
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {orderComments[orderId]}
+                        </Typography>
+                      )}
+                      <Button 
+                        size="small" 
+                        onClick={() => handleOpenCommentDialog(orderId)}
+                        variant="outlined"
+                      >
+                        {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+
                 {/* Export Button */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                   <Button
