@@ -395,6 +395,9 @@ app.post('/deploy-item', async (req, res) => {
 
     const orderData = orderRows[0];
 
+    // Format deploy_date for MySQL (convert from ISO string to MySQL datetime format)
+    const formattedDeployDate = new Date(deployDate).toISOString().slice(0, 19).replace('T', ' ');
+    
     // Insert into deployed_items table
     const [result] = await pool.query(
       `INSERT INTO deployed_items 
@@ -408,7 +411,7 @@ app.post('/deploy-item', async (req, res) => {
         orderData.order_id,
         orderData.order_date,
         orderData.confirm_date,
-        deployDate,
+        formattedDeployDate,
         orderData.comment,
         orderData.item_comment,
         orderData.ordered_by,
