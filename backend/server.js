@@ -105,12 +105,47 @@ app.post('/products', upload.single('image'), async (req, res) => {
 
 app.get('/latest-order-id', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT order_id FROM orders ORDER BY id DESC LIMIT 1');
-    const latestOrderId = rows[0]?.order_id || '-';
+    const [rows] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
+    const latestOrderId = rows[0]?.max_order_id || 0;
     res.status(200).json({ latest_order_id: latestOrderId });
   } catch (err) {
     console.error('Error fetching latest order ID:', err.message);
     res.status(500).send('Error fetching latest order ID');
+  }
+});
+
+// New bulk order endpoint to keep items together
+app.post('/bulk-orders', async (req, res) => {
+  try {
+    const { items, order_date, ordered_by } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0 || !order_date) {
+      return res.status(400).send('Missing required fields');
+    }
+
+    // Parse the datetime string to a Date object
+    const parsedOrderDate = new Date(order_date);
+    if (isNaN(parsedOrderDate.getTime())) {
+      return res.status(400).send('Invalid date format');
+    }
+
+    // Get the next order ID (sequential)
+    const [maxResult] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
+    const nextOrderId = (maxResult[0]?.max_order_id || 0) + 1;
+
+    // Insert all items with the same order ID
+    const insertPromises = items.map(item => {
+      return pool.query(
+        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
+        [item.product_id, item.quantity, parsedOrderDate, nextOrderId, ordered_by]
+      );
+    });
+
+    await Promise.all(insertPromises);
+
+    res.status(201).json({ message: 'Bulk order placed successfully', order_id: nextOrderId });
+  } catch (err) {
+    console.error('Error placing bulk order:', err.message);
+    res.status(500).send('Error placing bulk order');
   }
 });
 
@@ -129,20 +164,17 @@ app.post('/orders', async (req, res) => {
 
     let newOrderId = order_id;
     if (!newOrderId) {
-      const [result] = await pool.query(
-        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, NULL, ?)',
-        [product_id, quantity, parsedOrderDate, ordered_by]
-      );
-      newOrderId = result.insertId;
-      await pool.query('UPDATE orders SET order_id = ? WHERE id = ?', [newOrderId, newOrderId]);
-    } else {
-      await pool.query(
-        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-        [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
-      );
+      // Get the next sequential order ID instead of using auto-increment
+      const [maxResult] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
+      newOrderId = (maxResult[0]?.max_order_id || 0) + 1;
     }
 
-    res.status(201).json({ message: 'Order placed successfully' });
+    await pool.query(
+      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
+      [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
+    );
+
+    res.status(201).json({ message: 'Order placed successfully', order_id: newOrderId });
   } catch (err) {
     console.error('Error placing order:', err.message);
     res.status(500).send('Error placing order');

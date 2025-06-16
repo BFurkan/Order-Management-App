@@ -182,28 +182,40 @@ function ProductList() {
   const submitOrder = () => {
     const currentDateTime = new Date().toISOString();
     
-    cart.forEach(item => {
-      fetch('http://10.167.49.200:3007/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          product_id: item.product.id,
-          quantity: item.quantity,
-          order_date: currentDateTime,
-          ordered_by: orderedBy,
-        }),
-      })
-      .then(response => response.json())
-      .then(data => console.log('Order submitted:', data))
-      .catch(error => console.error('Error submitting order:', error));
-    });
+    // Use bulk order endpoint to keep all items together with same order ID
+    const orderItems = cart.map(item => ({
+      product_id: item.product.id,
+      quantity: item.quantity
+    }));
 
-    alert('Order submitted successfully!');
-    setCart([]);
-    setOrderedBy('');
-    setOpen(false);
+    fetch('http://10.167.49.200:3007/bulk-orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: orderItems,
+        order_date: currentDateTime,
+        ordered_by: orderedBy,
+      }),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Bulk order submitted:', data);
+      alert(`Order submitted successfully! Order ID: ${data.order_id}`);
+      setCart([]);
+      setOrderedBy('');
+      setOpen(false);
+    })
+    .catch(error => {
+      console.error('Error submitting order:', error);
+      alert('Error submitting order. Please try again.');
+    });
   };
 
   const addProduct = () => {
