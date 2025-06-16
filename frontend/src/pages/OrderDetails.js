@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Typography, 
@@ -12,7 +12,14 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip
+  Chip,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon
@@ -84,26 +91,7 @@ function OrderDetails() {
       .catch(error => console.error('Error fetching products:', error));
   }, []);
 
-  const calculateTotals = useCallback((orders) => {
-    const totals = { monitors: 0, notebooks: 0, accessories: 0 };
 
-    Object.values(orders).forEach(orderGroup => {
-      orderGroup.forEach(order => {
-        const product = products[order.product_id];
-        if (product) {
-          if (product.category === 'Monitors') {
-            totals.monitors += order.quantity;
-          } else if (product.category === 'Notebooks') {
-            totals.notebooks += order.quantity;
-          } else if (product.category === 'Accessories') {
-            totals.accessories += order.quantity;
-          }
-        }
-      });
-    });
-
-    return totals;
-  }, [products]);
 
   const handleColumnToggle = (column) => {
     setVisibleColumns(prev => ({
@@ -300,139 +288,7 @@ function OrderDetails() {
     }));
   };
 
-  const getColumnsForOrder = (orderId) => {
-    const baseColumns = [
-      {
-        field: 'product_name',
-        headerName: 'Product Name',
-        flex: 1,
-        minWidth: 200,
-        resizable: true,
-        renderCell: (params) => {
-          const product = products[params.row.product_id];
-          return product?.name || 'Unknown Product';
-        },
-      },
-      {
-        field: 'order_date',
-        headerName: 'Order Date',
-        width: 150,
-        minWidth: 120,
-        maxWidth: 200,
-        resizable: true,
-        renderCell: (params) => format(new Date(params.row.order_date), 'MMM dd, yyyy'),
-      },
-      {
-        field: 'quantity',
-        headerName: 'Total Quantity',
-        width: 150,
-        minWidth: 100,
-        maxWidth: 200,
-        resizable: true,
-        type: 'number',
-      },
-      {
-        field: 'ordered_by',
-        headerName: 'Ordered By',
-        width: 150,
-        minWidth: 120,
-        maxWidth: 200,
-        resizable: true,
-        renderCell: (params) => getDisplayName(params.row.ordered_by),
-      },
-      {
-        field: 'serial_number',
-        headerName: 'Serial Number',
-        width: 200,
-        minWidth: 150,
-        maxWidth: 300,
-        resizable: true,
-        renderCell: (params) => (
-          <TextField
-            type="text"
-            label="Serial Number"
-            size="small"
-            onChange={(e) => handleSerialNumberChange(orderId, params.row.product_id, e.target.value)}
-            value={serialNumbers[`${orderId}-${params.row.product_id}`] || ''}
-            placeholder="Enter Serial Number"
-            sx={{ width: '100%' }}
-          />
-        ),
-        sortable: false,
-      },
-      {
-        field: 'action',
-        headerName: 'Action',
-        width: 120,
-        minWidth: 100,
-        maxWidth: 150,
-        resizable: true,
-        renderCell: (params) => (
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={() => handleConfirm(orderId, params.row.product_id)}
-            disabled={params.row.quantity <= 0}
-          >
-            Confirm
-          </Button>
-        ),
-        sortable: false,
-      },
-      {
-        field: 'order_comment',
-        headerName: 'Order Comment',
-        width: 150,
-        minWidth: 120,
-        maxWidth: 200,
-        resizable: true,
-        renderCell: () => (
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleOpenCommentDialog(orderId)}
-          >
-            Edit Comment
-          </Button>
-        ),
-        sortable: false,
-      },
-      {
-        field: 'product_comment',
-        headerName: 'Product Comment',
-        width: 150,
-        minWidth: 120,
-        maxWidth: 200,
-        resizable: true,
-        renderCell: (params) => (
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleOpenProductCommentDialog(orderId, params.row.product_id)}
-          >
-            Item Comment
-          </Button>
-        ),
-        sortable: false,
-      },
-    ];
 
-    // Filter columns based on visibility
-    return baseColumns.filter(column => {
-      switch (column.field) {
-        case 'product_name': return visibleColumns.productName;
-        case 'order_date': return visibleColumns.orderDate;
-        case 'quantity': return visibleColumns.totalQuantity;
-        case 'ordered_by': return visibleColumns.orderedBy;
-        case 'serial_number': return visibleColumns.serialNumber;
-        case 'action': return visibleColumns.action;
-        case 'order_comment': return visibleColumns.orderComment;
-        case 'product_comment': return visibleColumns.productComment;
-        default: return true;
-      }
-    });
-  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -558,34 +414,126 @@ function OrderDetails() {
                   </Button>
                 </Box>
 
-                {/* DataGrid with resizable columns */}
-                <Box sx={{ height: 400, width: '100%' }}>
-                  <DataGrid
-                    rows={activeOrders.map((order, index) => ({ ...order, id: `${orderId}-${index}` }))}
-                    columns={getColumnsForOrder(orderId)}
-                    pageSize={5}
-                    rowsPerPageOptions={[5, 10, 20]}
-                    checkboxSelection={false}
-                    disableSelectionOnClick
-                    rowHeight={60}
-                    sx={{
-                      '& .MuiDataGrid-cell': {
-                        borderColor: '#e0e0e0',
-                        display: 'flex',
-                        alignItems: 'center',
-                      },
-                      '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f5f5f5',
-                        fontWeight: 'bold',
-                      },
-                      '& .MuiDataGrid-row': {
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      },
-                    }}
-                  />
-                </Box>
+                {/* Table with enhanced styling */}
+                <TableContainer 
+                  component={Paper} 
+                  sx={{
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    '& .MuiTable-root': {
+                      minWidth: 650,
+                    }
+                  }}
+                >
+                  <Table sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
+                    <TableHead>
+                      <TableRow>
+                        {visibleColumns.image && <TableCell sx={{ width: '120px' }}>Product Image</TableCell>}
+                        {visibleColumns.productName && <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>}
+                        {visibleColumns.quantity && <TableCell sx={{ width: '120px' }}>Quantity</TableCell>}
+                        {visibleColumns.orderDate && <TableCell sx={{ width: '150px' }}>Order Date</TableCell>}
+                        {visibleColumns.orderedBy && <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>}
+                        {visibleColumns.serialNumber && <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>}
+                        {visibleColumns.actions && <TableCell sx={{ width: '200px' }}>Actions</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {activeOrders.map((order, index) => (
+                        <TableRow key={`${orderId}-${index}`} hover>
+                          {visibleColumns.image && (
+                            <TableCell>
+                              <img
+                                src={`http://10.167.49.200:3007${order.image}`}
+                                alt={order.product_name}
+                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
+                              />
+                            </TableCell>
+                          )}
+                          {visibleColumns.productName && (
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {order.product_name}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.quantity && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {order.quantity}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.orderDate && (
+                            <TableCell>
+                              <Typography variant="body2">
+                                {format(new Date(order.order_date), 'MMM dd, yyyy')}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.orderedBy && (
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {getDisplayName(order.ordered_by)}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumns.serialNumber && (
+                            <TableCell>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Enter serial number"
+                                value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
+                                variant="outlined"
+                              />
+                            </TableCell>
+                          )}
+                          {visibleColumns.actions && (
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  onClick={() => handleConfirm(order.order_id, order.product_id)}
+                                  sx={{ fontSize: '0.75rem' }}
+                                >
+                                  Confirm
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
+                                  sx={{ fontSize: '0.75rem' }}
+                                >
+                                  Comment
+                                </Button>
+                              </Box>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </AccordionDetails>
             </Accordion>
           );

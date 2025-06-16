@@ -9,7 +9,14 @@ import {
   AccordionDetails,
   Box,
   Chip,
-  Grid
+  Grid,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
@@ -127,60 +134,7 @@ function ConfirmedItems() {
     return acc;
   }, {});
 
-  const getColumnsForOrder = () => [
-    {
-      field: 'product_name',
-      headerName: 'Product Name',
-      flex: 1,
-      minWidth: 200,
-      resizable: true,
-    },
-    {
-      field: 'serial_number',
-      headerName: 'Serial Number',
-      width: 180,
-      minWidth: 150,
-      maxWidth: 250,
-      resizable: true,
-    },
-    {
-      field: 'order_date',
-      headerName: 'Order Date',
-      width: 150,
-      minWidth: 120,
-      maxWidth: 200,
-      resizable: true,
-      renderCell: (params) => format(new Date(params.row.order_date), 'MMM dd, yyyy'),
-    },
-    {
-      field: 'confirm_date',
-      headerName: 'Confirm Date',
-      width: 150,
-      minWidth: 120,
-      maxWidth: 200,
-      resizable: true,
-      renderCell: (params) => format(new Date(params.row.confirm_date), 'MMM dd, yyyy'),
-    },
-    {
-      field: 'ordered_by',
-      headerName: 'Ordered By',
-      width: 150,
-      minWidth: 120,
-      maxWidth: 200,
-      resizable: true,
-      renderCell: (params) => getDisplayName(params.row.ordered_by),
-    },
-    {
-      field: 'comment',
-      headerName: 'Comment',
-      width: 200,
-      minWidth: 150,
-      flex: 0.5,
-      resizable: true,
-      renderCell: (params) => orderComments[params.row.order_id] || 'No comment',
-      sortable: false,
-    },
-  ];
+
 
   return (
     <ThemeProvider theme={theme}>
@@ -360,33 +314,91 @@ function ConfirmedItems() {
                   </Button>
                 </Box>
 
-                {/* DataGrid with resizable columns */}
-                <Box sx={{ height: 400, width: '100%' }}>
-                  <DataGrid
-                    rows={orderItems.map((item, index) => ({ ...item, id: `${orderId}-${index}` }))}
-                    columns={getColumnsForOrder()}
-                    pageSize={5}
-                    rowsPerPageOptions={[5, 10, 20]}
-                    checkboxSelection={false}
-                    disableSelectionOnClick
-                    sx={{
-                      '& .MuiDataGrid-cell': {
-                        borderColor: '#e0e0e0',
-                        display: 'flex',
-                        alignItems: 'center',
-                      },
-                      '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f5f5f5',
-                        fontWeight: 'bold',
-                      },
-                      '& .MuiDataGrid-row': {
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      },
-                    }}
-                  />
-                </Box>
+                {/* Table with enhanced styling */}
+                <TableContainer 
+                  component={Paper} 
+                  sx={{
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    '& .MuiTable-root': {
+                      minWidth: 650,
+                    }
+                  }}
+                >
+                  <Table sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
+                        <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Confirmed Date</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Serial Number</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {orderItems.map((item, index) => (
+                        <TableRow key={`${orderId}-${index}`} hover>
+                          <TableCell>
+                            <img
+                              src={`http://10.167.49.200:3007${item.image}`}
+                              alt={item.product_name}
+                              style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {item.product_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {item.quantity || 1}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {getDisplayName(item.ordered_by)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {item.confirmed_date ? format(new Date(item.confirmed_date), 'MMM dd, yyyy') : 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {item.serial_number || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </AccordionDetails>
             </Accordion>
           );
