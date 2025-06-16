@@ -285,6 +285,34 @@ function OrderSummary() {
               </AccordionSummary>
               
               <AccordionDetails>
+                {/* Order ID Edit Section */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                    Order ID:
+                  </Typography>
+                  {editingOrderId === orderId ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        value={newOrderId}
+                        onChange={(e) => setNewOrderId(e.target.value)}
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Button size="small" onClick={handleSaveOrderId} variant="contained">Save</Button>
+                      <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {orderId}
+                      </Typography>
+                      <Button size="small" onClick={() => handleEditOrderId(orderId)} variant="outlined">
+                        Edit ID
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+
                 {/* Comment Section - Only show when accordion is expanded */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', mb: 2 }}>
                   <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>

@@ -49,10 +49,7 @@ function OrderDetails() {
   const [currentProductComment, setCurrentProductComment] = useState({ orderId: null, productId: null });
   const [productCommentText, setProductCommentText] = useState('');
   
-  // Order ID editing
-  const [editingOrderId, setEditingOrderId] = useState(null);
-  const [newOrderId, setNewOrderId] = useState('');
-  
+
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     productName: true,
@@ -292,54 +289,7 @@ function OrderDetails() {
     }));
   };
 
-  const handleEditOrderId = (orderId) => {
-    setEditingOrderId(orderId);
-    setNewOrderId(orderId);
-  };
 
-  const handleSaveOrderId = async () => {
-    try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          oldOrderId: editingOrderId,
-          newOrderId: newOrderId,
-        }),
-      });
-
-      if (response.ok) {
-        // Update the local state
-        const updatedGroupedOrders = { ...groupedOrders };
-        updatedGroupedOrders[newOrderId] = updatedGroupedOrders[editingOrderId];
-        delete updatedGroupedOrders[editingOrderId];
-        setGroupedOrders(updatedGroupedOrders);
-        
-        // Update comments if they exist
-        if (orderComments[editingOrderId]) {
-          const updatedComments = { ...orderComments };
-          updatedComments[newOrderId] = updatedComments[editingOrderId];
-          delete updatedComments[editingOrderId];
-          setOrderComments(updatedComments);
-        }
-        
-        setEditingOrderId(null);
-        setNewOrderId('');
-      } else {
-        alert('Failed to update order ID');
-      }
-    } catch (error) {
-      console.error('Error updating order ID:', error);
-      alert('Error updating order ID');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingOrderId(null);
-    setNewOrderId('');
-  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -453,60 +403,6 @@ function OrderDetails() {
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Order ID Edit Section */}
-                <Box sx={{ mb: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                    Order Settings
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
-                      Order ID:
-                    </Typography>
-                    {editingOrderId === orderId ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <TextField
-                          value={newOrderId}
-                          onChange={(e) => setNewOrderId(e.target.value)}
-                          size="small"
-                          variant="outlined"
-                        />
-                        <Button size="small" onClick={handleSaveOrderId} variant="contained">Save</Button>
-                        <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {orderId}
-                        </Typography>
-                        <Button size="small" onClick={() => handleEditOrderId(orderId)} variant="outlined">
-                          Edit ID
-                        </Button>
-                      </Box>
-                    )}
-                  </Box>
-                  
-                  {/* Order Comment Section */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
-                      Order Comment:
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                      {orderComments[orderId] && (
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {orderComments[orderId]}
-                        </Typography>
-                      )}
-                      <Button 
-                        size="small" 
-                        onClick={() => handleOpenCommentDialog(orderId)}
-                        variant="outlined"
-                      >
-                        {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
-                      </Button>
-                    </Box>
-                  </Box>
-                </Box>
-
                 {/* Export Button */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                   <Button
@@ -550,90 +446,88 @@ function OrderDetails() {
                   }}>
                     <TableHead>
                       <TableRow>
-                        {visibleColumns.image && <TableCell sx={{ width: '120px' }}>Product Image</TableCell>}
-                        {visibleColumns.productName && <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>}
-                        {visibleColumns.quantity && <TableCell sx={{ width: '120px' }}>Quantity</TableCell>}
-                        {visibleColumns.orderDate && <TableCell sx={{ width: '150px' }}>Order Date</TableCell>}
-                        {visibleColumns.orderedBy && <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>}
-                        {visibleColumns.serialNumber && <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>}
-                        {visibleColumns.actions && <TableCell sx={{ width: '200px' }}>Actions</TableCell>}
+                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
+                        <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+                        <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Order Comment</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Item Comment</TableCell>
+                        <TableCell sx={{ width: '120px' }}>Confirm</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {activeOrders.map((order, index) => (
                         <TableRow key={`${orderId}-${index}`} hover>
-                          {visibleColumns.image && (
-                            <TableCell>
-                              <img
-                                src={`http://10.167.49.200:3007${order.image}`}
-                                alt={order.product_name}
-                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
-                              />
-                            </TableCell>
-                          )}
-                          {visibleColumns.productName && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {order.product_name}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.quantity && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {order.quantity}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderDate && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {format(new Date(order.order_date), 'MMM dd, yyyy')}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderedBy && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {getDisplayName(order.ordered_by)}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.serialNumber && (
-                            <TableCell>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                placeholder="Enter serial number"
-                                value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
-                                onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
-                                variant="outlined"
-                              />
-                            </TableCell>
-                          )}
-                          {visibleColumns.actions && (
-                            <TableCell>
-                              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  onClick={() => handleConfirm(order.order_id, order.product_id)}
-                                  sx={{ fontSize: '0.75rem' }}
-                                >
-                                  Confirm
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
-                                  sx={{ fontSize: '0.75rem' }}
-                                >
-                                  Comment
-                                </Button>
-                              </Box>
-                            </TableCell>
-                          )}
+                          <TableCell>
+                            <img
+                              src={`http://10.167.49.200:3007${order.image}`}
+                              alt={order.product_name}
+                              style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {order.product_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {order.quantity}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {format(new Date(order.order_date), 'MMM dd, yyyy')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {getDisplayName(order.ordered_by)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              placeholder="Enter serial number"
+                              value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
+                              onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleOpenCommentDialog(orderId)}
+                              sx={{ fontSize: '0.75rem' }}
+                            >
+                              Order Comment
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
+                              sx={{ fontSize: '0.75rem' }}
+                            >
+                              Item Comment
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              onClick={() => handleConfirm(order.order_id, order.product_id)}
+                              sx={{ fontSize: '0.75rem' }}
+                            >
+                              Confirm
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
