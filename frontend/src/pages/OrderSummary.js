@@ -19,8 +19,6 @@ import {
   Paper
 } from '@mui/material';
 import { 
-  FileDownload as ExportIcon,
-  Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
@@ -76,30 +74,6 @@ function OrderSummary() {
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
-  };
-
-  const handleExport = (orderId) => {
-    const orders = groupedOrders[orderId] || [];
-    const filteredOrders = orders.filter(order => order.quantity > 0);
-    
-    const csvContent = [
-      ['Product Name', 'Ordered Quantity', 'Order Date', 'Ordered By', 'Comment'].join(','),
-      ...filteredOrders.map(order => [
-        `"${order.product_name}"`,
-        order.quantity,
-        `"${format(new Date(order.order_date), 'MMM dd, yyyy')}"`,
-        `"${getDisplayName(order.ordered_by)}"`,
-        `"${orderComments[orderId] || 'No comment'}"`
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `order-${orderId}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
   };
 
   const handleEditOrderId = (orderId) => {
@@ -307,63 +281,54 @@ function OrderSummary() {
                       {format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
                     </Typography>
                   </Box>
-
-                  {/* Second Row - Comment Section */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
-                      Comment:
-                    </Typography>
-                    {editingCommentOrderId === orderId ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                        <TextField
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          size="small"
-                          variant="outlined"
-                          fullWidth
-                          multiline
-                          maxRows={2}
-                          placeholder="Enter comment..."
-                        />
-                        <IconButton size="small" onClick={handleSaveComment} color="primary">
-                          <SaveIcon />
-                        </IconButton>
-                        <IconButton size="small" onClick={handleCancelCommentEdit}>
-                          <CancelIcon />
-                        </IconButton>
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            flex: 1,
-                            fontStyle: orderComments[orderId] ? 'normal' : 'italic',
-                            color: orderComments[orderId] ? 'inherit' : 'text.secondary'
-                          }}
-                        >
-                          {orderComments[orderId] || 'No comment'}
-                        </Typography>
-                        <IconButton size="small" onClick={() => handleEditComment(orderId)}>
-                          <EditIcon />
-                        </IconButton>
-                      </Box>
-                    )}
-                  </Box>
                 </Box>
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Export Button */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<ExportIcon />}
-                    onClick={() => handleExport(orderId)}
-                    size="small"
-                  >
-                    Export to CSV
-                  </Button>
+                {/* Comment Section - Only show when accordion is expanded */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                    Comment:
+                  </Typography>
+                  {editingCommentOrderId === orderId ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      <TextField
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        size="small"
+                        variant="outlined"
+                        fullWidth
+                        multiline
+                        maxRows={2}
+                        placeholder="Enter comment..."
+                      />
+                      <IconButton size="small" onClick={handleSaveComment} color="primary">
+                        <SaveIcon />
+                      </IconButton>
+                      <IconButton size="small" onClick={handleCancelCommentEdit}>
+                        <CancelIcon />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      {orderComments[orderId] && (
+                        <Typography 
+                          variant="body1" 
+                          sx={{ flex: 1 }}
+                        >
+                          {orderComments[orderId]}
+                        </Typography>
+                      )}
+                      <Button 
+                        size="small" 
+                        onClick={() => handleEditComment(orderId)}
+                        variant="text"
+                        sx={{ minWidth: 'auto' }}
+                      >
+                        Add comment
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
 
                 {/* Table with enhanced styling */}
@@ -402,7 +367,6 @@ function OrderSummary() {
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
                         <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
-                        <TableCell sx={{ minWidth: '200px' }}>Comment</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -433,16 +397,6 @@ function OrderSummary() {
                           <TableCell>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
                               {getDisplayName(order.ordered_by)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{
-                              maxWidth: 200,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {orderComments[orderId] || 'No comment'}
                             </Typography>
                           </TableCell>
                         </TableRow>
