@@ -9,7 +9,14 @@ import {
   AccordionSummary, 
   AccordionDetails, 
   Chip,
-  IconButton
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
@@ -17,7 +24,6 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
-import { DataGrid } from '@mui/x-data-grid';
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
@@ -192,69 +198,6 @@ function OrderSummary() {
     }));
   };
 
-  const getColumnsForOrder = (orderId) => [
-    {
-      field: 'image',
-      headerName: 'Product Image',
-      width: 120,
-      minWidth: 80,
-      maxWidth: 150,
-      resizable: true,
-      renderCell: (params) => (
-        <img 
-          src={`http://10.167.49.200:3007${params.row.image}`} 
-          alt={params.row.product_name} 
-          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }} 
-        />
-      ),
-      sortable: false,
-    },
-    {
-      field: 'product_name',
-      headerName: 'Product Name',
-      flex: 1,
-      minWidth: 200,
-      resizable: true,
-    },
-    {
-      field: 'quantity',
-      headerName: 'Quantity',
-      width: 120,
-      minWidth: 80,
-      maxWidth: 150,
-      resizable: true,
-      type: 'number',
-    },
-    {
-      field: 'order_date',
-      headerName: 'Order Date',
-      width: 150,
-      minWidth: 120,
-      maxWidth: 200,
-      resizable: true,
-      renderCell: (params) => format(new Date(params.row.order_date), 'MMM dd, yyyy'),
-    },
-    {
-      field: 'ordered_by',
-      headerName: 'Ordered By',
-      width: 150,
-      minWidth: 120,
-      maxWidth: 200,
-      resizable: true,
-      renderCell: (params) => getDisplayName(params.row.ordered_by),
-    },
-    {
-      field: 'comment',
-      headerName: 'Comment',
-      width: 200,
-      minWidth: 150,
-      flex: 0.5,
-      resizable: true,
-      renderCell: () => orderComments[orderId] || 'No comment',
-      sortable: false,
-    },
-  ];
-
   return (
     <ThemeProvider theme={theme}>
       <Container>
@@ -423,34 +366,90 @@ function OrderSummary() {
                   </Button>
                 </Box>
 
-                {/* DataGrid with resizable columns */}
-                <Box sx={{ height: 400, width: '100%' }}>
-                  <DataGrid
-                    rows={filteredOrders.map((order, index) => ({ ...order, id: `${orderId}-${index}` }))}
-                    columns={getColumnsForOrder(orderId)}
-                    pageSize={5}
-                    rowsPerPageOptions={[5, 10, 20]}
-                    checkboxSelection={false}
-                    disableSelectionOnClick
-                    rowHeight={80}
-                    sx={{
-                      '& .MuiDataGrid-cell': {
-                        borderColor: '#e0e0e0',
-                        display: 'flex',
-                        alignItems: 'center',
-                      },
-                      '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f5f5f5',
-                        fontWeight: 'bold',
-                      },
-                      '& .MuiDataGrid-row': {
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      },
-                    }}
-                  />
-                </Box>
+                {/* Table with enhanced styling */}
+                <TableContainer 
+                  component={Paper} 
+                  sx={{
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    '& .MuiTable-root': {
+                      minWidth: 650,
+                    }
+                  }}
+                >
+                  <Table sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
+                        <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Comment</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredOrders.map((order) => (
+                        <TableRow key={order.id} hover>
+                          <TableCell>
+                            <img
+                              src={`http://10.167.49.200:3007${order.image}`}
+                              alt={order.product_name}
+                              style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {order.product_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {order.quantity}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {format(new Date(order.order_date), 'MMM dd, yyyy')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {getDisplayName(order.ordered_by)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{
+                              maxWidth: 200,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {orderComments[orderId] || 'No comment'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </AccordionDetails>
             </Accordion>
           );

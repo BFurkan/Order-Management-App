@@ -15,7 +15,7 @@ import {
   FileDownload as ExportIcon,
   Search as SearchIcon
 } from '@mui/icons-material';
-import { DataGrid } from '@mui/x-data-grid';
+// Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
