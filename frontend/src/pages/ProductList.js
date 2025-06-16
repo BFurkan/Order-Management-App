@@ -26,14 +26,14 @@ import {
   Fab,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Chip
 } from '@mui/material';
 import { 
   Add as AddIcon,
   ShoppingCart as CartIcon,
   FileDownload as ExportIcon,
-  ViewColumn as ColumnsIcon,
-  FilterList as FilterIcon
+  ViewColumn as ColumnsIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
@@ -51,7 +51,6 @@ function ProductList() {
   // Enhanced table features
   const [sortBy, setSortBy] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
-  const [filterText, setFilterText] = useState('');
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   
   // Column visibility state
@@ -70,6 +69,8 @@ function ProductList() {
     quantity: 'Quantity',
     action: 'Action'
   };
+
+  const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
   useEffect(() => {
     fetch('http://10.167.49.200:3007/products')
@@ -141,16 +142,8 @@ function ProductList() {
     let filtered = data;
     
     // Apply category filter
-    if (categoryFilter) {
+    if (categoryFilter && categoryFilter !== 'All Categories') {
       filtered = filtered.filter(product => product.category === categoryFilter);
-    }
-    
-    // Apply text filter
-    if (filterText) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        product.category.toLowerCase().includes(filterText.toLowerCase())
-      );
     }
     
     return filtered;
@@ -247,32 +240,27 @@ function ProductList() {
           Product List
         </Typography>
 
-        {/* Category Filter */}
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Filter by Category</InputLabel>
-          <Select
-            value={categoryFilter}
-            label="Filter by Category"
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <MenuItem value="">All Categories</MenuItem>
-            <MenuItem value="Notebooks">Notebooks</MenuItem>
-            <MenuItem value="Monitors">Monitors</MenuItem>
-            <MenuItem value="Accessories">Accessories</MenuItem>
-          </Select>
-        </FormControl>
+        {/* Category Filter Buttons */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Filter by Category:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {categories.map((category) => (
+              <Chip
+                key={category}
+                label={category}
+                onClick={() => setCategoryFilter(category === 'All Categories' ? '' : category)}
+                color={categoryFilter === (category === 'All Categories' ? '' : category) ? 'primary' : 'default'}
+                variant={categoryFilter === (category === 'All Categories' ? '' : category) ? 'filled' : 'outlined'}
+                clickable
+              />
+            ))}
+          </Box>
+        </Box>
 
         {/* Enhanced Table Toolbar */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <TextField
-            size="small"
-            placeholder="Filter products..."
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            InputProps={{
-              startAdornment: <FilterIcon sx={{ mr: 1, color: 'action.active' }} />
-            }}
-          />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <IconButton 
               size="small" 
