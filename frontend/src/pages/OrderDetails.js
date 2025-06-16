@@ -453,7 +453,7 @@ function OrderDetails() {
                         <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
                         <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Comment</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Item Comment</TableCell>
+                        <TableCell sx={{ width: '200px' }}>Item Comment</TableCell>
                         <TableCell sx={{ width: '120px' }}>Confirm</TableCell>
                       </TableRow>
                     </TableHead>
@@ -498,24 +498,44 @@ function OrderDetails() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => handleOpenCommentDialog(orderId)}
-                              sx={{ fontSize: '0.75rem' }}
-                            >
-                              Order Comment
-                            </Button>
+                            <Box>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleOpenCommentDialog(orderId)}
+                                sx={{ fontSize: '0.75rem', mb: 1 }}
+                              >
+                                Edit Order Comment
+                              </Button>
+                              {orderComments[orderId] && (
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                  {orderComments[orderId].length > 50 
+                                    ? `${orderComments[orderId].substring(0, 50)}...` 
+                                    : orderComments[orderId]
+                                  }
+                                </Typography>
+                              )}
+                            </Box>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
-                              sx={{ fontSize: '0.75rem' }}
-                            >
-                              Item Comment
-                            </Button>
+                            <Box>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
+                                sx={{ fontSize: '0.75rem', mb: 1 }}
+                              >
+                                Edit Item Comment
+                              </Button>
+                              {productComments[`${order.order_id}-${order.product_id}`] && (
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                  {productComments[`${order.order_id}-${order.product_id}`].length > 50 
+                                    ? `${productComments[`${order.order_id}-${order.product_id}`].substring(0, 50)}...` 
+                                    : productComments[`${order.order_id}-${order.product_id}`]
+                                  }
+                                </Typography>
+                              )}
+                            </Box>
                           </TableCell>
                           <TableCell>
                             <Button
