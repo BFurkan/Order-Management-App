@@ -363,6 +363,8 @@ app.post('/deploy-item', async (req, res) => {
   try {
     const { itemId, originalId, productId, orderId, serialNumber, deployDate } = req.body;
     
+    console.log('Deploy request received:', { itemId, originalId, productId, orderId, serialNumber, deployDate });
+    
     if (!originalId || !serialNumber) {
       return res.status(400).json({ message: 'Original ID and Serial Number are required' });
     }
@@ -385,8 +387,10 @@ app.post('/deploy-item', async (req, res) => {
       WHERE o.id = ?
     `, [originalId]);
 
+    console.log('Order lookup result:', orderRows.length > 0 ? 'Found' : 'Not found', orderRows[0]);
+
     if (orderRows.length === 0) {
-      return res.status(404).json({ message: 'Original order not found' });
+      return res.status(404).json({ message: `Original order not found for ID: ${originalId}` });
     }
 
     const orderData = orderRows[0];
@@ -412,14 +416,18 @@ app.post('/deploy-item', async (req, res) => {
       ]
     );
 
+    console.log('Insert result:', result);
+
     if (result.affectedRows > 0) {
+      console.log('Item deployed successfully:', serialNumber);
       res.status(200).json({ success: true, message: 'Item deployed successfully' });
     } else {
       res.status(500).json({ success: false, message: 'Failed to deploy item' });
     }
   } catch (err) {
     console.error('Error deploying item:', err.message);
-    res.status(500).json({ success: false, message: 'Error deploying item' });
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ success: false, message: 'Error deploying item: ' + err.message });
   }
 });
 
