@@ -40,6 +40,7 @@ function Scan() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
+  const [isAlreadyDeployed, setIsAlreadyDeployed] = useState(false);
 
   // Function to extract username from email (part before @)
   const getDisplayName = (email) => {
@@ -75,6 +76,25 @@ function Scan() {
 
       if (matchingItem) {
         console.log('Found matching item:', matchingItem);
+        
+        // Check if this item is already deployed
+        try {
+          const deployedResponse = await fetch('http://10.167.49.200:3007/deployed-items');
+          if (deployedResponse.ok) {
+            const deployedItems = await deployedResponse.json();
+            const isDeployed = deployedItems.some(deployed => 
+              deployed.serial_number && deployed.serial_number.toLowerCase() === serialNumber.toLowerCase().trim()
+            );
+            setIsAlreadyDeployed(isDeployed);
+            console.log('Item already deployed:', isDeployed);
+          } else {
+            setIsAlreadyDeployed(false);
+          }
+        } catch (deployedError) {
+          console.error('Error checking deployed status:', deployedError);
+          setIsAlreadyDeployed(false);
+        }
+        
         setSearchResult(matchingItem);
         setSelectedItem(matchingItem);
         setModalOpen(true);
@@ -144,6 +164,7 @@ function Scan() {
     setError('');
     setSuccess('');
     setImageError(false);
+    setIsAlreadyDeployed(false);
   };
 
   const handleKeyPress = (event) => {
@@ -226,9 +247,20 @@ function Scan() {
 
         {/* Search Result Summary */}
         {searchResult && (
-          <Box sx={{ mb: 3, p: 2, backgroundColor: '#e8f5e8', borderRadius: 1, border: '1px solid #4caf50' }}>
+          <Box sx={{ 
+            mb: 3, 
+            p: 2, 
+            backgroundColor: isAlreadyDeployed ? '#ffebee' : '#e8f5e8', 
+            borderRadius: 1, 
+            border: isAlreadyDeployed ? '1px solid #f44336' : '1px solid #4caf50' 
+          }}>
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
-              ✓ Found confirmed item: {searchResult.product_name} (Serial: {searchResult.serial_number})
+              {isAlreadyDeployed ? '⚠️' : '✓'} Found confirmed item: {searchResult.product_name} (Serial: {searchResult.serial_number})
+              {isAlreadyDeployed && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  This item has already been deployed and cannot be deployed again.
+                </Typography>
+              )}
             </Typography>
           </Box>
         )}
@@ -246,8 +278,8 @@ function Scan() {
                 Confirmed Item Details
               </Typography>
               <Chip 
-                label="Ready to Deploy" 
-                color="primary" 
+                label={isAlreadyDeployed ? "Already Deployed" : "Ready to Deploy"} 
+                color={isAlreadyDeployed ? "error" : "primary"} 
                 size="small"
               />
             </Box>
@@ -362,10 +394,10 @@ function Scan() {
               onClick={handleDeploy}
               variant="contained"
               color="success"
-              disabled={loading}
+              disabled={loading || isAlreadyDeployed}
               startIcon={<DeployIcon />}
             >
-              {loading ? 'Deploying...' : 'Deploy Item'}
+              {loading ? 'Deploying...' : isAlreadyDeployed ? 'Already Deployed' : 'Deploy Item'}
             </Button>
           </DialogActions>
         </Dialog>
