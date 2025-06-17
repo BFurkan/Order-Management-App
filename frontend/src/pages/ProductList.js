@@ -103,7 +103,7 @@ function ProductList() {
       ...filteredAndSortedProducts.map(product => [
         `"${product.name}"`,
         `"${product.category}"`,
-        `"$${(product.price || 0).toFixed(2)}"`,
+        `"$${(parseFloat(product.price) || 0).toFixed(2)}"`,
         quantities[product.id] || 0
       ].join(','))
     ].join('\n');
@@ -410,7 +410,7 @@ function ProductList() {
                   {visibleColumns.price && (
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: 'green' }}>
-                        ${(product.price || 0).toFixed(2)}
+                        ${(parseFloat(product.price) || 0).toFixed(2)}
                       </Typography>
                     </TableCell>
                   )}
