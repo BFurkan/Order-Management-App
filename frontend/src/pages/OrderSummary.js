@@ -1,37 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Container, Typography, Button, TextField, Accordion, AccordionSummary, AccordionDetails, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from '@mui/material';
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Button, 
+  TextField, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails, 
+  Chip,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
+} from '@mui/material';
+import { 
+  Save as SaveIcon,
+  Cancel as CancelIcon
+} from '@mui/icons-material';
+import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
-import ColumnSelector from '../components/ColumnSelector';
+import theme from './theme';
 
 function OrderSummary() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [newOrderId, setNewOrderId] = useState('');
   const [expandedOrders, setExpandedOrders] = useState({});
-  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-  const [currentCommentOrderId, setCurrentCommentOrderId] = useState(null);
+  const [editingCommentOrderId, setEditingCommentOrderId] = useState(null);
   const [commentText, setCommentText] = useState('');
   const [orderComments, setOrderComments] = useState({});
-  
-  // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState({
-    productImage: true,
-    product: true,
-    orderedQuantity: true,
-    orderDate: true,
-    orderedBy: true,
-    comment: true
-  });
-
-  const columnLabels = {
-    productImage: 'Product Image',
-    product: 'Product Name',
-    orderedQuantity: 'Ordered Quantity',
-    orderDate: 'Order Date',
-    orderedBy: 'Ordered By',
-    comment: 'Comment'
-  };
 
   // Function to extract username from email (part before @)
   const getDisplayName = (email) => {
@@ -71,13 +74,6 @@ function OrderSummary() {
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
-  };
-
-  const handleColumnToggle = (column) => {
-    setVisibleColumns(prev => ({
-      ...prev,
-      [column]: !prev[column]
-    }));
   };
 
   const handleEditOrderId = (orderId) => {
@@ -129,10 +125,9 @@ function OrderSummary() {
     setNewOrderId('');
   };
 
-  const handleOpenCommentDialog = (orderId) => {
-    setCurrentCommentOrderId(orderId);
+  const handleEditComment = (orderId) => {
+    setEditingCommentOrderId(orderId);
     setCommentText(orderComments[orderId] || '');
-    setCommentDialogOpen(true);
   };
 
   const handleSaveComment = async () => {
@@ -143,7 +138,7 @@ function OrderSummary() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          orderId: currentCommentOrderId,
+          orderId: editingCommentOrderId,
           comment: commentText,
         }),
       });
@@ -152,10 +147,9 @@ function OrderSummary() {
         // Update local state
         setOrderComments(prev => ({
           ...prev,
-          [currentCommentOrderId]: commentText
+          [editingCommentOrderId]: commentText
         }));
-        setCommentDialogOpen(false);
-        setCurrentCommentOrderId(null);
+        setEditingCommentOrderId(null);
         setCommentText('');
       } else {
         alert('Failed to update comment');
@@ -166,6 +160,11 @@ function OrderSummary() {
     }
   };
 
+  const handleCancelCommentEdit = () => {
+    setEditingCommentOrderId(null);
+    setCommentText('');
+  };
+
   const handleAccordionChange = (orderId) => (event, isExpanded) => {
     setExpandedOrders(prev => ({
       ...prev,
@@ -174,266 +173,303 @@ function OrderSummary() {
   };
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Order Summary
-      </Typography>
-      
-      {/* Column Selection */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <ColumnSelector
-          visibleColumns={visibleColumns}
-          onColumnToggle={handleColumnToggle}
-          columnLabels={columnLabels}
-        />
-      </Box>
+    <ThemeProvider theme={theme}>
+      <Container>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Order Summary
+        </Typography>
 
-      {Object.keys(groupedOrders).map(orderId => {
-        const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
+        {/* Table Headers */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: '150px 1fr 150px', 
+          gap: 2, 
+          p: 2, 
+          mb: 2,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 1,
+          fontWeight: 600
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Items Summary</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Date</Typography>
+        </Box>
 
-        if (filteredOrders.length === 0) {
-          return null; // Don't render anything if all orders have a quantity of 0
-        }
+        {Object.keys(groupedOrders).map(orderId => {
+          const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
 
-        return (
-          <Accordion 
-            key={orderId} 
-            expanded={expandedOrders[orderId] || false}
-            onChange={handleAccordionChange(orderId)}
-            sx={{ marginBottom: 2 }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`panel-${orderId}-content`}
-              id={`panel-${orderId}-header`}
-              sx={{ backgroundColor: '#f5f5f5' }}
+          if (filteredOrders.length === 0) {
+            return null;
+          }
+
+          return (
+            <Accordion 
+              key={orderId} 
+              expanded={expandedOrders[orderId] || false}
+              onChange={handleAccordionChange(orderId)}
+              sx={{ marginBottom: 2 }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`panel-${orderId}-content`}
+                id={`panel-${orderId}-header`}
+                sx={{ backgroundColor: '#f9f9f9' }}
+              >
+                {/* Table-like Row Layout */}
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '150px 1fr 150px', 
+                  gap: 2, 
+                  width: '100%',
+                  alignItems: 'center'
+                }}>
+                  {/* Order ID Column */}
+                  <Box>
+                    {editingOrderId === orderId ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <TextField
+                          value={newOrderId}
+                          onChange={(e) => setNewOrderId(e.target.value)}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button size="small" onClick={handleSaveOrderId}>Save</Button>
+                          <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Typography 
+                        variant="h6" 
+                        onClick={() => handleEditOrderId(orderId)} 
+                        sx={{ cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {orderId}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {/* Items Summary Column */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      filteredOrders.forEach(order => {
+                        const productName = order.product_name.toLowerCase();
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
+                          orderTotals.monitors += order.quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
+                          orderTotals.notebooks += order.quantity;
+                        } else {
+                          orderTotals.accessories += order.quantity;
+                        }
+                      });
+                      return (
+                        <>
+                          {orderTotals.monitors > 0 && (
+                            <Chip
+                              label={`Monitors: ${orderTotals.monitors}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
+                            />
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Chip
+                              label={`Notebooks: ${orderTotals.notebooks}`}
+                              size="small"
+                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
+                            />
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Chip
+                              label={`Accessories: ${orderTotals.accessories}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
+                  </Box>
+
+                  {/* Date Column */}
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
+                    </Typography>
+                  </Box>
+                </Box>
+              </AccordionSummary>
+              
+              <AccordionDetails>
+                {/* Order ID Edit Section */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                    Order ID:
+                  </Typography>
                   {editingOrderId === orderId ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <TextField
-                        size="small"
                         value={newOrderId}
                         onChange={(e) => setNewOrderId(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
+                        size="small"
+                        variant="outlined"
                       />
-                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleSaveOrderId(); }}>
-                        Save
-                      </Button>
-                      <Button size="small" onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}>
-                        Cancel
-                      </Button>
+                      <Button size="small" onClick={handleSaveOrderId} variant="contained">Save</Button>
+                      <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
                     </Box>
                   ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h6">
-                        Order ID: {orderId}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {orderId}
                       </Typography>
-                      {/* Category totals beside Order ID */}
-                      {(() => {
-                        const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                        filteredOrders.forEach(order => {
-                          const productName = order.product_name.toLowerCase();
-                          // First check for accessories (to avoid misclassification)
-                          if (productName.includes('dock') || productName.includes('docking') ||
-                              productName.includes('charger') || productName.includes('adapter') ||
-                              productName.includes('cable') || productName.includes('mouse') ||
-                              productName.includes('keyboard') || productName.includes('headset') ||
-                              productName.includes('webcam') || productName.includes('speaker') ||
-                              productName.includes('hub') || productName.includes('stand') ||
-                              productName.includes('bag') || productName.includes('case')) {
-                            orderTotals.accessories += order.quantity;
-                          } else if (productName.includes('monitor') || productName.includes('display')) {
-                            orderTotals.monitors += order.quantity;
-                          } else if (productName.includes('notebook') || productName.includes('laptop') || 
-                                     productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                     productName.includes('macbook') || productName.includes('surface') ||
-                                     productName.includes('k14') || productName.includes('lenovo') ||
-                                     productName.includes('ideapad') || productName.includes('yoga') ||
-                                     productName.includes('inspiron') || productName.includes('latitude') ||
-                                     productName.includes('pavilion') || productName.includes('probook') ||
-                                     productName.includes('toughbook') || productName.includes('fz55')) {
-                            orderTotals.notebooks += order.quantity;
-                          } else {
-                            orderTotals.accessories += order.quantity;
-                          }
-                        });
-                        return (
-                          <Box sx={{ display: 'flex', gap: 1, fontSize: '0.75rem' }}>
-                            {orderTotals.monitors > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#e3f2fd', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Monitors: {orderTotals.monitors}
-                              </Typography>
-                            )}
-                            {orderTotals.notebooks > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#f3e5f5', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Notebooks: {orderTotals.notebooks}
-                              </Typography>
-                            )}
-                            {orderTotals.accessories > 0 && (
-                              <Typography variant="caption" sx={{ backgroundColor: '#e8f5e8', px: 1, py: 0.5, borderRadius: 1 }}>
-                                Accessories: {orderTotals.accessories}
-                              </Typography>
-                            )}
-                          </Box>
-                        );
-                      })()}
+                      <Button size="small" onClick={() => handleEditOrderId(orderId)} variant="outlined">
+                        Edit ID
+                      </Button>
                     </Box>
                   )}
                 </Box>
-                {/* Order date on the right side */}
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
-                    {filteredOrders.length > 0 && format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
-                  </Typography>
-                </Box>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {/* Edit Order ID Section */}
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f0f8ff', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    Order ID Management
-                  </Typography>
-                  {editingOrderId !== orderId ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => handleEditOrderId(orderId)}
-                    >
-                      Edit Order ID
-                    </Button>
-                  ) : null}
-                </Box>
-                {editingOrderId === orderId ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    <TextField
-                      size="small"
-                      value={newOrderId}
-                      onChange={(e) => setNewOrderId(e.target.value)}
-                      label="New Order ID"
-                      variant="outlined"
-                    />
-                    <Button size="small" variant="contained" onClick={handleSaveOrderId}>
-                      Save
-                    </Button>
-                    <Button size="small" variant="outlined" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: '#f8f9fa', borderRadius: 1, color: '#6c757d', fontStyle: 'italic' }}>
-                    Current Order ID: <strong style={{ color: '#495057' }}>{orderId}</strong>
-                  </Typography>
-                )}
-              </Box>
 
-              {/* Order Comment Section */}
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    Order Comment
+                {/* Comment Section - Only show when accordion is expanded */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                    Comment:
                   </Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleOpenCommentDialog(orderId)}
-                  >
-                    {orderComments[orderId] ? 'Edit Comment' : 'Add Comment'}
-                  </Button>
+                  {editingCommentOrderId === orderId ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      <TextField
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        size="small"
+                        variant="outlined"
+                        fullWidth
+                        multiline
+                        maxRows={2}
+                        placeholder="Enter comment..."
+                      />
+                      <IconButton size="small" onClick={handleSaveComment} color="primary">
+                        <SaveIcon />
+                      </IconButton>
+                      <IconButton size="small" onClick={handleCancelCommentEdit}>
+                        <CancelIcon />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      {orderComments[orderId] && (
+                        <Typography 
+                          variant="body1" 
+                          sx={{ flex: 1 }}
+                        >
+                          {orderComments[orderId]}
+                        </Typography>
+                      )}
+                      <Button 
+                        size="small" 
+                        onClick={() => handleEditComment(orderId)}
+                        variant="text"
+                        sx={{ minWidth: 'auto' }}
+                      >
+                        Add comment
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
-                {orderComments[orderId] ? (
-                  <Typography variant="body2" sx={{ p: 1, backgroundColor: 'white', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                    {orderComments[orderId]}
-                  </Typography>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                    No order comment added yet
-                  </Typography>
-                )}
-              </Box>
 
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      {visibleColumns.productImage && <TableCell>Product Image</TableCell>}
-                      {visibleColumns.product && <TableCell>Product</TableCell>}
-                      {visibleColumns.orderedQuantity && <TableCell>Ordered Quantity</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                      {visibleColumns.comment && <TableCell>Comment</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        {visibleColumns.productImage && (
+                {/* Table with enhanced styling */}
+                <TableContainer 
+                  component={Paper} 
+                  sx={{
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    '& .MuiTable-root': {
+                      minWidth: 650,
+                    }
+                  }}
+                >
+                  <Table sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
+                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
+                        <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
+                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredOrders.map((order) => (
+                        <TableRow key={order.id} hover>
                           <TableCell>
-                            <img src={`http://10.167.49.200:3007${order.image}`} alt={order.product_name} style={{ width: '100px' }} />
+                            <img
+                              src={`http://10.167.49.200:3007${order.image}`}
+                              alt={order.product_name}
+                              style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
+                            />
                           </TableCell>
-                        )}
-                        {visibleColumns.product && <TableCell>{order.product_name}</TableCell>}
-                        {visibleColumns.orderedQuantity && <TableCell>{order.quantity}</TableCell>}
-                        {visibleColumns.orderDate && <TableCell>{format(new Date(order.order_date), 'yyyy-MM-dd')}</TableCell>}
-                        {visibleColumns.orderedBy && (
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {order.product_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {order.quantity}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {format(new Date(order.order_date), 'MMM dd, yyyy')}
+                            </Typography>
+                          </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
                               {getDisplayName(order.ordered_by)}
                             </Typography>
                           </TableCell>
-                        )}
-                        {visibleColumns.comment && (
-                          <TableCell>
-                            {orderComments[orderId] ? (
-                              <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {orderComments[orderId]}
-                              </Typography>
-                            ) : (
-                              <Typography variant="body2" color="textSecondary">
-                                No comment
-                              </Typography>
-                            )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
-
-      {/* Comment Dialog */}
-      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {orderComments[currentCommentOrderId] ? 'Edit Comment' : 'Add Comment'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            multiline
-            rows={4}
-            fullWidth
-            variant="outlined"
-            label="Comment"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Enter your comment here..."
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveComment} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
+      </Container>
+    </ThemeProvider>
   );
 }
 
-export default OrderSummary;
+export default OrderSummary; 

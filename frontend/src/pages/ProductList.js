@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Button,
-  TextField,
+import { 
+  Container, 
+  Typography, 
+  Button, 
+  TextField, 
+  MenuItem, 
+  FormControl, 
+  InputLabel, 
   Select,
-  MenuItem,
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions,
   Table,
   TableBody,
   TableCell,
@@ -12,63 +19,71 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography,
-  InputLabel,
-  FormControl,
-  Fab,
+  TableSortLabel,
+  IconButton,
+  Menu,
   Box,
+  Fab,
+  Grid,
+  Card,
+  CardContent,
+  Chip
 } from '@mui/material';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import ColumnSelector from '../components/ColumnSelector';
-
-const categories = ['Notebooks', 'Monitors', 'Accessories'];
+import { 
+  Add as AddIcon,
+  ShoppingCart as CartIcon,
+  FileDownload as ExportIcon,
+  ViewColumn as ColumnsIcon,
+  Edit as EditIcon
+} from '@mui/icons-material';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from './theme';
 
 function ProductList() {
-  const [selectedCategory, setSelectedCategory] = useState('Notebooks');
   const [products, setProducts] = useState([]);
-  const [order, setOrder] = useState({});
-  const [open, setOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [orderedByOpen, setOrderedByOpen] = useState(false);
+  const [cart, setCart] = useState([]);
   const [orderedBy, setOrderedBy] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [newProduct, setNewProduct] = useState({ name: '', category: 'Notebooks', image: null });
-  // Initialize orderDate with current date
-  const getCurrentDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
+  const [open, setOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [editProductOpen, setEditProductOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '', image: null });
+  const [editProduct, setEditProduct] = useState({ id: '', name: '', category: '', price: '', image: null });
+  const [quantities, setQuantities] = useState({});
+  const [categoryFilter, setCategoryFilter] = useState('');
   
-  const [orderDate, setOrderDate] = useState(getCurrentDate());
-  const navigate = useNavigate();
-
+  // Enhanced table features
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
+  
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
-    image: true,
-    name: true,
+    productImage: true,
+    productName: true,
+    category: true,
+    price: true,
     quantity: true,
+    action: true
   });
 
   const columnLabels = {
-    image: 'Product Image',
-    name: 'Product Name',
+    productImage: 'Product Image',
+    productName: 'Product Name',
+    category: 'Category',
+    price: 'Price',
     quantity: 'Quantity',
+    action: 'Action'
   };
+
+  const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
   useEffect(() => {
     fetch('http://10.167.49.200:3007/products')
-      .then(res => res.json())
+      .then(response => response.json())
       .then(data => setProducts(data))
-      .catch(err => console.error('Error fetching products:', err));
+      .catch(error => console.error('Error fetching products:', error));
   }, []);
-
-  const handleQuantityChange = (productId, quantity) => {
-    setOrder(prev => ({ ...prev, [productId]: quantity }));
-  };
 
   const handleColumnToggle = (column) => {
     setVisibleColumns(prev => ({
@@ -77,285 +92,626 @@ function ProductList() {
     }));
   };
 
-  // Email validation function
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const handleSort = (column) => {
+    const isAsc = sortBy === column && sortDirection === 'asc';
+    setSortDirection(isAsc ? 'desc' : 'asc');
+    setSortBy(column);
   };
 
-  const handleOrder = () => {
-    if (!orderedBy.trim()) {
-      setEmailError('Please enter an email address.');
-      return;
+  const handleExport = () => {
+    const csvContent = [
+      ['Product Name', 'Category', 'Price', 'Quantity'].join(','),
+      ...filteredAndSortedProducts.map(product => [
+        `"${product.name}"`,
+        `"${product.category}"`,
+        `"$${(parseFloat(product.price) || 0).toFixed(2)}"`,
+        quantities[product.id] || 0
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'products.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const sortData = (data) => {
+    return [...data].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'productName':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'category':
+          aValue = a.category;
+          bValue = b.category;
+          break;
+        case 'price':
+          aValue = parseFloat(a.price) || 0;
+          bValue = parseFloat(b.price) || 0;
+          break;
+        case 'quantity':
+          aValue = quantities[a.id] || 0;
+          bValue = quantities[b.id] || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const filterData = (data) => {
+    let filtered = data;
+    
+    // Apply category filter
+    if (categoryFilter && categoryFilter !== 'All Categories') {
+      filtered = filtered.filter(product => product.category === categoryFilter);
     }
+    
+    return filtered;
+  };
 
-    if (!validateEmail(orderedBy)) {
-      setEmailError('Please enter a valid email address.');
-      return;
+  const filteredAndSortedProducts = sortData(filterData(products));
+
+  const addToCart = (product) => {
+    const quantity = quantities[product.id] || 0;
+    if (quantity > 0) {
+      setCart(prevCart => {
+        const existingItem = prevCart.find(item => item.product.id === product.id);
+        if (existingItem) {
+          return prevCart.map(item =>
+            item.product.id === product.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        } else {
+          return [...prevCart, { product, quantity }];
+        }
+      });
+      setQuantities(prevQuantities => ({ ...prevQuantities, [product.id]: 0 }));
     }
-
-    setEmailError(''); // Clear any previous errors
-
-    fetch('http://10.167.49.200:3007/latest-order-id')
-      .then(res => res.json())
-      .then(data => {
-        const newOrderId = isNaN(parseInt(data.latest_order_id, 10)) ? '1' : (parseInt(data.latest_order_id, 10) + 1).toString();
-
-        const currentOrder = Object.entries(order).map(([productId, quantity]) => ({
-          order_id: newOrderId,
-          product_id: parseInt(productId, 10),
-          quantity,
-          order_date: orderDate, // Use the selected date
-          ordered_by: orderedBy,
-        }));
-
-        return Promise.all(currentOrder.map(o =>
-          fetch('http://10.167.49.200:3007/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(o),
-          }).then(res => {
-            if (!res.ok) throw new Error('Order failed');
-            return res.json();
-          })
-        ));
-      })
-      .then(() => {
-        setOrderedByOpen(false);
-        setOrderedBy('');
-        setOrderDate(getCurrentDate()); // Reset to current date
-        navigate('/order-summary');
-      })
-      .catch(err => console.error('Error placing order:', err));
   };
 
-  const handleInputChange = e => {
-    const { name, value } = e.target;
-    setNewProduct(prev => ({ ...prev, [name]: value }));
+  const handleQuantityChange = (productId, value) => {
+    const intValue = parseInt(value) || 0;
+    setQuantities(prevQuantities => ({ ...prevQuantities, [productId]: intValue }));
   };
 
-  const handleFileChange = e => {
-    setNewProduct(prev => ({ ...prev, image: e.target.files[0] }));
+  const removeFromCart = (productId) => {
+    setCart(prevCart => prevCart.filter(item => item.product.id !== productId));
   };
 
-  const handleFormSubmit = () => {
+  const submitOrder = () => {
+    // Use the selected order date and combine with current time
+    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+    
+    // Use bulk order endpoint to keep all items together with same order ID
+    const orderItems = cart.map(item => ({
+      product_id: item.product.id,
+      quantity: item.quantity
+    }));
+
+    fetch('http://10.167.49.200:3007/bulk-orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: orderItems,
+        order_date: selectedDateTime,
+        ordered_by: orderedBy,
+      }),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Bulk order submitted:', data);
+      alert(`Order submitted successfully! Order ID: ${data.order_id}`);
+      setCart([]);
+      setOrderedBy('');
+      setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today's date
+      setOpen(false);
+    })
+    .catch(error => {
+      console.error('Error submitting order:', error);
+      alert('Error submitting order. Please try again.');
+    });
+  };
+
+  const addProduct = () => {
     const formData = new FormData();
     formData.append('name', newProduct.name);
     formData.append('category', newProduct.category);
-    formData.append('image', newProduct.image);
+    formData.append('price', newProduct.price);
+    if (newProduct.image) {
+      formData.append('image', newProduct.image);
+    }
 
     fetch('http://10.167.49.200:3007/products', {
       method: 'POST',
       body: formData,
     })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to add product');
-        return res.json();
-      })
-      .then(data => {
-        setProducts(prev => [...prev, data]);
-        handleClose();
-        setNewProduct({ name: '', category: 'Notebooks', image: null });
-        window.location.reload();
-      })
-      .catch(err => {
-        console.error('Error adding product:', err);
-        alert('Failed to add product: ' + err.message);
-      });
+    .then(response => response.json())
+    .then(data => {
+      console.log('Product added:', data);
+      // Refresh the products list
+      fetch('http://10.167.49.200:3007/products')
+        .then(response => response.json())
+        .then(data => setProducts(data))
+        .catch(error => console.error('Error fetching products:', error));
+      
+      setAddProductOpen(false);
+      setNewProduct({ name: '', category: '', price: '', image: null });
+    })
+    .catch(error => console.error('Error adding product:', error));
   };
 
-  const handleClickOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-  const handleConfirmOpen = () => setConfirmOpen(true);
-  const handleConfirmClose = () => setConfirmOpen(false);
-  const handleOrderedByOpen = () => setOrderedByOpen(true);
-  const handleOrderedByClose = () => setOrderedByOpen(false);
+  const handleEditProduct = (product) => {
+    setEditProduct({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price || '',
+      image: null
+    });
+    setEditProductOpen(true);
+  };
 
-  const filteredProducts = products.filter(p => p.category === selectedCategory);
+  const updateProduct = () => {
+    const formData = new FormData();
+    formData.append('name', editProduct.name);
+    formData.append('category', editProduct.category);
+    formData.append('price', editProduct.price);
+    if (editProduct.image) {
+      formData.append('image', editProduct.image);
+    }
 
-  // Check if there are any items in the order
-  const hasOrderItems = Object.values(order).some(quantity => quantity > 0);
+    fetch(`http://10.167.49.200:3007/products/${editProduct.id}`, {
+      method: 'PUT',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Product updated:', data);
+      // Refresh the products list
+      fetch('http://10.167.49.200:3007/products')
+        .then(response => response.json())
+        .then(data => setProducts(data))
+        .catch(error => console.error('Error fetching products:', error));
+      
+      setEditProductOpen(false);
+      setEditProduct({ id: '', name: '', category: '', price: '', image: null });
+    })
+    .catch(error => console.error('Error updating product:', error));
+  };
 
   return (
-    <div>
-      <Typography variant="h4" gutterBottom>Product List</Typography>
+    <ThemeProvider theme={theme}>
+      <Container>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Product List
+        </Typography>
 
-      {/* Header with Category Buttons and Column Selector */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {categories.map(cat => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? 'contained' : 'outlined'}
-              onClick={() => setSelectedCategory(cat)}
+        {/* Category Filter Buttons */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Filter by Category:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {categories.map((category) => (
+              <Chip
+                key={category}
+                label={category}
+                onClick={() => setCategoryFilter(category === 'All Categories' ? '' : category)}
+                color={categoryFilter === (category === 'All Categories' ? '' : category) ? 'primary' : 'default'}
+                variant={categoryFilter === (category === 'All Categories' ? '' : category) ? 'filled' : 'outlined'}
+                clickable
+              />
+            ))}
+          </Box>
+        </Box>
+
+        {/* Enhanced Table Toolbar */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton 
+              size="small" 
+              onClick={(e) => setColumnsMenuAnchor(e.currentTarget)}
+              title="Column Visibility"
             >
-              {cat}
-            </Button>
-          ))}
+              <ColumnsIcon />
+            </IconButton>
+            <IconButton 
+              size="small" 
+              onClick={handleExport}
+              title="Export to CSV"
+            >
+              <ExportIcon />
+            </IconButton>
+          </Box>
         </Box>
-        
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <ColumnSelector
-            visibleColumns={visibleColumns}
-            onColumnToggle={handleColumnToggle}
-            columnLabels={columnLabels}
-          />
-          <Button variant="contained" color="primary" onClick={handleClickOpen}>
-            Add Product
-          </Button>
-        </Box>
-      </Box>
 
-      {/* Product Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {visibleColumns.image && <TableCell>Image</TableCell>}
-              {visibleColumns.name && <TableCell>Name</TableCell>}
-              {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredProducts.map(product => (
-              <TableRow key={product.id}>
-                {visibleColumns.image && (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                {visibleColumns.productImage && <TableCell>Product Image</TableCell>}
+                {visibleColumns.productName && (
                   <TableCell>
-                    <img
-                      src={`http://10.167.49.200:3007${product.image}`}
-                      alt={product.name}
-                      style={{ width: 80, height: 80, objectFit: 'cover' }}
-                    />
+                    <TableSortLabel
+                      active={sortBy === 'productName'}
+                      direction={sortBy === 'productName' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('productName')}
+                    >
+                      Product Name
+                    </TableSortLabel>
                   </TableCell>
                 )}
-                {visibleColumns.name && <TableCell>{product.name}</TableCell>}
+                {visibleColumns.category && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'category'}
+                      direction={sortBy === 'category' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('category')}
+                    >
+                      Category
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                {visibleColumns.price && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'price'}
+                      direction={sortBy === 'price' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('price')}
+                    >
+                      Price
+                    </TableSortLabel>
+                  </TableCell>
+                )}
                 {visibleColumns.quantity && (
                   <TableCell>
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={order[product.id] || 0}
-                      onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
-                      inputProps={{ min: 0 }}
-                      style={{ width: 80 }}
-                    />
+                    <TableSortLabel
+                      active={sortBy === 'quantity'}
+                      direction={sortBy === 'quantity' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('quantity')}
+                    >
+                      Quantity
+                    </TableSortLabel>
                   </TableCell>
                 )}
+                {visibleColumns.action && <TableCell>Action</TableCell>}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* Floating Place Order Button */}
-      {hasOrderItems && (
-        <Fab
-          color="error"
-          variant="extended"
-          onClick={handleOrderedByOpen}
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            '&:hover': {
-              transform: 'scale(1.05)',
-              transition: 'transform 0.2s ease-in-out',
-            },
-          }}
-        >
-          <ShoppingCartIcon sx={{ mr: 1 }} />
-          Place Order
-        </Fab>
-      )}
-
-      {/* Ordered By Dialog */}
-      <Dialog open={orderedByOpen} onClose={handleOrderedByClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Place Order</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Please enter your email address and select order date:
-          </Typography>
-          <TextField
-            autoFocus
-            label="Email Address"
-            type="email"
-            fullWidth
-            variant="outlined"
-            value={orderedBy}
-            onChange={(e) => {
-              setOrderedBy(e.target.value);
-              if (emailError) setEmailError(''); // Clear error when user starts typing
-            }}
-            placeholder="Enter your email address"
-            error={!!emailError}
-            helperText={emailError}
-            sx={{ mt: 1, mb: 2 }}
-          />
-          <TextField
-            label="Order Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            value={orderDate}
-            onChange={(e) => setOrderDate(e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{ mb: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleOrderedByClose}>Cancel</Button>
-          <Button onClick={handleOrder} variant="contained" color="error">
-            Confirm Order
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Product Dialog */}
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Add New Product</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Product Name"
-            name="name"
-            fullWidth
-            value={newProduct.name}
-            onChange={handleInputChange}
-            margin="dense"
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Category</InputLabel>
-            <Select
-              name="category"
-              value={newProduct.category}
-              onChange={handleInputChange}
-              label="Category"
-            >
-              {categories.map(cat => (
-                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedProducts.map((product) => (
+                <TableRow key={product.id} hover>
+                  {visibleColumns.productImage && (
+                    <TableCell>
+                      <img 
+                        src={product.image ? `http://10.167.49.200:3007${product.image}` : '/placeholder.png'} 
+                        alt={product.name} 
+                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 4 }} 
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumns.productName && <TableCell>{product.name}</TableCell>}
+                  {visibleColumns.category && <TableCell>{product.category}</TableCell>}
+                  {visibleColumns.price && (
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'green' }}>
+                        ${(parseFloat(product.price) || 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                  )}
+                  {visibleColumns.quantity && (
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        label="Quantity"
+                        size="small"
+                        value={quantities[product.id] || ''}
+                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                        inputProps={{ min: 0 }}
+                        sx={{ width: 100 }}
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumns.action && (
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => addToCart(product)}
+                          disabled={!quantities[product.id] || quantities[product.id] <= 0}
+                        >
+                          Add to Cart
+                        </Button>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditProduct(product)}
+                          title="Edit Product"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  )}
+                </TableRow>
               ))}
-            </Select>
-          </FormControl>
-          <TextField
-            type="file"
-            inputProps={{
-              accept: "image/jpeg,image/jpg,image/png,image/gif"
-            }}
-            onChange={(e) => setNewProduct({ ...newProduct, image: e.target.files[0] })}
-            fullWidth
-            margin="normal"
-            helperText="Supported formats: JPG, JPEG, PNG, GIF"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleFormSubmit} variant="contained">Add</Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Column Visibility Menu */}
+        <Menu
+          anchorEl={columnsMenuAnchor}
+          open={Boolean(columnsMenuAnchor)}
+          onClose={() => setColumnsMenuAnchor(null)}
+        >
+          {Object.entries(columnLabels).map(([key, label]) => (
+            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <input 
+                  type="checkbox" 
+                  checked={visibleColumns[key]} 
+                  onChange={() => handleColumnToggle(key)}
+                />
+                {label}
+              </Box>
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Floating Action Buttons */}
+        <Fab
+          color="primary"
+          aria-label="cart"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={() => setOpen(true)}
+          disabled={cart.length === 0}
+        >
+          <CartIcon />
+        </Fab>
+
+        <Fab
+          color="secondary"
+          aria-label="add"
+          sx={{ position: 'fixed', bottom: 80, right: 16 }}
+          onClick={() => setAddProductOpen(true)}
+        >
+          <AddIcon />
+        </Fab>
+
+        {/* Cart Dialog */}
+        <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Cart</DialogTitle>
+          <DialogContent>
+            {cart.map(item => (
+              <Card key={item.product.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={6}>
+                      <Typography variant="h6">{item.product.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Category: {item.product.category}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={3}>
+                      <Typography variant="body1">Quantity: {item.quantity}</Typography>
+                    </Grid>
+                    <Grid item xs={3}>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => removeFromCart(item.product.id)}
+                      >
+                        Remove
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            ))}
+            
+            <TextField
+              margin="dense"
+              label="Order Date"
+              type="date"
+              fullWidth
+              variant="outlined"
+              value={orderDate}
+              onChange={(e) => setOrderDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ mb: 2 }}
+              required
+            />
+            
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Ordered By (Email)"
+              type="email"
+              fullWidth
+              variant="outlined"
+              value={orderedBy}
+              onChange={(e) => setOrderedBy(e.target.value)}
+              required
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={submitOrder} 
+              variant="contained"
+              disabled={!orderedBy || !orderDate || cart.length === 0}
+            >
+              Place Order
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Add Product Dialog */}
+        <Dialog open={addProductOpen} onClose={() => setAddProductOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Add New Product</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Product Name"
+              fullWidth
+              variant="outlined"
+              value={newProduct.name}
+              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+              required
+            />
+            
+            <FormControl fullWidth margin="dense">
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={newProduct.category}
+                label="Category"
+                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                required
+              >
+                <MenuItem value="Notebooks">Notebooks</MenuItem>
+                <MenuItem value="Monitors">Monitors</MenuItem>
+                <MenuItem value="Accessories">Accessories</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <TextField
+              margin="dense"
+              label="Price ($)"
+              type="number"
+              fullWidth
+              variant="outlined"
+              value={newProduct.price}
+              onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+              inputProps={{ min: 0, step: 0.01 }}
+              required
+            />
+            
+            <input
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="raised-button-file"
+              type="file"
+              onChange={(e) => setNewProduct({ ...newProduct, image: e.target.files[0] })}
+            />
+            <label htmlFor="raised-button-file">
+              <Button variant="outlined" component="span" fullWidth sx={{ mt: 2 }}>
+                Upload Image
+              </Button>
+            </label>
+            {newProduct.image && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Selected: {newProduct.image.name}
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAddProductOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={addProduct} 
+              variant="contained"
+              disabled={!newProduct.name || !newProduct.category || !newProduct.price}
+            >
+              Add Product
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Product Dialog */}
+        <Dialog open={editProductOpen} onClose={() => setEditProductOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Product</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Product Name"
+              fullWidth
+              variant="outlined"
+              value={editProduct.name}
+              onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+              required
+            />
+            
+            <FormControl fullWidth margin="dense">
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={editProduct.category}
+                label="Category"
+                onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })}
+                required
+              >
+                <MenuItem value="Notebooks">Notebooks</MenuItem>
+                <MenuItem value="Monitors">Monitors</MenuItem>
+                <MenuItem value="Accessories">Accessories</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <TextField
+              margin="dense"
+              label="Price ($)"
+              type="number"
+              fullWidth
+              variant="outlined"
+              value={editProduct.price}
+              onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
+              inputProps={{ min: 0, step: 0.01 }}
+              required
+            />
+            
+            <input
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="edit-product-file"
+              type="file"
+              onChange={(e) => setEditProduct({ ...editProduct, image: e.target.files[0] })}
+            />
+            <label htmlFor="edit-product-file">
+              <Button variant="outlined" component="span" fullWidth sx={{ mt: 2 }}>
+                Change Image
+              </Button>
+            </label>
+            {editProduct.image && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                New image selected: {editProduct.image.name}
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditProductOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={updateProduct} 
+              variant="contained"
+              disabled={!editProduct.name || !editProduct.category || !editProduct.price}
+            >
+              Update Product
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </ThemeProvider>
   );
 }
 
