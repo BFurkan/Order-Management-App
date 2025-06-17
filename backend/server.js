@@ -12,6 +12,38 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3007;
 
+// Smart Order ID Generation Function
+// Handles both alphabetical and numerical order IDs
+function generateNextOrderId(lastOrderId) {
+  if (!lastOrderId) {
+    return 1; // Start with 1 if no previous orders
+  }
+
+  // Convert to string to handle both cases
+  const lastId = String(lastOrderId);
+  
+  // Check if the order ID is purely numeric
+  if (/^\d+$/.test(lastId)) {
+    // Pure number: increment normally
+    return parseInt(lastId) + 1;
+  }
+  
+  // Check if it has a pattern like "ORD001", "ABC123", etc.
+  const match = lastId.match(/^([A-Za-z]*)(\d+)$/);
+  if (match) {
+    // Alphanumeric pattern: increment the numeric part
+    const prefix = match[1];
+    const number = parseInt(match[2]);
+    const paddingLength = match[2].length; // Preserve padding
+    const nextNumber = number + 1;
+    return prefix + nextNumber.toString().padStart(paddingLength, '0');
+  }
+  
+  // If it's a complex pattern or doesn't match, generate a new sequential ID
+  // You can customize this default behavior
+  return `ORD${Date.now().toString().slice(-6)}`; // Generate unique ID based on timestamp
+}
+
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -134,8 +166,8 @@ app.put('/products/:id', upload.single('image'), async (req, res) => {
 
 app.get('/latest-order-id', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
-    const latestOrderId = rows[0]?.max_order_id || 0;
+    const [rows] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
+    const latestOrderId = rows[0]?.order_id || 0;
     res.status(200).json({ latest_order_id: latestOrderId });
   } catch (err) {
     console.error('Error fetching latest order ID:', err.message);
@@ -157,9 +189,10 @@ app.post('/bulk-orders', async (req, res) => {
       return res.status(400).send('Invalid date format');
     }
 
-    // Get the next order ID (sequential)
-    const [maxResult] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
-    const nextOrderId = (maxResult[0]?.max_order_id || 0) + 1;
+    // Get the next order ID (supports both alphabetical and numerical)
+    const [lastOrderResult] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
+    const lastOrderId = lastOrderResult[0]?.order_id;
+    const nextOrderId = generateNextOrderId(lastOrderId);
 
     // Insert all items with the same order ID
     const insertPromises = items.map(item => {
@@ -193,9 +226,10 @@ app.post('/orders', async (req, res) => {
 
     let newOrderId = order_id;
     if (!newOrderId) {
-      // Get the next sequential order ID instead of using auto-increment
-      const [maxResult] = await pool.query('SELECT MAX(order_id) as max_order_id FROM orders WHERE order_id IS NOT NULL');
-      newOrderId = (maxResult[0]?.max_order_id || 0) + 1;
+      // Get the next sequential order ID (supports both alphabetical and numerical)
+      const [lastOrderResult] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
+      const lastOrderId = lastOrderResult[0]?.order_id;
+      newOrderId = generateNextOrderId(lastOrderId);
     }
 
     await pool.query(
