@@ -179,6 +179,23 @@ function OrderSummary() {
           Order Summary
         </Typography>
 
+        {/* Table Headers */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: '150px 1fr 200px 150px', 
+          gap: 2, 
+          p: 2, 
+          mb: 2,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 1,
+          fontWeight: 600
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Items Summary</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Total Quantity</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Date</Typography>
+        </Box>
+
         {Object.keys(groupedOrders).map(orderId => {
           const filteredOrders = groupedOrders[orderId].filter(order => order.quantity > 0);
 
@@ -197,87 +214,109 @@ function OrderSummary() {
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls={`panel-${orderId}-content`}
                 id={`panel-${orderId}-header`}
-                sx={{ backgroundColor: '#f5f5f5' }}
+                sx={{ backgroundColor: '#f9f9f9' }}
               >
-                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  {/* First Row - Order ID, Category totals, and Date */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      {editingOrderId === orderId ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <TextField
-                            value={newOrderId}
-                            onChange={(e) => setNewOrderId(e.target.value)}
-                            size="small"
-                            variant="outlined"
-                          />
+                {/* Table-like Row Layout */}
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '150px 1fr 200px 150px', 
+                  gap: 2, 
+                  width: '100%',
+                  alignItems: 'center'
+                }}>
+                  {/* Order ID Column */}
+                  <Box>
+                    {editingOrderId === orderId ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <TextField
+                          value={newOrderId}
+                          onChange={(e) => setNewOrderId(e.target.value)}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button size="small" onClick={handleSaveOrderId}>Save</Button>
                           <Button size="small" onClick={handleCancelEdit}>Cancel</Button>
                         </Box>
-                      ) : (
-                        <Typography variant="h6" onClick={() => handleEditOrderId(orderId)} sx={{ cursor: 'pointer' }}>
-                          Order ID: {orderId}
-                        </Typography>
-                      )}
-                      
-                      {/* Category totals beside Order ID */}
-                      {(() => {
-                        const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                        filteredOrders.forEach(order => {
-                          const productName = order.product_name.toLowerCase();
-                          if (productName.includes('dock') || productName.includes('docking') ||
-                              productName.includes('charger') || productName.includes('adapter') ||
-                              productName.includes('cable') || productName.includes('mouse') ||
-                              productName.includes('keyboard') || productName.includes('headset') ||
-                              productName.includes('webcam') || productName.includes('speaker') ||
-                              productName.includes('hub') || productName.includes('stand') ||
-                              productName.includes('bag') || productName.includes('case')) {
-                            orderTotals.accessories += order.quantity;
-                          } else if (productName.includes('monitor') || productName.includes('display')) {
-                            orderTotals.monitors += order.quantity;
-                          } else if (productName.includes('notebook') || productName.includes('laptop') || 
-                                     productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                     productName.includes('macbook') || productName.includes('surface') ||
-                                     productName.includes('k14') || productName.includes('lenovo') ||
-                                     productName.includes('ideapad') || productName.includes('yoga') ||
-                                     productName.includes('inspiron') || productName.includes('latitude') ||
-                                     productName.includes('pavilion') || productName.includes('probook') ||
-                                     productName.includes('toughbook') || productName.includes('fz55')) {
-                            orderTotals.notebooks += order.quantity;
-                          } else {
-                            orderTotals.accessories += order.quantity;
-                          }
-                        });
-                        return (
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            {orderTotals.monitors > 0 && (
-                              <Chip
-                                label={`Monitors: ${orderTotals.monitors}`}
-                                size="small"
-                                sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
-                              />
-                            )}
-                            {orderTotals.notebooks > 0 && (
-                              <Chip
-                                label={`Notebooks: ${orderTotals.notebooks}`}
-                                size="small"
-                                sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
-                              />
-                            )}
-                            {orderTotals.accessories > 0 && (
-                              <Chip
-                                label={`Accessories: ${orderTotals.accessories}`}
-                                size="small"
-                                sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
-                              />
-                            )}
-                          </Box>
-                        );
-                      })()}
-                    </Box>
-                    
-                    {/* Order date on the right */}
-                    <Typography variant="body2" color="text.secondary">
+                      </Box>
+                    ) : (
+                      <Typography 
+                        variant="h6" 
+                        onClick={() => handleEditOrderId(orderId)} 
+                        sx={{ cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {orderId}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {/* Items Summary Column */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      filteredOrders.forEach(order => {
+                        const productName = order.product_name.toLowerCase();
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += order.quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
+                          orderTotals.monitors += order.quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
+                          orderTotals.notebooks += order.quantity;
+                        } else {
+                          orderTotals.accessories += order.quantity;
+                        }
+                      });
+                      return (
+                        <>
+                          {orderTotals.monitors > 0 && (
+                            <Chip
+                              label={`Monitors: ${orderTotals.monitors}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
+                            />
+                          )}
+                          {orderTotals.notebooks > 0 && (
+                            <Chip
+                              label={`Notebooks: ${orderTotals.notebooks}`}
+                              size="small"
+                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
+                            />
+                          )}
+                          {orderTotals.accessories > 0 && (
+                            <Chip
+                              label={`Accessories: ${orderTotals.accessories}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
+                  </Box>
+
+                  {/* Total Quantity Column */}
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
+                      {filteredOrders.reduce((total, order) => total + order.quantity, 0)} items
+                    </Typography>
+                  </Box>
+
+                  {/* Date Column */}
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
                       {format(new Date(filteredOrders[0].order_date), 'MMM dd, yyyy')}
                     </Typography>
                   </Box>
