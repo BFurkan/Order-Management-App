@@ -93,13 +93,42 @@ app.get('/products/:id', async (req, res) => {
 
 app.post('/products', upload.single('image'), async (req, res) => {
   try {
-    const { name, category } = req.body;
+    const { name, category, price } = req.body;
     const image = req.file ? `/images/${req.file.filename}` : null;
-    await pool.query('INSERT INTO products (name, category, image) VALUES (?, ?, ?)', [name, category, image]);
+    const productPrice = parseFloat(price) || 0.00;
+    await pool.query('INSERT INTO products (name, category, price, image) VALUES (?, ?, ?, ?)', [name, category, productPrice, image]);
     res.status(201).json({ message: 'Product added successfully' });
   } catch (err) {
     console.error('Error adding product:', err.message);
     res.status(500).send('Error adding product');
+  }
+});
+
+app.put('/products/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category, price } = req.body;
+    const productPrice = parseFloat(price) || 0.00;
+    
+    // Check if a new image was uploaded
+    if (req.file) {
+      const image = `/images/${req.file.filename}`;
+      await pool.query(
+        'UPDATE products SET name = ?, category = ?, price = ?, image = ? WHERE id = ?', 
+        [name, category, productPrice, image, id]
+      );
+    } else {
+      // Update without changing the image
+      await pool.query(
+        'UPDATE products SET name = ?, category = ?, price = ? WHERE id = ?', 
+        [name, category, productPrice, id]
+      );
+    }
+    
+    res.status(200).json({ message: 'Product updated successfully' });
+  } catch (err) {
+    console.error('Error updating product:', err.message);
+    res.status(500).send('Error updating product');
   }
 });
 

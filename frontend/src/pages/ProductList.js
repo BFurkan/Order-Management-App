@@ -33,7 +33,8 @@ import {
   Add as AddIcon,
   ShoppingCart as CartIcon,
   FileDownload as ExportIcon,
-  ViewColumn as ColumnsIcon
+  ViewColumn as ColumnsIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
@@ -44,7 +45,9 @@ function ProductList() {
   const [orderedBy, setOrderedBy] = useState('');
   const [open, setOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', category: '', image: null });
+  const [editProductOpen, setEditProductOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '', image: null });
+  const [editProduct, setEditProduct] = useState({ id: '', name: '', category: '', price: '', image: null });
   const [quantities, setQuantities] = useState({});
   const [categoryFilter, setCategoryFilter] = useState('');
   
@@ -58,6 +61,7 @@ function ProductList() {
     productImage: true,
     productName: true,
     category: true,
+    price: true,
     quantity: true,
     action: true
   });
@@ -66,6 +70,7 @@ function ProductList() {
     productImage: 'Product Image',
     productName: 'Product Name',
     category: 'Category',
+    price: 'Price',
     quantity: 'Quantity',
     action: 'Action'
   };
@@ -94,10 +99,11 @@ function ProductList() {
 
   const handleExport = () => {
     const csvContent = [
-      ['Product Name', 'Category', 'Quantity'].join(','),
+      ['Product Name', 'Category', 'Price', 'Quantity'].join(','),
       ...filteredAndSortedProducts.map(product => [
         `"${product.name}"`,
         `"${product.category}"`,
+        `"$${(product.price || 0).toFixed(2)}"`,
         quantities[product.id] || 0
       ].join(','))
     ].join('\n');
@@ -123,6 +129,10 @@ function ProductList() {
         case 'category':
           aValue = a.category;
           bValue = b.category;
+          break;
+        case 'price':
+          aValue = parseFloat(a.price) || 0;
+          bValue = parseFloat(b.price) || 0;
           break;
         case 'quantity':
           aValue = quantities[a.id] || 0;
@@ -222,6 +232,7 @@ function ProductList() {
     const formData = new FormData();
     formData.append('name', newProduct.name);
     formData.append('category', newProduct.category);
+    formData.append('price', newProduct.price);
     if (newProduct.image) {
       formData.append('image', newProduct.image);
     }
@@ -240,9 +251,48 @@ function ProductList() {
         .catch(error => console.error('Error fetching products:', error));
       
       setAddProductOpen(false);
-      setNewProduct({ name: '', category: '', image: null });
+      setNewProduct({ name: '', category: '', price: '', image: null });
     })
     .catch(error => console.error('Error adding product:', error));
+  };
+
+  const handleEditProduct = (product) => {
+    setEditProduct({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price || '',
+      image: null
+    });
+    setEditProductOpen(true);
+  };
+
+  const updateProduct = () => {
+    const formData = new FormData();
+    formData.append('name', editProduct.name);
+    formData.append('category', editProduct.category);
+    formData.append('price', editProduct.price);
+    if (editProduct.image) {
+      formData.append('image', editProduct.image);
+    }
+
+    fetch(`http://10.167.49.200:3007/products/${editProduct.id}`, {
+      method: 'PUT',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Product updated:', data);
+      // Refresh the products list
+      fetch('http://10.167.49.200:3007/products')
+        .then(response => response.json())
+        .then(data => setProducts(data))
+        .catch(error => console.error('Error fetching products:', error));
+      
+      setEditProductOpen(false);
+      setEditProduct({ id: '', name: '', category: '', price: '', image: null });
+    })
+    .catch(error => console.error('Error updating product:', error));
   };
 
   return (
@@ -318,6 +368,17 @@ function ProductList() {
                     </TableSortLabel>
                   </TableCell>
                 )}
+                {visibleColumns.price && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'price'}
+                      direction={sortBy === 'price' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('price')}
+                    >
+                      Price
+                    </TableSortLabel>
+                  </TableCell>
+                )}
                 {visibleColumns.quantity && (
                   <TableCell>
                     <TableSortLabel
@@ -346,6 +407,13 @@ function ProductList() {
                   )}
                   {visibleColumns.productName && <TableCell>{product.name}</TableCell>}
                   {visibleColumns.category && <TableCell>{product.category}</TableCell>}
+                  {visibleColumns.price && (
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'green' }}>
+                        ${(product.price || 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                  )}
                   {visibleColumns.quantity && (
                     <TableCell>
                       <TextField
@@ -361,15 +429,24 @@ function ProductList() {
                   )}
                   {visibleColumns.action && (
                     <TableCell>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={() => addToCart(product)}
-                        disabled={!quantities[product.id] || quantities[product.id] <= 0}
-                      >
-                        Add to Cart
-                      </Button>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => addToCart(product)}
+                          disabled={!quantities[product.id] || quantities[product.id] <= 0}
+                        >
+                          Add to Cart
+                        </Button>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditProduct(product)}
+                          title="Edit Product"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                   )}
                 </TableRow>
@@ -503,6 +580,18 @@ function ProductList() {
               </Select>
             </FormControl>
             
+            <TextField
+              margin="dense"
+              label="Price ($)"
+              type="number"
+              fullWidth
+              variant="outlined"
+              value={newProduct.price}
+              onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+              inputProps={{ min: 0, step: 0.01 }}
+              required
+            />
+            
             <input
               accept="image/*"
               style={{ display: 'none' }}
@@ -526,9 +615,80 @@ function ProductList() {
             <Button 
               onClick={addProduct} 
               variant="contained"
-              disabled={!newProduct.name || !newProduct.category}
+              disabled={!newProduct.name || !newProduct.category || !newProduct.price}
             >
               Add Product
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Product Dialog */}
+        <Dialog open={editProductOpen} onClose={() => setEditProductOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Product</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Product Name"
+              fullWidth
+              variant="outlined"
+              value={editProduct.name}
+              onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+              required
+            />
+            
+            <FormControl fullWidth margin="dense">
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={editProduct.category}
+                label="Category"
+                onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })}
+                required
+              >
+                <MenuItem value="Notebooks">Notebooks</MenuItem>
+                <MenuItem value="Monitors">Monitors</MenuItem>
+                <MenuItem value="Accessories">Accessories</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <TextField
+              margin="dense"
+              label="Price ($)"
+              type="number"
+              fullWidth
+              variant="outlined"
+              value={editProduct.price}
+              onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
+              inputProps={{ min: 0, step: 0.01 }}
+              required
+            />
+            
+            <input
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="edit-product-file"
+              type="file"
+              onChange={(e) => setEditProduct({ ...editProduct, image: e.target.files[0] })}
+            />
+            <label htmlFor="edit-product-file">
+              <Button variant="outlined" component="span" fullWidth sx={{ mt: 2 }}>
+                Change Image
+              </Button>
+            </label>
+            {editProduct.image && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                New image selected: {editProduct.image.name}
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditProductOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={updateProduct} 
+              variant="contained"
+              disabled={!editProduct.name || !editProduct.category || !editProduct.price}
+            >
+              Update Product
             </Button>
           </DialogActions>
         </Dialog>
