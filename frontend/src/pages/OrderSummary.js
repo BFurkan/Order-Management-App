@@ -182,7 +182,7 @@ function OrderSummary() {
         {/* Table Headers */}
         <Box sx={{ 
           display: 'grid', 
-          gridTemplateColumns: '150px 1fr 200px 150px', 
+          gridTemplateColumns: '150px 1fr 150px', 
           gap: 2, 
           p: 2, 
           mb: 2,
@@ -192,7 +192,6 @@ function OrderSummary() {
         }}>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>Items Summary</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>Total Quantity</Typography>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>Date</Typography>
         </Box>
 
@@ -219,7 +218,7 @@ function OrderSummary() {
                 {/* Table-like Row Layout */}
                 <Box sx={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '150px 1fr 200px 150px', 
+                  gridTemplateColumns: '150px 1fr 150px', 
                   gap: 2, 
                   width: '100%',
                   alignItems: 'center'
@@ -305,13 +304,6 @@ function OrderSummary() {
                         </>
                       );
                     })()}
-                  </Box>
-
-                  {/* Total Quantity Column */}
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
-                      {filteredOrders.reduce((total, order) => total + order.quantity, 0)} items
-                    </Typography>
                   </Box>
 
                   {/* Date Column */}

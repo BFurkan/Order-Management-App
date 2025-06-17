@@ -166,8 +166,30 @@ app.put('/products/:id', upload.single('image'), async (req, res) => {
 
 app.get('/latest-order-id', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
-    const latestOrderId = rows[0]?.order_id || 0;
+    // For purely numeric order IDs, get the maximum numeric value
+    // For mixed patterns, we'll get all and find the highest programmatically
+    const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY order_id');
+    
+    if (allOrderIds.length === 0) {
+      return res.status(200).json({ latest_order_id: 0 });
+    }
+    
+    let latestOrderId = null;
+    let maxNumericValue = 0;
+    
+    // Check if all order IDs are purely numeric
+    const allNumeric = allOrderIds.every(row => /^\d+$/.test(row.order_id));
+    
+    if (allNumeric) {
+      // All are numeric - find the maximum numeric value
+      maxNumericValue = Math.max(...allOrderIds.map(row => parseInt(row.order_id)));
+      latestOrderId = maxNumericValue.toString();
+    } else {
+      // Mixed or alphanumeric patterns - use the last one alphabetically
+      latestOrderId = allOrderIds[allOrderIds.length - 1].order_id;
+    }
+    
+    console.log('Latest Order ID found:', latestOrderId);
     res.status(200).json({ latest_order_id: latestOrderId });
   } catch (err) {
     console.error('Error fetching latest order ID:', err.message);
@@ -190,8 +212,25 @@ app.post('/bulk-orders', async (req, res) => {
     }
 
     // Get the next order ID (supports both alphabetical and numerical)
-    const [lastOrderResult] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
-    const lastOrderId = lastOrderResult[0]?.order_id;
+    const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY order_id');
+    
+    let lastOrderId = null;
+    if (allOrderIds.length === 0) {
+      lastOrderId = null; // No previous orders
+    } else {
+      // Check if all order IDs are purely numeric
+      const allNumeric = allOrderIds.every(row => /^\d+$/.test(row.order_id));
+      
+      if (allNumeric) {
+        // All are numeric - find the maximum numeric value
+        const maxNumericValue = Math.max(...allOrderIds.map(row => parseInt(row.order_id)));
+        lastOrderId = maxNumericValue.toString();
+      } else {
+        // Mixed or alphanumeric patterns - use the last one alphabetically
+        lastOrderId = allOrderIds[allOrderIds.length - 1].order_id;
+      }
+    }
+    
     const nextOrderId = generateNextOrderId(lastOrderId);
 
     // Insert all items with the same order ID
@@ -227,8 +266,25 @@ app.post('/orders', async (req, res) => {
     let newOrderId = order_id;
     if (!newOrderId) {
       // Get the next sequential order ID (supports both alphabetical and numerical)
-      const [lastOrderResult] = await pool.query('SELECT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY id DESC LIMIT 1');
-      const lastOrderId = lastOrderResult[0]?.order_id;
+      const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY order_id');
+      
+      let lastOrderId = null;
+      if (allOrderIds.length === 0) {
+        lastOrderId = null; // No previous orders
+      } else {
+        // Check if all order IDs are purely numeric
+        const allNumeric = allOrderIds.every(row => /^\d+$/.test(row.order_id));
+        
+        if (allNumeric) {
+          // All are numeric - find the maximum numeric value
+          const maxNumericValue = Math.max(...allOrderIds.map(row => parseInt(row.order_id)));
+          lastOrderId = maxNumericValue.toString();
+        } else {
+          // Mixed or alphanumeric patterns - use the last one alphabetically
+          lastOrderId = allOrderIds[allOrderIds.length - 1].order_id;
+        }
+      }
+      
       newOrderId = generateNextOrderId(lastOrderId);
     }
 
