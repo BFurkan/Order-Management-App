@@ -298,7 +298,7 @@ function OrderDetails() {
         {/* Table Headers */}
         <Box sx={{ 
           display: 'grid', 
-          gridTemplateColumns: '100px 200px 80px 120px 120px 180px 120px 150px 100px', 
+          gridTemplateColumns: '150px 1fr 150px', 
           gap: 2, 
           p: 2, 
           mb: 2,
@@ -306,15 +306,9 @@ function OrderDetails() {
           borderRadius: 1,
           fontWeight: 600
         }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Image</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Product Name</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Qty</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Order Date</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Ordered By</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Serial Number</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Order Comment</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Item Comment</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Action</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Items Summary</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Date</Typography>
         </Box>
 
         {Object.keys(groupedOrders).map(orderId => {
