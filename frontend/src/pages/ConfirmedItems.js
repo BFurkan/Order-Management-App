@@ -332,6 +332,27 @@ function ConfirmedItems() {
           ))}
         </Menu>
 
+        {/* Table Headers */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: `${visibleColumns.image ? '100px ' : ''}${visibleColumns.productName ? '200px ' : ''}${visibleColumns.quantity ? '80px ' : ''}${visibleColumns.orderDate ? '120px ' : ''}${visibleColumns.orderedBy ? '120px ' : ''}${visibleColumns.confirmedDate ? '120px ' : ''}${visibleColumns.serialNumber ? '180px ' : ''}${visibleColumns.itemComment ? '200px' : ''}`.trim(),
+          gap: 2, 
+          p: 2, 
+          mb: 2,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 1,
+          fontWeight: 600
+        }}>
+          {visibleColumns.image && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Image</Typography>}
+          {visibleColumns.productName && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Product Name</Typography>}
+          {visibleColumns.quantity && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Qty</Typography>}
+          {visibleColumns.orderDate && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Order Date</Typography>}
+          {visibleColumns.orderedBy && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Ordered By</Typography>}
+          {visibleColumns.confirmedDate && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Confirmed Date</Typography>}
+          {visibleColumns.serialNumber && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Serial Number</Typography>}
+          {visibleColumns.itemComment && <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Item Comments</Typography>}
+        </Box>
+
         {Object.keys(groupedItems).map(orderId => {
           const orderItems = groupedItems[orderId];
 
