@@ -43,6 +43,7 @@ function ProductList() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [orderedBy, setOrderedBy] = useState('');
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
   const [open, setOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [editProductOpen, setEditProductOpen] = useState(false);
@@ -190,7 +191,8 @@ function ProductList() {
   };
 
   const submitOrder = () => {
-    const currentDateTime = new Date().toISOString();
+    // Use the selected order date and combine with current time
+    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
     
     // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
@@ -205,7 +207,7 @@ function ProductList() {
       },
       body: JSON.stringify({
         items: orderItems,
-        order_date: currentDateTime,
+        order_date: selectedDateTime,
         ordered_by: orderedBy,
       }),
     })
@@ -220,6 +222,7 @@ function ProductList() {
       alert(`Order submitted successfully! Order ID: ${data.order_id}`);
       setCart([]);
       setOrderedBy('');
+      setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today's date
       setOpen(false);
     })
     .catch(error => {
@@ -528,6 +531,21 @@ function ProductList() {
             ))}
             
             <TextField
+              margin="dense"
+              label="Order Date"
+              type="date"
+              fullWidth
+              variant="outlined"
+              value={orderDate}
+              onChange={(e) => setOrderDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ mb: 2 }}
+              required
+            />
+            
+            <TextField
               autoFocus
               margin="dense"
               label="Ordered By (Email)"
@@ -544,7 +562,7 @@ function ProductList() {
             <Button 
               onClick={submitOrder} 
               variant="contained"
-              disabled={!orderedBy || cart.length === 0}
+              disabled={!orderedBy || !orderDate || cart.length === 0}
             >
               Place Order
             </Button>
