@@ -49,12 +49,6 @@ function DeployedItems() {
   const [modalOpen, setModalOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
-
   // Handle image loading errors
   const handleImageError = (itemId) => {
     setImageErrors(prev => ({
@@ -99,7 +93,6 @@ function DeployedItems() {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.order_id.toString().includes(searchTerm) ||
         (item.item_comment && item.item_comment.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -134,7 +127,7 @@ function DeployedItems() {
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${item.confirm_date ? format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}"`,
         `"${item.deploy_date ? format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}"`,
-        `"${getDisplayName(item.ordered_by)}"`,
+        `"${item.ordered_by || 'N/A'}"`,
         `"${item.item_comment || ''}"`
       ].join(','))
     ].join('\n');
@@ -424,7 +417,7 @@ function DeployedItems() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {getDisplayName(item.ordered_by)}
+                        {item.ordered_by || 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -585,7 +578,7 @@ function DeployedItems() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+                        <TableCell>{selectedItem.ordered_by || 'N/A'}</TableCell>
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>

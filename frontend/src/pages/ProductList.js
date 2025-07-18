@@ -36,7 +36,6 @@ import theme from './theme';
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
-  const [orderedBy, setOrderedBy] = useState('');
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
   const [open, setOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
@@ -224,7 +223,7 @@ function ProductList() {
 
   const submitOrder = () => {
     // Use the selected order date and combine with current time
-    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split('T')[0]).toISOString();
     
     // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
@@ -240,7 +239,6 @@ function ProductList() {
       body: JSON.stringify({
         items: orderItems,
         order_date: selectedDateTime,
-        ordered_by: orderedBy,
       }),
     })
     .then(response => {
@@ -253,7 +251,6 @@ function ProductList() {
       console.log('Bulk order submitted:', data);
       alert(`Order submitted successfully! Order ID: ${data.order_id}`);
       setCart([]);
-      setOrderedBy('');
       setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today's date
       setOpen(false);
     })
@@ -516,24 +513,13 @@ function ProductList() {
               required
             />
             
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Ordered By (Email)"
-              type="email"
-              fullWidth
-              variant="outlined"
-              value={orderedBy}
-              onChange={(e) => setOrderedBy(e.target.value)}
-              required
-            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
             <Button 
               onClick={submitOrder} 
               variant="contained"
-              disabled={!orderedBy || !orderDate || cart.length === 0}
+              disabled={!orderDate || cart.length === 0}
             >
               Place Order
             </Button>

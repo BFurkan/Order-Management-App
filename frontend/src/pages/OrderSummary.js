@@ -36,12 +36,6 @@ function OrderSummary() {
   const [commentText, setCommentText] = useState('');
   const [orderComments, setOrderComments] = useState({});
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
-
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -455,7 +449,7 @@ function OrderSummary() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getDisplayName(order.ordered_by)}
+                              {order.ordered_by}
                             </Typography>
                           </TableCell>
                         </TableRow>

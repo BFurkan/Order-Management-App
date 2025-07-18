@@ -41,12 +41,6 @@ function Scan() {
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
-
   const handleSearch = async () => {
     if (!serialNumber.trim()) {
       setError('Please enter a serial number');
@@ -336,7 +330,7 @@ function Scan() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+                        <TableCell>{selectedItem.ordered_by}</TableCell>
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>
