@@ -48,7 +48,16 @@ function ProductList() {
   
   // DataGrid state
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
-  const [columnVisibilityModel, setColumnVisibilityModel] = useState({});
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState({
+    productImage: true,
+    name: true,
+    category: true,
+    price: true,
+    quantity: true,
+    actions: true,
+  });
+
+  const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
   // Define DataGrid columns with resizable functionality
   const columns = [
@@ -144,8 +153,6 @@ function ProductList() {
       ),
     },
   ];
-
-  const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
   useEffect(() => {
     fetch('http://10.167.49.200:3007/products')
@@ -415,7 +422,7 @@ function ProductList() {
               },
             }}
           />
-                      </Box>
+        </Box>
 
         {/* Column Visibility Menu */}
         <Menu
@@ -423,15 +430,20 @@ function ProductList() {
           open={Boolean(columnsMenuAnchor)}
           onClose={() => setColumnsMenuAnchor(null)}
         >
-          {Object.entries(columnLabels).map(([key, label]) => (
-            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <input 
-                  type="checkbox" 
-                  checked={visibleColumns[key]} 
-                  onChange={() => handleColumnToggle(key)}
+          {columns.map((column) => (
+            <MenuItem key={column.field}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={columnVisibilityModel[column.field] !== false}
+                  onChange={() =>
+                    setColumnVisibilityModel((prev) => ({
+                      ...prev,
+                      [column.field]: prev[column.field] === false ? true : false,
+                    }))
+                  }
                 />
-                {label}
+                {column.headerName}
               </Box>
             </MenuItem>
           ))}
