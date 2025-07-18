@@ -41,6 +41,12 @@ function Scan() {
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
 
+  // Function to extract username from email (part before @)
+  const getDisplayName = (email) => {
+    if (!email) return 'N/A';
+    return email.split('@')[0];
+  };
+
   const handleSearch = async () => {
     if (!serialNumber.trim()) {
       setError('Please enter a serial number');
@@ -53,7 +59,7 @@ function Scan() {
 
     try {
       // Fetch confirmed items and search for the serial number
-      const response = await fetch('http://10.167.49.200:3007/confirmed-items');
+      const response = await fetch('http://10.167.49.200:3004/confirmed-items');
       if (!response.ok) {
         throw new Error('Failed to fetch confirmed items');
       }
@@ -90,7 +96,7 @@ function Scan() {
     setError('');
 
     try {
-      const response = await fetch('http://10.167.49.200:3007/deploy-item', {
+      const response = await fetch('http://10.167.49.200:3004/deploy-item', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,7 +274,7 @@ function Scan() {
                       </Box>
                     ) : (
                       <img
-                        src={`http://10.167.49.200:3007${selectedItem.image}`}
+                        src={`http://10.167.49.200:3004${selectedItem.image}`}
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
@@ -330,7 +336,7 @@ function Scan() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Ordered By</TableCell>
-                        <TableCell>{selectedItem.ordered_by}</TableCell>
+                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>

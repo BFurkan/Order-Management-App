@@ -105,7 +105,8 @@ function ConfirmedItems() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3007/confirmed-items')
+    // Fetch confirmed items with order ID and comment
+    fetch('http://10.167.49.200:3004/confirmed-items')
       .then(response => response.json())
       .then(data => {
         console.log('Confirmed items data:', data); // Debug log
@@ -529,29 +530,21 @@ function ConfirmedItems() {
                                     <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
                                   </Box>
                                 ) : (
-                                  <img
-                                    src={`http://10.167.49.200:3007${item.image}`}
-                                    alt={item.product_name}
+                                  <img 
+                                    src={`http://10.167.49.200:3004${item.image}`} 
+                                    alt={item.product_name} 
                                     style={{ 
                                       width: '60px', 
                                       height: '60px', 
                                       objectFit: 'cover', 
                                       borderRadius: 4,
                                       border: '1px solid #e0e0e0'
-                                    }}
+                                    }} 
                                     onError={() => {
-                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.200:3007${item.image}`);
+                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.200:3004${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
-                                    onLoad={() => {
-                                      console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.200:3007${item.image}`);
-                                      // Remove from error state if image loads successfully
-                                      setImageErrors(prev => {
-                                        const newState = { ...prev };
-                                        delete newState[`${orderId}-${index}`];
-                                        return newState;
-                                      });
-                                    }}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.200:3004${item.image}`)}
                                   />
                                 )}
                               </TableCell>

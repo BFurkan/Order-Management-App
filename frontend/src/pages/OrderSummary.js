@@ -36,13 +36,19 @@ function OrderSummary() {
   const [commentText, setCommentText] = useState('');
   const [orderComments, setOrderComments] = useState({});
 
+  // Function to extract username from email (part before @)
+  const getDisplayName = (email) => {
+    if (!email) return 'N/A';
+    return email.split('@')[0];
+  };
+
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/orders');
+      const response = await fetch('http://10.167.49.200:3004/orders');
       const data = await response.json();
       
       // Group orders by order_id
@@ -77,7 +83,7 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-id', {
+      const response = await fetch('http://10.167.49.200:3004/update-order-id', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +132,7 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.200:3007/update-order-comment', {
+      const response = await fetch('http://10.167.49.200:3004/update-order-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -427,7 +433,7 @@ function OrderSummary() {
                         <TableRow key={order.id} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.200:3007${order.image}`}
+                              src={`http://10.167.49.200:3004${order.image}`}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />
@@ -449,7 +455,7 @@ function OrderSummary() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {order.ordered_by}
+                              {getDisplayName(order.ordered_by)}
                             </Typography>
                           </TableCell>
                         </TableRow>

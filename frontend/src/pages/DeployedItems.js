@@ -49,6 +49,12 @@ function DeployedItems() {
   const [modalOpen, setModalOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
 
+  // Function to extract username from email (part before @)
+  const getDisplayName = (email) => {
+    if (!email) return 'N/A';
+    return email.split('@')[0];
+  };
+
   // Handle image loading errors
   const handleImageError = (itemId) => {
     setImageErrors(prev => ({
@@ -63,7 +69,7 @@ function DeployedItems() {
     setError('');
     
     try {
-      const response = await fetch('http://10.167.49.200:3007/deployed-items');
+      const response = await fetch('http://10.167.49.200:3004/deployed-items');
       if (!response.ok) {
         throw new Error('Failed to fetch deployed items');
       }
@@ -93,6 +99,7 @@ function DeployedItems() {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.order_id.toString().includes(searchTerm) ||
         (item.item_comment && item.item_comment.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -127,7 +134,7 @@ function DeployedItems() {
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${item.confirm_date ? format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}"`,
         `"${item.deploy_date ? format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}"`,
-        `"${item.ordered_by || 'N/A'}"`,
+        `"${getDisplayName(item.ordered_by)}"`,
         `"${item.item_comment || ''}"`
       ].join(','))
     ].join('\n');
@@ -147,44 +154,33 @@ function DeployedItems() {
     setModalOpen(true);
   };
 
-  // Handle undeploy item
-  const handleUndeploy = async (item) => {
-    if (!window.confirm(`Are you sure you want to undeploy "${item.product_name}" (Serial: ${item.serial_number})?`)) {
-      return;
-    }
-
-    setError('');
-    
-    try {
-      const response = await fetch('http://10.167.49.200:3007/undeploy-item', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          itemId: item.id,
-          originalId: item.original_id,
-          serialNumber: item.serial_number
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to undeploy item');
+  const undeployItem = async (itemId) => {
+    if (window.confirm('Are you sure you want to undeploy this item?')) {
+      setError('');
+      setSuccess('');
+      try {
+        const response = await fetch('http://10.167.49.200:3004/undeploy-item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ itemId }),
+        });
+        if (!response.ok) {
+          throw new Error('Failed to undeploy item');
+        }
+        const result = await response.json();
+        if (result.success) {
+          setSuccess('Item undeployed successfully!');
+          fetchDeployedItems(); // Refresh the list
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          setError(result.message || 'Failed to undeploy item');
+        }
+      } catch (err) {
+        console.error('Error undeploying item:', err);
+        setError('Error undeploying item. Please try again.');
       }
-
-      const result = await response.json();
-      if (result.success) {
-        setSuccess('Item undeployed successfully!');
-        fetchDeployedItems(); // Refresh the list
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError(result.message || 'Failed to undeploy item');
-      }
-    } catch (err) {
-      console.error('Error undeploying item:', err);
-      setError('Error undeploying item. Please try again.');
     }
   };
 
@@ -368,7 +364,7 @@ function DeployedItems() {
                         </Box>
                       ) : (
                         <img
-                          src={`http://10.167.49.200:3007${item.image}`}
+                          src={`http://10.167.49.200:3004${item.image}`}
                           alt={item.product_name}
                           style={{ 
                             width: '60px', 
@@ -417,7 +413,7 @@ function DeployedItems() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {item.ordered_by || 'N/A'}
+                        {getDisplayName(item.ordered_by)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -440,7 +436,7 @@ function DeployedItems() {
                           size="small"
                           color="warning"
                           startIcon={<UndeployIcon />}
-                          onClick={() => handleUndeploy(item)}
+                          onClick={() => undeployItem(item.id)}
                         >
                           Undeploy
                         </Button>
@@ -509,7 +505,7 @@ function DeployedItems() {
                       </Box>
                     ) : (
                       <img
-                        src={`http://10.167.49.200:3007${selectedItem.image}`}
+                        src={`http://10.167.49.200:3004${selectedItem.image}`}
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
@@ -578,7 +574,7 @@ function DeployedItems() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Ordered By</TableCell>
-                        <TableCell>{selectedItem.ordered_by || 'N/A'}</TableCell>
+                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>
@@ -601,7 +597,7 @@ function DeployedItems() {
               Close
             </Button>
             <Button 
-              onClick={() => handleUndeploy(selectedItem)}
+              onClick={() => undeployItem(selectedItem.id)}
               variant="contained"
               color="warning"
               startIcon={<UndeployIcon />}
