@@ -216,7 +216,7 @@ function ConfirmedItems() {
     <ThemeProvider theme={theme}>
       <Container maxWidth="xl">
         <Typography variant="h4" component="h1" gutterBottom>
-          Confirmed Items
+          Confirmed Orders
         </Typography>
 
         {/* Enhanced Search Interface */}

@@ -176,7 +176,7 @@ function OrderSummary() {
     <ThemeProvider theme={theme}>
       <Container>
         <Typography variant="h4" component="h1" gutterBottom>
-          Order Summary
+          Open Orders
         </Typography>
 
         {/* Table Headers */}
