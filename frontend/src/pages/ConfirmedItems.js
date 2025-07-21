@@ -2,54 +2,87 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Typography, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper, 
   TextField, 
   Button, 
   Accordion, 
   AccordionSummary, 
   AccordionDetails,
   Box,
-  Chip
+  Chip,
+  Grid,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  Menu,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert
 } from '@mui/material';
+import { 
+  FileDownload as ExportIcon,
+  Search as SearchIcon,
+  BrokenImage as BrokenImageIcon,
+  ViewColumn as ColumnsIcon,
+  Refresh as RefreshIcon,
+  CheckCircle as ConfirmedIcon
+} from '@mui/icons-material';
+// Removed DataGrid import to avoid compatibility issues
+import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
-import ColumnSelector from '../components/ColumnSelector';
+import theme from './theme';
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // State for search input
   const [filteredItems, setFilteredItems] = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
-  const [itemComments, setItemComments] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
   
-  // Column visibility state
+  // Enhanced search features
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Modal states
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // Column visibility management
+  const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
   const [visibleColumns, setVisibleColumns] = useState({
+    image: true,
     productName: true,
-    serialNumber: true,
     quantity: true,
     orderDate: true,
-    confirmDate: true,
     orderedBy: true,
-    comment: true,
+    confirmedDate: true,
+    serialNumber: true,
     itemComment: true
   });
 
+  // Debug column visibility
+  console.log('Visible columns:', visibleColumns);
+
   const columnLabels = {
+    image: 'Product Image',
     productName: 'Product Name',
-    serialNumber: 'Serial Number',
     quantity: 'Quantity',
     orderDate: 'Order Date',
-    confirmDate: 'Confirm Date',
     orderedBy: 'Ordered By',
-    comment: 'Order Comment',
-    itemComment: 'Item Comment'
+    confirmedDate: 'Confirmed Date',
+    serialNumber: 'Serial Number',
+    itemComment: 'Item Comments'
   };
 
   // Function to extract username from email (part before @)
@@ -58,15 +91,80 @@ function ConfirmedItems() {
     return email.split('@')[0];
   };
 
+  // Handle image loading errors
+  const handleImageError = (itemId) => {
+    console.log('Image failed to load for item:', itemId);
+    setImageErrors(prev => ({
+      ...prev,
+      [itemId]: true
+    }));
+  };
+
+  // Column visibility handlers
+  const handleColumnToggle = (column) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
+  const handleColumnsMenuOpen = (event) => {
+    setColumnsMenuAnchor(event.currentTarget);
+  };
+
+  const handleColumnsMenuClose = () => {
+    setColumnsMenuAnchor(null);
+  };
+
+  const refreshData = () => {
+    setLastRefresh(Date.now());
+  };
+
+  const renderComment = (comment) => {
+    if (!comment) return 'No comment';
+    if (typeof comment === 'object') {
+      return Object.values(comment).join(', ');
+    }
+    if (typeof comment === 'string') {
+      try {
+        const parsed = JSON.parse(comment);
+        if (typeof parsed === 'object') {
+          return Object.values(parsed).join(', ');
+        }
+      } catch (e) {}
+      return comment;
+    }
+    return String(comment);
+  };
+
+  const handleViewItem = (item) => {
+    setSelectedItem(item);
+    setModalOpen(true);
+  };
+
   useEffect(() => {
-    // Fetch the confirmed items from the backend
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3007'}/confirmed-items`)
+    // Fetch confirmed items with order ID and comment
+    fetch('http://10.167.49.200:3004/confirmed-items')
       .then(response => response.json())
       .then(data => {
-        setConfirmedItems(data);
-        setFilteredItems(data); // Initialize filtered items with all items
+        console.log('Confirmed items data:', data); // Debug log
+        console.log('Sample item structure:', data[0]); // Debug first item structure
         
-        // Extract order-level comments from confirmed items
+        // Debug image and comment data specifically
+        data.forEach((item, idx) => {
+          console.log(`Item ${idx}:`, {
+            id: item.id,
+            product_name: item.product_name,
+            image: item.image,
+            item_comment: item.item_comment,
+            comment: item.comment
+          });
+        });
+        
+        setConfirmedItems(data);
+        setFilteredItems(data);
+        
+        // Extract comments from confirmed items
         const comments = {};
         data.forEach(item => {
           if (item.comment) {
@@ -74,40 +172,67 @@ function ConfirmedItems() {
           }
         });
         setOrderComments(comments);
-
-        // Extract item-level comments from confirmed items
-        const itemComments = {};
-        data.forEach(item => {
-          if (item.item_comment) {
-            try {
-              const parsedComments = JSON.parse(item.item_comment);
-              Object.keys(parsedComments).forEach(itemIndex => {
-                itemComments[`${item.order_id}-${item.product_id}-${itemIndex}`] = parsedComments[itemIndex];
-              });
-            } catch (e) {
-              // Handle old format (single string comment)
-              itemComments[`${item.order_id}-${item.product_id}-0`] = item.item_comment;
-            }
-          }
-        });
-        setItemComments(itemComments);
       })
       .catch(error => console.error('Error fetching confirmed items:', error));
-  }, []);
+  }, [lastRefresh]);
 
-  // Function to handle search when search button is clicked
-  const handleSearch = () => {
-    const value = searchTerm.toLowerCase();
+  useEffect(() => {
+    let filtered = [...confirmedItems];
 
-    const filtered = confirmedItems.filter(item =>
-      (item.product_name && item.product_name.toLowerCase().includes(value)) ||
-      (item.order_id && item.order_id.toLowerCase().includes(value)) ||
-      (item.quantity && item.quantity.toString().includes(value)) ||
-      (item.order_date && item.order_date.toLowerCase().includes(value)) ||
-      (item.confirm_date && item.confirm_date.toLowerCase().includes(value)) ||
-      (item.ordered_by && item.ordered_by.toLowerCase().includes(value))
-    );
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.order_id.toString().includes(searchTerm) ||
+        (orderComments[item.order_id] && orderComments[item.order_id].toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.item_comment && item.item_comment.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Filter by date range
+    if (startDate) {
+      filtered = filtered.filter(item => {
+        const confirmDate = item.confirm_date;
+        return confirmDate && new Date(confirmDate) >= new Date(startDate);
+      });
+    }
+
+    if (endDate) {
+      filtered = filtered.filter(item => {
+        const confirmDate = item.confirm_date;
+        return confirmDate && new Date(confirmDate) <= new Date(endDate + 'T23:59:59');
+      });
+    }
+
     setFilteredItems(filtered);
+  }, [searchTerm, startDate, endDate, confirmedItems, orderComments, lastRefresh]);
+
+  const handleExport = (orderId) => {
+    const orderItems = filteredItems.filter(item => item.order_id === orderId);
+    
+    const csvContent = [
+      ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Ordered By', 'Order Comment', 'Item Comment'].join(','),
+      ...orderItems.map(item => [
+        `"${item.product_name}"`,
+        item.quantity || '',
+        `"${item.serial_number || ''}"`,
+        `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
+        `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
+        `"${getDisplayName(item.ordered_by)}"`,
+        `"${orderComments[orderId] || ''}"`,
+        `"${item.item_comment || ''}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `confirmed-items-${orderId}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleAccordionChange = (orderId) => (event, isExpanded) => {
@@ -117,14 +242,7 @@ function ConfirmedItems() {
     }));
   };
 
-  const handleColumnToggle = (column) => {
-    setVisibleColumns(prev => ({
-      ...prev,
-      [column]: !prev[column]
-    }));
-  };
-
-  // Grouping confirmed items by order_id
+  // Group items by order_id
   const groupedItems = filteredItems.reduce((acc, item) => {
     if (!acc[item.order_id]) {
       acc[item.order_id] = [];
@@ -134,163 +252,572 @@ function ConfirmedItems() {
   }, {});
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Orders Fulfilled
-      </Typography>
+    <ThemeProvider theme={theme}>
+      <Container maxWidth="xl">
+        <Typography variant="h4" component="h1" gutterBottom>
+          Confirmed Orders
+        </Typography>
 
-      {/* Search Input */}
-      <TextField
-        label="Search"
-        variant="outlined"
-        fullWidth
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search by product name, order ID, quantity, ordered by, etc."
-        sx={{ marginBottom: '20px' }}
-      />
-
-      {/* Search Button */}
-      <Button variant="contained" color="primary" onClick={handleSearch} sx={{ marginBottom: '20px' }}>
-        Search
-      </Button>
-
-      {/* Column Selection */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <ColumnSelector
-          visibleColumns={visibleColumns}
-          onColumnToggle={handleColumnToggle}
-          columnLabels={columnLabels}
-        />
-      </Box>
-
-      {/* Display items grouped by order_id */}
-      {Object.keys(groupedItems).map(orderId => (
-        <Accordion 
-          key={orderId} 
-          expanded={expandedOrders[orderId] || false}
-          onChange={handleAccordionChange(orderId)}
-          sx={{ marginBottom: 2 }}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls={`panel-${orderId}-content`}
-            id={`panel-${orderId}-header`}
-            sx={{ backgroundColor: '#f5f5f5' }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-              <Typography variant="h6">
-                Order ID: {orderId}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {orderComments[orderId] && (
-                  <Chip 
-                    label="Has Order Comment" 
-                    size="small" 
-                    color="primary" 
-                    variant="outlined"
-                  />
-                )}
-                {groupedItems[orderId].some(item => 
-                  Object.keys(itemComments).some(key => key.startsWith(`${orderId}-${item.product_id}-`))
-                ) && (
-                  <Chip 
-                    label="Has Item Comments" 
-                    size="small" 
-                    color="secondary" 
-                    variant="outlined"
-                  />
-                )}
-              </Box>
+        {/* Enhanced Search Interface */}
+        <Box sx={{ mb: 4, p: 3, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Search & Filter
+            </Typography>
+            
+            {/* Column Selection Button */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={refreshData}
+                sx={{ ml: 2 }}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ColumnsIcon />}
+                onClick={handleColumnsMenuOpen}
+                sx={{ ml: 2 }}
+              >
+                Columns
+              </Button>
             </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <TableContainer component={Paper}>
-              <Table>
-                                  <TableHead>
-                    <TableRow>
-                      {visibleColumns.productName && <TableCell>Product Name</TableCell>}
-                      {visibleColumns.serialNumber && <TableCell>Serial Number</TableCell>}
-                      {visibleColumns.quantity && <TableCell>Quantity</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>Order Date</TableCell>}
-                      {visibleColumns.confirmDate && <TableCell>Confirm Date</TableCell>}
-                      {visibleColumns.orderedBy && <TableCell>Ordered By</TableCell>}
-                      {visibleColumns.comment && <TableCell>Order Comment</TableCell>}
-                      {visibleColumns.itemComment && <TableCell>Item Comment</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                <TableBody>
-                  {groupedItems[orderId].map((item) => (
-                    <TableRow key={item.id}>
-                      {visibleColumns.productName && <TableCell>{item.product_name || 'N/A'}</TableCell>}
-                      {visibleColumns.serialNumber && (
-                        <TableCell>
-                          {item.serial_numbers ? (
-                            <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {JSON.parse(item.serial_numbers).join(', ')}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              No serial numbers
-                            </Typography>
+          </Box>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Search Items"
+                variant="outlined"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Product, Serial, Order ID, Person, or Comments"
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Start Date"
+                type="date"
+                variant="outlined"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="End Date"
+                type="date"
+                variant="outlined"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Grid>
+          </Grid>
+          
+          {/* Search Results Summary */}
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {filteredItems.length} of {confirmedItems.length} confirmed items
+            </Typography>
+            
+            {(searchTerm || startDate || endDate) && (
+              <Button 
+                variant="outlined" 
+                size="small"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+              >
+                Clear All Filters
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        {/* Column Visibility Menu */}
+        <Menu
+          anchorEl={columnsMenuAnchor}
+          open={Boolean(columnsMenuAnchor)}
+          onClose={handleColumnsMenuClose}
+          PaperProps={{
+            style: {
+              maxHeight: 300,
+              width: '250px',
+            },
+          }}
+        >
+          {Object.entries(columnLabels).map(([key, label]) => (
+            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={visibleColumns[key]}
+                    onChange={() => handleColumnToggle(key)}
+                  />
+                }
+                label={label}
+                sx={{ width: '100%', m: 0 }}
+              />
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Table Headers */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: '150px 1fr 150px', 
+          gap: 2, 
+          p: 2, 
+          mb: 2,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 1,
+          fontWeight: 600
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Items Summary</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Date</Typography>
+        </Box>
+
+        {Object.keys(groupedItems).map(orderId => {
+          const orderItems = groupedItems[orderId];
+
+          return (
+            <Accordion 
+              key={orderId} 
+              expanded={expandedOrders[orderId] || false}
+              onChange={handleAccordionChange(orderId)}
+              sx={{ marginBottom: 2 }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`panel-${orderId}-content`}
+                id={`panel-${orderId}-header`}
+                sx={{ backgroundColor: '#f5f5f5' }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h6">
+                      Order ID: {orderId}
+                    </Typography>
+                    
+                    {/* Category totals beside Order ID */}
+                    {(() => {
+                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
+                      orderItems.forEach(item => {
+                        const productName = item.product_name.toLowerCase();
+                        const quantity = item.quantity || 0;
+                        // First check for accessories (to avoid misclassification)
+                        if (productName.includes('dock') || productName.includes('docking') ||
+                            productName.includes('charger') || productName.includes('adapter') ||
+                            productName.includes('cable') || productName.includes('mouse') ||
+                            productName.includes('keyboard') || productName.includes('headset') ||
+                            productName.includes('webcam') || productName.includes('speaker') ||
+                            productName.includes('hub') || productName.includes('stand') ||
+                            productName.includes('bag') || productName.includes('case')) {
+                          orderTotals.accessories += quantity;
+                        } else if (productName.includes('monitor') || productName.includes('display')) {
+                          orderTotals.monitors += quantity;
+                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
+                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
+                                   productName.includes('macbook') || productName.includes('surface') ||
+                                   productName.includes('k14') || productName.includes('lenovo') ||
+                                   productName.includes('ideapad') || productName.includes('yoga') ||
+                                   productName.includes('inspiron') || productName.includes('latitude') ||
+                                   productName.includes('pavilion') || productName.includes('probook') ||
+                                   productName.includes('toughbook') || productName.includes('fz55')) {
+                          orderTotals.notebooks += quantity;
+                        } else {
+                          orderTotals.accessories += quantity;
+                        }
+                      });
+                      return (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          {orderTotals.monitors > 0 && (
+                            <Chip
+                              label={`Monitors: ${orderTotals.monitors}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
+                            />
                           )}
-                        </TableCell>
-                      )}
-                      {visibleColumns.quantity && <TableCell>{item.quantity || 0}</TableCell>}
-                      {visibleColumns.orderDate && <TableCell>{format(new Date(item.order_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.confirmDate && <TableCell>{format(new Date(item.confirm_date), 'yyyy-MM-dd')}</TableCell>}
-                      {visibleColumns.orderedBy && (
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {getDisplayName(item.ordered_by)}
-                          </Typography>
-                        </TableCell>
-                      )}
-                      {visibleColumns.comment && (
-                        <TableCell>
-                          {orderComments[orderId] ? (
-                            <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {orderComments[orderId]}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              No order comment
-                            </Typography>
+                          {orderTotals.notebooks > 0 && (
+                            <Chip
+                              label={`Notebooks: ${orderTotals.notebooks}`}
+                              size="small"
+                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
+                            />
                           )}
-                        </TableCell>
-                      )}
-                      {visibleColumns.itemComment && (
+                          {orderTotals.accessories > 0 && (
+                            <Chip
+                              label={`Accessories: ${orderTotals.accessories}`}
+                              size="small"
+                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
+                            />
+                          )}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                  
+                  {/* Order date on the right */}
+                  <Typography variant="body2" color="text.secondary">
+                    {format(new Date(orderItems[0].order_date), 'MMM dd, yyyy')}
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              
+              <AccordionDetails>
+                {/* Order Comment Display */}
+                {orderComments[orderId] && (
+                  <Box sx={{ mb: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                      Order Comment:
+                    </Typography>
+                    <Typography variant="body2">
+                      {orderComments[orderId]}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Export Button */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ExportIcon />}
+                    onClick={() => handleExport(orderId)}
+                    size="small"
+                  >
+                    Export this Order
+                  </Button>
+                </Box>
+
+                {/* Responsive Table Container */}
+                <TableContainer 
+                  component={Paper} 
+                  sx={{
+                    boxShadow: theme.shadows[4],
+                    borderRadius: 2,
+                    maxHeight: '70vh',
+                    overflow: 'auto',
+                    '& .MuiTable-root': {
+                      minWidth: 600,
+                    }
+                  }}
+                >
+                  <Table stickyHeader sx={{
+                    '& .MuiTableHead-root': {
+                      backgroundColor: theme.palette.grey[50],
+                    },
+                    '& .MuiTableCell-head': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.grey[50],
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 100,
+                    },
+                    '& .MuiTableCell-body': {
+                      fontSize: '0.875rem',
+                      padding: '12px 16px',
+                    },
+                    '& .MuiTableRow-root:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    }
+                  }}>
+                    <TableHead>
+                      <TableRow>
+                        {visibleColumns.image && <TableCell sx={{ width: '100px', minWidth: '100px' }}>Image</TableCell>}
+                        {visibleColumns.productName && <TableCell sx={{ minWidth: '250px' }}>Product Name</TableCell>}
+                        {visibleColumns.quantity && <TableCell sx={{ width: '80px', minWidth: '80px' }}>Qty</TableCell>}
+                        {visibleColumns.orderDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>}
+                        {visibleColumns.orderedBy && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>}
+                        {visibleColumns.confirmedDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Confirmed</TableCell>}
+                        {visibleColumns.serialNumber && <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>}
+                        {visibleColumns.itemComment && <TableCell sx={{ minWidth: '200px' }}>Item Comments</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {orderItems.map((item, index) => {
+                        console.log(`Item ${index} image:`, item.image); // Debug each item's image
+                        console.log(`Item ${index} item_comment:`, item.item_comment); // Debug each item's comment
+                        return (
+                          <TableRow 
+                            key={`${orderId}-${index}`} 
+                            hover
+                            onClick={() => handleViewItem(item)}
+                            sx={{ 
+                              cursor: 'pointer',
+                              '&:hover': {
+                                backgroundColor: '#f5f5f5'
+                              }
+                            }}
+                          >
+                            {visibleColumns.image && (
+                              <TableCell>
+                                {imageErrors[`${orderId}-${index}`] || !item.image ? (
+                                  <Box sx={{ 
+                                    width: '60px', 
+                                    height: '60px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    backgroundColor: '#f5f5f5',
+                                    borderRadius: 1,
+                                    border: '1px solid #e0e0e0'
+                                  }}>
+                                    <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
+                                  </Box>
+                                ) : (
+                                  <img 
+                                    src={`http://10.167.49.200:3004${item.image}`} 
+                                    alt={item.product_name} 
+                                    style={{ 
+                                      width: '60px', 
+                                      height: '60px', 
+                                      objectFit: 'cover', 
+                                      borderRadius: 4,
+                                      border: '1px solid #e0e0e0'
+                                    }} 
+                                    onError={() => {
+                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.200:3004${item.image}`);
+                                      handleImageError(`${orderId}-${index}`);
+                                    }}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.200:3004${item.image}`)}
+                                  />
+                                )}
+                              </TableCell>
+                            )}
+                            {visibleColumns.productName && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                                  {item.product_name}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.quantity && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.quantity || 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderDate && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.orderedBy && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {getDisplayName(item.ordered_by)}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.confirmedDate && (
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.confirm_date ? 
+                                    format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.serialNumber && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                  {item.serial_number || 'N/A'}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumns.itemComment && (
+                              <TableCell>
+                                <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                  {item.item_comment ? item.item_comment : 'No comment'}
+                                </Typography>
+                                {/* Debug info */}
+                                {process.env.NODE_ENV === 'development' && (
+                                  <Typography variant="caption" sx={{ color: 'gray', fontSize: '0.7rem' }}>
+                                    Debug: {JSON.stringify({item_comment: item.item_comment})}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
+
+        {/* No Results Message */}
+        {Object.keys(groupedItems).length === 0 && (
+          <Box sx={{ p: 4, textAlign: 'center', backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+            <Typography variant="h6" color="text.secondary">
+              No confirmed items found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Try adjusting your search criteria or date range
+            </Typography>
+          </Box>
+        )}
+
+        {/* Item Details Modal */}
+        <Dialog 
+          open={modalOpen} 
+          onClose={() => setModalOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h6">
+                Confirmed Item Details
+              </Typography>
+              <Chip 
+                icon={<ConfirmedIcon />} 
+                label="Confirmed" 
+                color="success" 
+                variant="outlined"
+              />
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {selectedItem && (
+              <Box>
+                {/* Item Header */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                  {selectedItem.image && !imageErrors[`${selectedItem.order_id}-${selectedItem.id}`] ? (
+                    <img 
+                      src={`http://10.167.49.200:3004${selectedItem.image}`} 
+                      alt={selectedItem.product_name}
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        objectFit: 'cover', 
+                        borderRadius: 8,
+                        border: '1px solid #e0e0e0'
+                      }}
+                      onError={() => setImageErrors(prev => ({ ...prev, [`${selectedItem.order_id}-${selectedItem.id}`]: true }))}
+                    />
+                  ) : (
+                    <Box sx={{ 
+                      width: '120px', 
+                      height: '120px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: 2,
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      <BrokenImageIcon sx={{ fontSize: 48, color: '#bdbdbd' }} />
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                      {selectedItem.product_name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Serial Number: <strong>{selectedItem.serial_number || 'N/A'}</strong>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Order ID: <strong>{selectedItem.order_id}</strong>
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Detailed Information Table */}
+                <TableContainer component={Paper} sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Product Name</TableCell>
+                        <TableCell>{selectedItem.product_name}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Serial Number</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order ID</TableCell>
+                        <TableCell>{selectedItem.order_id}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order Date</TableCell>
+                        <TableCell>{format(new Date(selectedItem.order_date), 'MMM dd, yyyy')}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Confirmed Date</TableCell>
                         <TableCell>
-                          {(() => {
-                            // Get all item comments for this item
-                            const itemCommentsForThisItem = Object.keys(itemComments)
-                              .filter(key => key.startsWith(`${orderId}-${item.product_id}-`))
-                              .map(key => {
-                                const itemIndex = key.split('-')[2];
-                                return `Item ${parseInt(itemIndex) + 1}: ${itemComments[key]}`;
-                              });
-                            
-                            return itemCommentsForThisItem.length > 0 ? (
-                              <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {itemCommentsForThisItem.join('; ')}
-                              </Typography>
-                            ) : (
-                              <Typography variant="body2" color="textSecondary">
-                                No item comments
-                              </Typography>
-                            );
-                          })()}
+                          {selectedItem.confirm_date ? 
+                            format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
                         </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Ordered By</TableCell>
+                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+                      </TableRow>
+                      {selectedItem.item_comment && (
+                        <TableRow>
+                          <TableCell>Item Comment</TableCell>
+                          <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
+                        </TableRow>
                       )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </AccordionDetails>
-        </Accordion>
-      ))}
-    </Container>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+          </DialogContent>
+          
+          <DialogActions sx={{ p: 3 }}>
+            <Button 
+              onClick={() => setModalOpen(false)}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </ThemeProvider>
   );
 }
 

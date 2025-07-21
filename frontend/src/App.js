@@ -8,6 +8,8 @@ import ProductList from './pages/ProductList';
 import OrderSummary from './pages/OrderSummary';
 import OrderDetails from './pages/OrderDetails';
 import ConfirmedItems from './pages/ConfirmedItems';
+import Scan from './pages/Scan';
+import DeployedItems from './pages/DeployedItems';
 
 function App() {
   return (
@@ -48,7 +50,7 @@ function App() {
               },
             }}
           >
-            Order Summaries
+            Open Orders
           </Button>
           <Button
             component={Link}
@@ -80,7 +82,39 @@ function App() {
               },
             }}
           >
-            Orders Fulfilled
+            Confirmed Orders
+          </Button>
+          <Button
+            component={Link}
+            to="/scan"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Scan & Deploy
+          </Button>
+          <Button
+            component={Link}
+            to="/deployed-items"
+            sx={{
+              color: blueGrey[50],
+              border: `1px solid ${blueGrey[50]}`,
+              borderRadius: '4px',
+              padding: '8px 16px',
+              margin: '0 8px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+          >
+            Deployed Items
           </Button>
         </Toolbar>
       </AppBar>
@@ -92,6 +126,8 @@ function App() {
           <Route path="/order-summary" element={<OrderSummary />} />
           <Route path="/order-details" element={<OrderDetails />} />
           <Route path="/confirmed-items" element={<ConfirmedItems />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/deployed-items" element={<DeployedItems />} />
         </Routes>
       </Container>
     </Router>
