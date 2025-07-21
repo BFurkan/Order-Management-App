@@ -12,6 +12,14 @@ import {
   DialogTitle, 
   DialogContent, 
   DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TableSortLabel,
   IconButton,
   Menu,
   Box,
@@ -21,7 +29,6 @@ import {
   CardContent,
   Chip
 } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
 import { 
   Add as AddIcon,
   ShoppingCart as CartIcon,
@@ -46,125 +53,60 @@ function ProductList() {
   const [quantities, setQuantities] = useState({});
   const [categoryFilter, setCategoryFilter] = useState('');
   
-  // DataGrid state
+  // Enhanced table features
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
-  const [columnVisibilityModel, setColumnVisibilityModel] = useState({
+  
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
     productImage: true,
-    name: true,
+    productName: true,
     category: true,
     price: true,
     quantity: true,
-    actions: true,
+    action: true
   });
+
+  const columnLabels = {
+    productImage: 'Product Image',
+    productName: 'Product Name',
+    category: 'Category',
+    price: 'Price',
+    quantity: 'Quantity',
+    action: 'Action'
+  };
 
   const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
-  // Define DataGrid columns with resizable functionality
-  const columns = [
-    {
-      field: 'productImage',
-      headerName: 'Product Image',
-      width: 120,
-      resizable: true,
-      sortable: false,
-      renderCell: (params) => (
-        <img 
-          src={params.row.image ? `http://10.167.49.200:3004${params.row.image}` : '/placeholder.png'} 
-          alt={params.row.name} 
-          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }} 
-        />
-      ),
-    },
-    {
-      field: 'name',
-      headerName: 'Product Name',
-      width: 200,
-      resizable: true,
-      flex: 1,
-    },
-    {
-      field: 'category',
-      headerName: 'Category',
-      width: 150,
-      resizable: true,
-    },
-    {
-      field: 'price',
-      headerName: 'Price',
-      width: 120,
-      resizable: true,
-      type: 'number',
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: 'green' }}>
-          ${(parseFloat(params.value) || 0).toFixed(2)}
-        </Typography>
-      ),
-    },
-    {
-      field: 'quantity',
-      headerName: 'Quantity',
-      width: 120,
-      resizable: true,
-      sortable: false,
-      renderCell: (params) => (
-        <TextField
-          type="number"
-          size="small"
-          value={quantities[params.row.id] || ''}
-          onChange={(e) => handleQuantityChange(params.row.id, e.target.value)}
-          inputProps={{ min: 0 }}
-          sx={{ width: 100 }}
-        />
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 250,
-      resizable: true,
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={() => addToCart(params.row)}
-            disabled={!quantities[params.row.id] || quantities[params.row.id] <= 0}
-          >
-            Add to Cart
-          </Button>
-          <IconButton
-            size="small"
-            onClick={() => handleEditProduct(params.row)}
-            title="Edit Product"
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDeleteProduct(params.row.id)}
-            title="Delete Product"
-            color="error"
-          >
-            <DeleteIcon />
-          </IconButton>
-        </Box>
-      ),
-    },
-  ];
-
-  useEffect(() => {
+  const fetchProducts = () => {
     fetch('http://10.167.49.200:3004/products')
       .then(response => response.json())
       .then(data => setProducts(data))
       .catch(error => console.error('Error fetching products:', error));
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
+
+  const handleColumnToggle = (column) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
+  const handleSort = (column) => {
+    const isAsc = sortBy === column && sortDirection === 'asc';
+    setSortDirection(isAsc ? 'desc' : 'asc');
+    setSortBy(column);
+  };
 
   const handleExport = () => {
     const csvContent = [
       ['Product Name', 'Category', 'Price', 'Quantity'].join(','),
-      ...filteredProducts.map(product => [
+      ...filteredAndSortedProducts.map(product => [
         `"${product.name}"`,
         `"${product.category}"`,
         `"$${(parseFloat(product.price) || 0).toFixed(2)}"`,
@@ -181,6 +123,37 @@ function ProductList() {
     window.URL.revokeObjectURL(url);
   };
 
+  const sortData = (data) => {
+    return [...data].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'productName':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'category':
+          aValue = a.category;
+          bValue = b.category;
+          break;
+        case 'price':
+          aValue = parseFloat(a.price) || 0;
+          bValue = parseFloat(b.price) || 0;
+          break;
+        case 'quantity':
+          aValue = quantities[a.id] || 0;
+          bValue = quantities[b.id] || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   const filterData = (data) => {
     let filtered = data;
     
@@ -192,7 +165,7 @@ function ProductList() {
     return filtered;
   };
 
-  const filteredProducts = filterData(products);
+  const filteredAndSortedProducts = sortData(filterData(products));
 
   const addToCart = (product) => {
     const quantity = quantities[product.id] || 0;
@@ -279,12 +252,7 @@ function ProductList() {
     .then(response => response.json())
     .then(data => {
       console.log('Product added:', data);
-      // Refresh the products list
-      fetch('http://10.167.49.200:3004/products')
-        .then(response => response.json())
-        .then(data => setProducts(data))
-        .catch(error => console.error('Error fetching products:', error));
-      
+      fetchProducts(); // Refresh the products list
       setAddProductOpen(false);
       setNewProduct({ name: '', category: '', price: '', image: null });
     })
@@ -310,11 +278,8 @@ function ProductList() {
       .then(response => {
         if (response.ok) {
           console.log('Product deleted successfully');
-          // Refresh the products list
-          fetch('http://10.167.49.200:3004/products')
-            .then(response => response.json())
-            .then(data => setProducts(data))
-            .catch(error => console.error('Error fetching products:', error));
+          fetchProducts(); // Refresh the products list
+          setEditProductOpen(false); // Close edit dialog
         } else {
           throw new Error('Failed to delete product');
         }
@@ -342,12 +307,7 @@ function ProductList() {
     .then(response => response.json())
     .then(data => {
       console.log('Product updated:', data);
-      // Refresh the products list
-      fetch('http://10.167.49.200:3004/products')
-        .then(response => response.json())
-        .then(data => setProducts(data))
-        .catch(error => console.error('Error fetching products:', error));
-      
+      fetchProducts(); // Refresh the products list
       setEditProductOpen(false);
       setEditProduct({ id: '', name: '', category: '', price: '', image: null });
     })
@@ -400,29 +360,119 @@ function ProductList() {
           </Box>
         </Box>
 
-        <Box sx={{ height: 600, width: '100%' }}>
-          <DataGrid
-            rows={filteredProducts}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            disableSelectionOnClick
-            columnVisibilityModel={columnVisibilityModel}
-            onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
-            sx={{
-              '& .MuiDataGrid-cell': {
-                borderColor: '#e0e0e0',
-              },
-              '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: '#f5f5f5',
-                fontWeight: 'bold',
-              },
-              '& .MuiDataGrid-row:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          />
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                {visibleColumns.productImage && <TableCell>Product Image</TableCell>}
+                {visibleColumns.productName && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'productName'}
+                      direction={sortBy === 'productName' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('productName')}
+                    >
+                      Product Name
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                {visibleColumns.category && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'category'}
+                      direction={sortBy === 'category' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('category')}
+                    >
+                      Category
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                {visibleColumns.price && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'price'}
+                      direction={sortBy === 'price' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('price')}
+                    >
+                      Price
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                {visibleColumns.quantity && (
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'quantity'}
+                      direction={sortBy === 'quantity' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('quantity')}
+                    >
+                      Quantity
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                {visibleColumns.action && <TableCell>Action</TableCell>}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedProducts.map((product) => (
+                <TableRow key={product.id} hover>
+                  {visibleColumns.productImage && (
+                    <TableCell>
+                      <img 
+                        src={product.image ? `http://10.167.49.200:3004${product.image}` : '/placeholder.png'} 
+                        alt={product.name} 
+                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 4 }} 
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumns.productName && <TableCell>{product.name}</TableCell>}
+                  {visibleColumns.category && <TableCell>{product.category}</TableCell>}
+                  {visibleColumns.price && (
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'green' }}>
+                        ${(parseFloat(product.price) || 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                  )}
+                  {visibleColumns.quantity && (
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        label="Quantity"
+                        size="small"
+                        value={quantities[product.id] || ''}
+                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                        inputProps={{ min: 0 }}
+                        sx={{ width: 100 }}
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumns.action && (
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => addToCart(product)}
+                          disabled={!quantities[product.id] || quantities[product.id] <= 0}
+                        >
+                          Add to Cart
+                        </Button>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditProduct(product)}
+                          title="Edit Product"
+                        >
+                          <EditIcon />
+                        </IconButton>
                       </Box>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
         {/* Column Visibility Menu */}
         <Menu
@@ -430,20 +480,15 @@ function ProductList() {
           open={Boolean(columnsMenuAnchor)}
           onClose={() => setColumnsMenuAnchor(null)}
         >
-          {columns.map((column) => (
-            <MenuItem key={column.field}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <input 
-                  type="checkbox" 
-                  checked={columnVisibilityModel[column.field] !== false}
-                  onChange={() =>
-                    setColumnVisibilityModel((prev) => ({
-                      ...prev,
-                      [column.field]: prev[column.field] === false ? true : false,
-                    }))
-                  }
+          {Object.entries(columnLabels).map(([key, label]) => (
+            <MenuItem key={key} onClick={() => handleColumnToggle(key)}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={visibleColumns[key]} 
+                  onChange={() => handleColumnToggle(key)}
                 />
-                {column.headerName}
+                {label}
               </Box>
             </MenuItem>
           ))}
@@ -452,21 +497,20 @@ function ProductList() {
         {/* Floating Action Buttons */}
         <Fab
           color="primary"
-          aria-label="cart"
-          sx={{ position: 'fixed', bottom: 16, right: 16 }}
-          onClick={() => setOpen(true)}
-          disabled={cart.length === 0}
+          aria-label="add"
+          sx={{ position: 'fixed', bottom: 100, right: 16 }}
+          onClick={() => setAddProductOpen(true)}
         >
-          <CartIcon />
+          <AddIcon />
         </Fab>
 
         <Fab
           color="secondary"
-          aria-label="add"
-          sx={{ position: 'fixed', bottom: 80, right: 16 }}
-          onClick={() => setAddProductOpen(true)}
+          aria-label="cart"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={() => setOpen(true)}
         >
-          <AddIcon />
+          <CartIcon />
         </Fab>
 
         {/* Cart Dialog */}
@@ -655,31 +699,27 @@ function ProductList() {
             <input
               accept="image/*"
               style={{ display: 'none' }}
-              id="edit-product-file"
+              id="edit-raised-button-file"
               type="file"
               onChange={(e) => setEditProduct({ ...editProduct, image: e.target.files[0] })}
             />
-            <label htmlFor="edit-product-file">
+            <label htmlFor="edit-raised-button-file">
               <Button variant="outlined" component="span" fullWidth sx={{ mt: 2 }}>
-                Change Image
+                Upload New Image
               </Button>
             </label>
             {editProduct.image && (
               <Typography variant="body2" sx={{ mt: 1 }}>
-                New image selected: {editProduct.image.name}
+                Selected: {editProduct.image.name}
               </Typography>
             )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditProductOpen(false)}>Cancel</Button>
             <Button 
-              onClick={() => {
-                handleDeleteProduct(editProduct.id);
-                setEditProductOpen(false);
-              }} 
-              variant="outlined"
+              onClick={() => handleDeleteProduct(editProduct.id)}
               color="error"
-              startIcon={<DeleteIcon />}
+              variant="outlined"
             >
               Remove Item
             </Button>
