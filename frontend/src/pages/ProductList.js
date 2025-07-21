@@ -34,8 +34,7 @@ import {
   ShoppingCart as CartIcon,
   FileDownload as ExportIcon,
   ViewColumn as ColumnsIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';

@@ -26,7 +26,8 @@ import {
   FileDownload as ExportIcon,
   Search as SearchIcon,
   BrokenImage as BrokenImageIcon,
-  ViewColumn as ColumnsIcon
+  ViewColumn as ColumnsIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
@@ -40,6 +41,7 @@ function ConfirmedItems() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderComments, setOrderComments] = useState({});
   const [imageErrors, setImageErrors] = useState({});
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
   
   // Enhanced search features
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,6 +106,10 @@ function ConfirmedItems() {
     setColumnsMenuAnchor(null);
   };
 
+  const refreshData = () => {
+    setLastRefresh(Date.now());
+  };
+
   useEffect(() => {
     // Fetch confirmed items with order ID and comment
     fetch('http://10.167.49.200:3004/confirmed-items')
@@ -136,7 +142,7 @@ function ConfirmedItems() {
         setOrderComments(comments);
       })
       .catch(error => console.error('Error fetching confirmed items:', error));
-  }, []);
+  }, [lastRefresh]);
 
   useEffect(() => {
     let filtered = [...confirmedItems];
@@ -169,7 +175,7 @@ function ConfirmedItems() {
     }
 
     setFilteredItems(filtered);
-  }, [searchTerm, startDate, endDate, confirmedItems, orderComments]);
+  }, [searchTerm, startDate, endDate, confirmedItems, orderComments, lastRefresh]);
 
   const handleExport = (orderId) => {
     const orderItems = filteredItems.filter(item => item.order_id === orderId);
@@ -228,15 +234,26 @@ function ConfirmedItems() {
             </Typography>
             
             {/* Column Selection Button */}
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<ColumnsIcon />}
-              onClick={handleColumnsMenuOpen}
-              sx={{ ml: 2 }}
-            >
-              Columns
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={refreshData}
+                sx={{ ml: 2 }}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ColumnsIcon />}
+                onClick={handleColumnsMenuOpen}
+                sx={{ ml: 2 }}
+              >
+                Columns
+              </Button>
+            </Box>
           </Box>
           
           <Grid container spacing={3}>

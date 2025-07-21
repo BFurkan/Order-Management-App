@@ -391,9 +391,12 @@ app.get('/confirmed-items', async (req, res) => {
       SELECT original_order_id, serial_number FROM deployed_items
     `);
     
+    console.log('Deployed items for filtering:', deployedItems.length);
+    
     // Create a Set of deployed item identifiers for fast lookup
     const deployedSet = new Set();
     deployedItems.forEach(item => {
+      console.log(`Adding to deployed set: ${item.original_order_id}-${item.serial_number}`);
       deployedSet.add(`${item.original_order_id}-${item.serial_number}`);
     });
     
@@ -561,7 +564,11 @@ app.post('/deploy-item', async (req, res) => {
     console.log('Insert result:', result);
 
     if (result.affectedRows > 0) {
-      console.log('Item deployed successfully:', serialNumber);
+      console.log('Item deployed successfully:', {
+        originalId,
+        serialNumber,
+        identifier: `${originalId}-${serialNumber}`
+      });
       res.status(200).json({ success: true, message: 'Item deployed successfully' });
     } else {
       res.status(500).json({ success: false, message: 'Failed to deploy item' });
