@@ -20,14 +20,20 @@ import {
   Menu,
   MenuItem,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
   Search as SearchIcon,
   BrokenImage as BrokenImageIcon,
   ViewColumn as ColumnsIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  CheckCircle as ConfirmedIcon
 } from '@mui/icons-material';
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
@@ -47,6 +53,10 @@ function ConfirmedItems() {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Modal states
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Column visibility management
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
@@ -108,6 +118,28 @@ function ConfirmedItems() {
 
   const refreshData = () => {
     setLastRefresh(Date.now());
+  };
+
+  const renderComment = (comment) => {
+    if (!comment) return 'No comment';
+    if (typeof comment === 'object') {
+      return Object.values(comment).join(', ');
+    }
+    if (typeof comment === 'string') {
+      try {
+        const parsed = JSON.parse(comment);
+        if (typeof parsed === 'object') {
+          return Object.values(parsed).join(', ');
+        }
+      } catch (e) {}
+      return comment;
+    }
+    return String(comment);
+  };
+
+  const handleViewItem = (item) => {
+    setSelectedItem(item);
+    setModalOpen(true);
   };
 
   useEffect(() => {
@@ -530,7 +562,17 @@ function ConfirmedItems() {
                         console.log(`Item ${index} image:`, item.image); // Debug each item's image
                         console.log(`Item ${index} item_comment:`, item.item_comment); // Debug each item's comment
                         return (
-                          <TableRow key={`${orderId}-${index}`} hover>
+                          <TableRow 
+                            key={`${orderId}-${index}`} 
+                            hover
+                            onClick={() => handleViewItem(item)}
+                            sx={{ 
+                              cursor: 'pointer',
+                              '&:hover': {
+                                backgroundColor: '#f5f5f5'
+                              }
+                            }}
+                          >
                             {visibleColumns.image && (
                               <TableCell>
                                 {imageErrors[`${orderId}-${index}`] || !item.image ? (
@@ -644,6 +686,136 @@ function ConfirmedItems() {
             </Typography>
           </Box>
         )}
+
+        {/* Item Details Modal */}
+        <Dialog 
+          open={modalOpen} 
+          onClose={() => setModalOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h6">
+                Confirmed Item Details
+              </Typography>
+              <Chip 
+                icon={<ConfirmedIcon />} 
+                label="Confirmed" 
+                color="success" 
+                variant="outlined"
+              />
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {selectedItem && (
+              <Box>
+                {/* Item Header */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                  {selectedItem.image && !imageErrors[`${selectedItem.order_id}-${selectedItem.id}`] ? (
+                    <img 
+                      src={`http://10.167.49.200:3004${selectedItem.image}`} 
+                      alt={selectedItem.product_name}
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        objectFit: 'cover', 
+                        borderRadius: 8,
+                        border: '1px solid #e0e0e0'
+                      }}
+                      onError={() => setImageErrors(prev => ({ ...prev, [`${selectedItem.order_id}-${selectedItem.id}`]: true }))}
+                    />
+                  ) : (
+                    <Box sx={{ 
+                      width: '120px', 
+                      height: '120px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: 2,
+                      border: '1px solid #e0e0e0'
+                    }}>
+                      <BrokenImageIcon sx={{ fontSize: 48, color: '#bdbdbd' }} />
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                      {selectedItem.product_name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Serial Number: <strong>{selectedItem.serial_number || 'N/A'}</strong>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Order ID: <strong>{selectedItem.order_id}</strong>
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Detailed Information Table */}
+                <TableContainer component={Paper} sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Product Name</TableCell>
+                        <TableCell>{selectedItem.product_name}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Serial Number</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order ID</TableCell>
+                        <TableCell>{selectedItem.order_id}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order Date</TableCell>
+                        <TableCell>{format(new Date(selectedItem.order_date), 'MMM dd, yyyy')}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Confirmed Date</TableCell>
+                        <TableCell>
+                          {selectedItem.confirm_date ? 
+                            format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Ordered By</TableCell>
+                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+                      </TableRow>
+                      {selectedItem.item_comment && (
+                        <TableRow>
+                          <TableCell>Item Comment</TableCell>
+                          <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+          </DialogContent>
+          
+          <DialogActions sx={{ p: 3 }}>
+            <Button 
+              onClick={() => setModalOpen(false)}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </ThemeProvider>
   );

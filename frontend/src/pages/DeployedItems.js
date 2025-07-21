@@ -550,107 +550,112 @@ function DeployedItems() {
                         <TableCell sx={{ width: '150px' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
-                    <TableBody>
-                      {orderItems.map((item, index) => (
-                        <TableRow key={`${orderId}-${index}`} hover>
-                          {visibleColumns.image && (
-                            <TableCell>
-                              {imageErrors[item.id] || !item.image ? (
-                                <Box sx={{ 
-                                  width: '60px', 
-                                  height: '60px', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  backgroundColor: '#f5f5f5',
-                                  borderRadius: 1,
-                                  border: '1px solid #e0e0e0'
-                                }}>
-                                  <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
-                                </Box>
-                              ) : (
-                                <img 
-                                  src={`http://10.167.49.200:3004${item.image}`} 
-                                  alt={item.product_name} 
-                                  style={{ 
-                                    width: '60px', 
-                                    height: '60px', 
-                                    objectFit: 'cover', 
-                                    borderRadius: 4,
-                                    border: '1px solid #e0e0e0'
-                                  }} 
-                                  onError={() => handleImageError(item.id)}
-                                />
-                              )}
-                            </TableCell>
-                          )}
-                          {visibleColumns.productName && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
-                                {item.product_name}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderDate && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {format(new Date(item.order_date), 'MMM dd, yyyy')}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.confirmDate && (
-                            <TableCell>
-                              <Typography variant="body2">
-                                {item.confirm_date ? 
-                                  format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.deployDate && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
-                                {item.deploy_date ? 
-                                  format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.orderedBy && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {getDisplayName(item.ordered_by)}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {visibleColumns.serialNumber && (
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {item.serial_number || 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<ViewIcon />}
-                                onClick={() => handleViewItem(item)}
-                              >
-                                View
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                color="warning"
-                                startIcon={<UndeployIcon />}
-                                onClick={() => undeployItem(item.id)}
-                              >
-                                Undeploy
-                              </Button>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                         <TableBody>
+                       {orderItems.map((item, index) => (
+                         <TableRow 
+                           key={`${orderId}-${index}`} 
+                           hover
+                           onClick={() => handleViewItem(item)}
+                           sx={{ 
+                             cursor: 'pointer',
+                             '&:hover': {
+                               backgroundColor: '#f5f5f5'
+                             }
+                           }}
+                         >
+                           {visibleColumns.image && (
+                             <TableCell>
+                               {imageErrors[item.id] || !item.image ? (
+                                 <Box sx={{ 
+                                   width: '60px', 
+                                   height: '60px', 
+                                   display: 'flex', 
+                                   alignItems: 'center', 
+                                   justifyContent: 'center',
+                                   backgroundColor: '#f5f5f5',
+                                   borderRadius: 1,
+                                   border: '1px solid #e0e0e0'
+                                 }}>
+                                   <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
+                                 </Box>
+                               ) : (
+                                 <img 
+                                   src={`http://10.167.49.200:3004${item.image}`} 
+                                   alt={item.product_name} 
+                                   style={{ 
+                                     width: '60px', 
+                                     height: '60px', 
+                                     objectFit: 'cover', 
+                                     borderRadius: 4,
+                                     border: '1px solid #e0e0e0'
+                                   }} 
+                                   onError={() => handleImageError(item.id)}
+                                 />
+                               )}
+                             </TableCell>
+                           )}
+                           {visibleColumns.productName && (
+                             <TableCell>
+                               <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                                 {item.product_name}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           {visibleColumns.orderDate && (
+                             <TableCell>
+                               <Typography variant="body2">
+                                 {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           {visibleColumns.confirmDate && (
+                             <TableCell>
+                               <Typography variant="body2">
+                                 {item.confirm_date ? 
+                                   format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           {visibleColumns.deployDate && (
+                             <TableCell>
+                               <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
+                                 {item.deploy_date ? 
+                                   format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           {visibleColumns.orderedBy && (
+                             <TableCell>
+                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                 {getDisplayName(item.ordered_by)}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           {visibleColumns.serialNumber && (
+                             <TableCell>
+                               <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                 {item.serial_number || 'N/A'}
+                               </Typography>
+                             </TableCell>
+                           )}
+                           <TableCell>
+                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                               <Button
+                                 variant="outlined"
+                                 size="small"
+                                 color="warning"
+                                 startIcon={<UndeployIcon />}
+                                 onClick={(e) => {
+                                   e.stopPropagation(); // Prevent row click
+                                   undeployItem(item.id);
+                                 }}
+                               >
+                                 Undeploy
+                               </Button>
+                             </Box>
+                           </TableCell>
+                         </TableRow>
+                       ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
