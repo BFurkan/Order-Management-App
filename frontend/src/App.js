@@ -50,7 +50,7 @@ function App() {
               },
             }}
           >
-            Order Summaries
+            Open Orders
           </Button>
           <Button
             component={Link}
@@ -82,7 +82,7 @@ function App() {
               },
             }}
           >
-            Orders Fulfilled
+            Confirmed Orders
           </Button>
           <Button
             component={Link}
