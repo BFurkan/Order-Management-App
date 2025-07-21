@@ -386,6 +386,17 @@ app.get('/confirmed-items', async (req, res) => {
     
     console.log('Raw database rows:', rows.length > 0 ? rows[0] : 'No data');
     
+    // Get all deployed items to filter them out
+    const [deployedItems] = await pool.query(`
+      SELECT original_order_id, serial_number FROM deployed_items
+    `);
+    
+    // Create a Set of deployed item identifiers for fast lookup
+    const deployedSet = new Set();
+    deployedItems.forEach(item => {
+      deployedSet.add(`${item.original_order_id}-${item.serial_number}`);
+    });
+    
     // Expand each confirmed item to show individual serial numbers
     const expandedItems = [];
     rows.forEach(row => {
@@ -393,6 +404,15 @@ app.get('/confirmed-items', async (req, res) => {
       
       // Create one entry for each confirmed item with its serial number
       for (let i = 0; i < row.confirmed_quantity; i++) {
+        const serialNumber = serialNumbers[i] || 'N/A';
+        const itemIdentifier = `${row.id}-${serialNumber}`;
+        
+        // Skip this item if it's already deployed
+        if (deployedSet.has(itemIdentifier)) {
+          console.log(`Skipping deployed item: ${itemIdentifier}`);
+          continue;
+        }
+        
         const expandedItem = {
           id: `${row.id}-${i}`, // Unique ID for each individual item
           original_id: row.id,
@@ -407,7 +427,7 @@ app.get('/confirmed-items', async (req, res) => {
           comment: row.comment, // Order-level comment
           item_comment: row.item_comment, // Item-level comment from orders table
           ordered_by: row.ordered_by,
-          serial_number: serialNumbers[i] || 'N/A' // Get the specific serial number
+          serial_number: serialNumber // Get the specific serial number
         };
         
         console.log(`Expanded item ${i}:`, {
@@ -420,7 +440,7 @@ app.get('/confirmed-items', async (req, res) => {
       }
     });
     
-    console.log('Total expanded items:', expandedItems.length);
+    console.log('Total expanded items (excluding deployed):', expandedItems.length);
     
     res.json(expandedItems);
   } catch (err) {
