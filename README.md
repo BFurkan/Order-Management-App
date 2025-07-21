@@ -47,7 +47,7 @@ npm run start --prefix backend
 - **Frontend Development Server**: Port **3008**
 
 ### API Endpoints
-All API calls use the backend server at `http://10.167.49.200:3007`
+All API calls use the backend server at `http://localhost:3007`
 
 ## 📊 Database Setup
 

@@ -40,7 +40,7 @@ You should see:
 cd backend
 npm start
 ```
-The server will run on `http://10.167.49.200:3007`
+The server will run on `http://localhost:3007`
 
 ### Frontend (Port 3008)
 ```bash

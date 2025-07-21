@@ -157,7 +157,7 @@ function DeployedItems() {
       .catch(error => {
         console.error('Error fetching deployed items:', error);
         setError('Failed to fetch deployed items');
-        setLoading(false);
+      setLoading(false);
       });
   }, [lastRefresh]);
 
@@ -173,7 +173,7 @@ function DeployedItems() {
         (item.item_comment && String(renderComment(item.item_comment)).toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
-    
+
     if (startDate || endDate) {
       filtered = filtered.filter(item => {
         const itemDate = new Date(item.deploy_date);
@@ -182,7 +182,7 @@ function DeployedItems() {
         return itemDate >= start && itemDate <= end;
       });
     }
-    
+
     setFilteredItems(filtered);
     
     // Re-group filtered items
@@ -237,22 +237,22 @@ function DeployedItems() {
     if (window.confirm('Are you sure you want to undeploy this item?')) {
       try {
         const response = await fetch('http://10.167.49.200:3004/undeploy-item', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
             itemId: itemId,
             serialNumber: selectedItem?.serial_number
-          }),
-        });
+        }),
+      });
 
         if (response.ok) {
-          setSuccess('Item undeployed successfully!');
+        setSuccess('Item undeployed successfully!');
           refreshData();
           setModalOpen(false);
-          setTimeout(() => setSuccess(''), 3000);
-        } else {
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
           setError('Failed to undeploy item');
         }
       } catch (error) {
@@ -295,14 +295,14 @@ function DeployedItems() {
               >
                 Refresh
               </Button>
-              <Button
-                variant="outlined"
-                size="small"
+            <Button
+              variant="outlined"
+              size="small"
                 startIcon={<ColumnsIcon />}
                 onClick={handleColumnsMenuOpen}
-              >
+            >
                 Columns
-              </Button>
+            </Button>
             </Box>
           </Box>
           
@@ -486,8 +486,8 @@ function DeployedItems() {
                   {/* Deploy date on the right */}
                   <Typography variant="body2" color="text.secondary">
                     {orderItems.length > 0 && format(new Date(orderItems[0].deploy_date), 'MMM dd, yyyy')}
-                  </Typography>
-                </Box>
+            </Typography>
+          </Box>
               </AccordionSummary>
               
               <AccordionDetails>
@@ -504,42 +504,42 @@ function DeployedItems() {
                 </Box>
 
                 {/* Responsive Table Container */}
-                <TableContainer 
-                  component={Paper} 
-                  sx={{
-                    boxShadow: theme.shadows[4],
-                    borderRadius: 2,
-                    maxHeight: '70vh',
+          <TableContainer 
+            component={Paper} 
+            sx={{
+              boxShadow: theme.shadows[4],
+              borderRadius: 2,
+              maxHeight: '70vh',
                     overflow: 'auto',
                     '& .MuiTable-root': {
                       minWidth: 600,
                     }
-                  }}
-                >
-                  <Table stickyHeader sx={{
-                    '& .MuiTableHead-root': {
-                      backgroundColor: theme.palette.grey[50],
-                    },
-                    '& .MuiTableCell-head': {
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      color: theme.palette.text.primary,
-                      borderBottom: `2px solid ${theme.palette.divider}`,
-                      backgroundColor: theme.palette.grey[50],
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 100,
-                    },
-                    '& .MuiTableCell-body': {
-                      fontSize: '0.875rem',
-                      padding: '12px 16px',
-                    },
-                    '& .MuiTableRow-root:hover': {
-                      backgroundColor: theme.palette.action.hover,
-                    }
-                  }}>
-                    <TableHead>
-                      <TableRow>
+            }}
+          >
+            <Table stickyHeader sx={{
+              '& .MuiTableHead-root': {
+                backgroundColor: theme.palette.grey[50],
+              },
+              '& .MuiTableCell-head': {
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: theme.palette.text.primary,
+                borderBottom: `2px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.grey[50],
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+              },
+              '& .MuiTableCell-body': {
+                fontSize: '0.875rem',
+                padding: '12px 16px',
+              },
+              '& .MuiTableRow-root:hover': {
+                backgroundColor: theme.palette.action.hover,
+              }
+            }}>
+              <TableHead>
+                <TableRow>
                         {visibleColumns.image && <TableCell sx={{ width: '100px', minWidth: '100px' }}>Image</TableCell>}
                         {visibleColumns.productName && <TableCell sx={{ minWidth: '250px' }}>Product Name</TableCell>}
                         {visibleColumns.orderDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>}
@@ -548,9 +548,9 @@ function DeployedItems() {
                         {visibleColumns.orderedBy && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>}
                         {visibleColumns.serialNumber && <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>}
                         <TableCell sx={{ width: '150px' }}>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                                         <TableBody>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                        {orderItems.map((item, index) => (
                          <TableRow 
                            key={`${orderId}-${index}`} 
@@ -564,101 +564,101 @@ function DeployedItems() {
                            }}
                          >
                            {visibleColumns.image && (
-                             <TableCell>
-                               {imageErrors[item.id] || !item.image ? (
-                                 <Box sx={{ 
-                                   width: '60px', 
-                                   height: '60px', 
-                                   display: 'flex', 
-                                   alignItems: 'center', 
-                                   justifyContent: 'center',
-                                   backgroundColor: '#f5f5f5',
-                                   borderRadius: 1,
-                                   border: '1px solid #e0e0e0'
-                                 }}>
-                                   <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
-                                 </Box>
-                               ) : (
-                                 <img 
+                    <TableCell>
+                      {imageErrors[item.id] || !item.image ? (
+                        <Box sx={{ 
+                          width: '60px', 
+                          height: '60px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          backgroundColor: '#f5f5f5',
+                          borderRadius: 1,
+                          border: '1px solid #e0e0e0'
+                        }}>
+                          <BrokenImageIcon sx={{ color: '#bdbdbd' }} />
+                        </Box>
+                      ) : (
+                        <img
                                    src={`http://10.167.49.200:3004${item.image}`} 
-                                   alt={item.product_name} 
-                                   style={{ 
-                                     width: '60px', 
-                                     height: '60px', 
-                                     objectFit: 'cover', 
-                                     borderRadius: 4,
-                                     border: '1px solid #e0e0e0'
-                                   }} 
-                                   onError={() => handleImageError(item.id)}
-                                 />
-                               )}
-                             </TableCell>
+                          alt={item.product_name}
+                          style={{ 
+                            width: '60px', 
+                            height: '60px', 
+                            objectFit: 'cover', 
+                            borderRadius: 4,
+                            border: '1px solid #e0e0e0'
+                          }}
+                          onError={() => handleImageError(item.id)}
+                        />
+                      )}
+                    </TableCell>
                            )}
                            {visibleColumns.productName && (
-                             <TableCell>
-                               <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
-                                 {item.product_name}
-                               </Typography>
-                             </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                        {item.product_name}
+                      </Typography>
+                    </TableCell>
                            )}
                            {visibleColumns.orderDate && (
-                             <TableCell>
-                               <Typography variant="body2">
-                                 {format(new Date(item.order_date), 'MMM dd, yyyy')}
-                               </Typography>
-                             </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                      </Typography>
+                    </TableCell>
                            )}
                            {visibleColumns.confirmDate && (
-                             <TableCell>
-                               <Typography variant="body2">
-                                 {item.confirm_date ? 
-                                   format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
-                               </Typography>
-                             </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {item.confirm_date ? 
+                          format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                      </Typography>
+                    </TableCell>
                            )}
                            {visibleColumns.deployDate && (
-                             <TableCell>
-                               <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
-                                 {item.deploy_date ? 
-                                   format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                               </Typography>
-                             </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
+                        {item.deploy_date ? 
+                          format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                      </Typography>
+                    </TableCell>
                            )}
                            {visibleColumns.orderedBy && (
-                             <TableCell>
-                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                 {getDisplayName(item.ordered_by)}
-                               </Typography>
-                             </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {getDisplayName(item.ordered_by)}
+                      </Typography>
+                    </TableCell>
                            )}
                            {visibleColumns.serialNumber && (
-                             <TableCell>
+                    <TableCell>
                                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
                                  {item.serial_number || 'N/A'}
-                               </Typography>
-                             </TableCell>
+                      </Typography>
+                    </TableCell>
                            )}
-                           <TableCell>
-                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                               <Button
-                                 variant="outlined"
-                                 size="small"
-                                 color="warning"
-                                 startIcon={<UndeployIcon />}
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="warning"
+                          startIcon={<UndeployIcon />}
                                  onClick={(e) => {
                                    e.stopPropagation(); // Prevent row click
                                    undeployItem(item.id);
                                  }}
-                               >
-                                 Undeploy
-                               </Button>
-                             </Box>
-                           </TableCell>
-                         </TableRow>
-                       ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                        >
+                          Undeploy
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
               </AccordionDetails>
             </Accordion>
           );
@@ -707,16 +707,16 @@ function DeployedItems() {
                   {selectedItem.image && !imageErrors[selectedItem.id] ? (
                     <img 
                       src={`http://10.167.49.200:3004${selectedItem.image}`} 
-                      alt={selectedItem.product_name}
-                      style={{ 
-                        width: '120px', 
-                        height: '120px', 
-                        objectFit: 'cover', 
-                        borderRadius: 8,
-                        border: '1px solid #e0e0e0'
-                      }}
-                      onError={() => handleImageError(selectedItem.id)}
-                    />
+                        alt={selectedItem.product_name}
+                        style={{ 
+                          width: '120px', 
+                          height: '120px', 
+                          objectFit: 'cover', 
+                          borderRadius: 8,
+                          border: '1px solid #e0e0e0'
+                        }}
+                        onError={() => handleImageError(selectedItem.id)}
+                      />
                   ) : (
                     <Box sx={{ 
                       width: '120px', 
