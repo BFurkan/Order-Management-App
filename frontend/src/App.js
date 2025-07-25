@@ -13,7 +13,7 @@ import DeployedItems from './pages/DeployedItems';
 
 function App() {
   return (
-    <Router>
+    <Router basename={process.env.PUBLIC_URL}>
       {/* Navigation Bar */}
       <AppBar position="static" sx={{ backgroundColor: cyan[900] }}>
         <Toolbar>

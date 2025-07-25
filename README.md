@@ -64,6 +64,21 @@ Before running the application, ensure you have:
 4. Test thoroughly
 5. Submit a pull request
 
+## 🚀 Deployment
+
+### GitHub Pages Deployment
+This application can be deployed to GitHub Pages with a cloud-hosted backend. See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for detailed instructions.
+
+### Quick Deployment Steps:
+1. **Deploy Backend**: Use Vercel, Railway, or Heroku
+2. **Update Configuration**: Set environment variables and CORS
+3. **Deploy Frontend**: Use GitHub Pages with gh-pages
+4. **Test**: Verify all functionality works in production
+
+### Live Demo
+Once deployed, your application will be available at:
+`https://yourusername.github.io/Order-Management-App`
+
 ## 📄 License
 
 This project is licensed under the MIT License. 

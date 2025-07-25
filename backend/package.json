@@ -4,6 +4,7 @@
   "type": "module",
   "main": "server.js",
   "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "mssql": "^11.0.1",
@@ -12,6 +13,8 @@
     "order-management": "file:.."
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'Vercel build completed'"
   }
 }
