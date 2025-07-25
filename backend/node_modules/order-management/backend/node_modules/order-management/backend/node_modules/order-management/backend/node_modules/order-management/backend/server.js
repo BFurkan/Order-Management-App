@@ -437,6 +437,23 @@ app.get('/search-confirmed/:serialNumber', async (req, res) => {
   }
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Order Management API is running!',
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: 'Supabase',
+    endpoints: {
+      health: '/health',
+      products: '/products',
+      orders: '/orders',
+      confirmedItems: '/confirmed-items',
+      deployedItems: '/deployed-items'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 

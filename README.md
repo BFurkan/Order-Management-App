@@ -1,5 +1,10 @@
 # Order Management System
 
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![Built with React](https://img.shields.io/badge/Built%20with-React-blue?style=for-the-badge&logo=react)](https://reactjs.org)
+[![Database: Supabase](https://img.shields.io/badge/Database-Supabase-green?style=for-the-badge&logo=supabase)](https://supabase.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 A modern order management application built with React and Material-UI.
 
 ## 🛠️ Tech Stack
@@ -64,20 +69,24 @@ Before running the application, ensure you have:
 4. Test thoroughly
 5. Submit a pull request
 
-## 🚀 Deployment
+## 🚀 Live Demo
 
-### GitHub Pages Deployment
-This application can be deployed to GitHub Pages with a cloud-hosted backend. See [GITHUB_PAGES_DEPLOYMENT.md](GITHUB_PAGES_DEPLOYMENT.md) for detailed instructions.
+**Frontend**: [https://order-management-app-frontend.vercel.app](https://order-management-app-frontend.vercel.app)  
+**Backend API**: [https://order-management-67zo4288b-furkans-projects-bc5f2bca.vercel.app](https://order-management-67zo4288b-furkans-projects-bc5f2bca.vercel.app)
 
-### Quick Deployment Steps:
-1. **Deploy Backend**: Use Vercel, Railway, or Heroku
-2. **Update Configuration**: Set environment variables and CORS
-3. **Deploy Frontend**: Use GitHub Pages with gh-pages
-4. **Test**: Verify all functionality works in production
+## 🛠️ Deployment
 
-### Live Demo
-Once deployed, your application will be available at:
-`https://yourusername.github.io/Order-Management-App`
+### Current Setup
+- **Frontend**: Deployed on Vercel
+- **Backend**: Deployed on Vercel with Supabase database
+- **Database**: Supabase PostgreSQL
+
+### Quick Setup for Others
+1. **Fork this repository**
+2. **Set up Supabase database** (see [SUPABASE_DEPLOYMENT_GUIDE.md](SUPABASE_DEPLOYMENT_GUIDE.md))
+3. **Deploy backend to Vercel** with environment variables
+4. **Deploy frontend to Vercel** with API URL
+5. **Update environment variables** with your own Supabase credentials
 
 ## 📄 License
 
