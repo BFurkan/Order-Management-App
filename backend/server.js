@@ -691,6 +691,21 @@ app.post('/deploy-item', async (req, res) => {
         serialNumber,
         identifier: `${originalId}-${serialNumber}`
       });
+      
+      // Check if this was the last item in the order
+      const [remainingItems] = await pool.query(
+        'SELECT confirmed_quantity FROM orders WHERE id = ?',
+        [originalId]
+      );
+      
+      if (remainingItems.length > 0) {
+        const remainingQuantity = remainingItems[0].confirmed_quantity;
+        
+        // If no more confirmed items, we could optionally delete the order
+        // For now, we'll just leave it as is since it might have other unconfirmed items
+        console.log(`Order ${originalId} has ${remainingQuantity} remaining confirmed items`);
+      }
+      
       res.status(200).json({ success: true, message: 'Item deployed successfully' });
     } else {
       res.status(500).json({ success: false, message: 'Failed to deploy item' });

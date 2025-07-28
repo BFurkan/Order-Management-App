@@ -40,6 +40,7 @@ function Scan() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
+  const [deploying, setDeploying] = useState(false);
 
   // Function to extract username from email (part before @)
   const getDisplayName = (email) => {
@@ -90,8 +91,9 @@ function Scan() {
   };
 
   const handleDeploy = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || deploying) return;
 
+    setDeploying(true);
     setLoading(true);
     setError('');
 
@@ -133,6 +135,7 @@ function Scan() {
       setError('Error deploying item. Please try again.');
     } finally {
       setLoading(false);
+      setDeploying(false);
     }
   };
 
@@ -144,6 +147,7 @@ function Scan() {
     setError('');
     setSuccess('');
     setImageError(false);
+    setDeploying(false);
   };
 
   const handleKeyPress = (event) => {
@@ -362,10 +366,10 @@ function Scan() {
               onClick={handleDeploy}
               variant="contained"
               color="success"
-              disabled={loading}
+              disabled={loading || deploying}
               startIcon={<DeployIcon />}
             >
-              {loading ? 'Deploying...' : 'Deploy Item'}
+              {loading || deploying ? 'Deploying...' : 'Deploy Item'}
             </Button>
           </DialogActions>
         </Dialog>
