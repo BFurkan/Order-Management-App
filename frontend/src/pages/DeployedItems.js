@@ -136,7 +136,7 @@ function DeployedItems() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.200:3004/deployed-items')
+    fetch('http://10.167.49.197:3004/deployed-items')
       .then(response => response.json())
       .then(data => {
         setDeployedItems(data);
@@ -236,7 +236,7 @@ function DeployedItems() {
   const undeployItem = async (itemId) => {
     if (window.confirm('Are you sure you want to undeploy this item?')) {
       try {
-        const response = await fetch('http://10.167.49.200:3004/undeploy-item', {
+        const response = await fetch('http://10.167.49.197:3004/undeploy-item', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -580,7 +580,7 @@ function DeployedItems() {
                         </Box>
                       ) : (
                         <img
-                                   src={`http://10.167.49.200:3004${item.image}`} 
+                                   src={`http://10.167.49.197:3004${item.image}`} 
                           alt={item.product_name}
                           style={{ 
                             width: '60px', 
@@ -706,7 +706,7 @@ function DeployedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[selectedItem.id] ? (
                     <img 
-                      src={`http://10.167.49.200:3004${selectedItem.image}`} 
+                      src={`http://10.167.49.197:3004${selectedItem.image}`} 
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
