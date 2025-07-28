@@ -678,7 +678,9 @@ function ConfirmedItems() {
                                       console.log(`Image failed to load for item ${index}, URL: http://10.167.49.197:3004${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
+
                                                                           onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
                                   />
                                 )}
                               </TableCell>

@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = process.env.PORT || 3007;
+const port = process.env.PORT || 3004;
 
 // Smart Order ID Generation Function
 // Handles both alphabetical and numerical order IDs
