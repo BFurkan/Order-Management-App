@@ -194,8 +194,9 @@ app.post('/bulk-orders', async (req, res) => {
       return res.status(400).send('Missing required fields');
     }
 
-    // Parse the datetime string to a Date object
-    const parsedOrderDate = new Date(order_date);
+    // Parse the date string (YYYY-MM-DD format) to a Date object
+    // Add time component to make it a valid datetime for MySQL
+    const parsedOrderDate = new Date(order_date + 'T00:00:00');
     if (isNaN(parsedOrderDate.getTime())) {
       return res.status(400).send('Invalid date format');
     }
@@ -241,8 +242,9 @@ app.post('/orders', async (req, res) => {
       return res.status(400).send('Missing required fields');
     }
 
-    // Parse the datetime string to a Date object
-    const parsedOrderDate = new Date(order_date);
+    // Parse the date string (YYYY-MM-DD format) to a Date object
+    // Add time component to make it a valid datetime for MySQL
+    const parsedOrderDate = new Date(order_date + 'T00:00:00');
     if (isNaN(parsedOrderDate.getTime())) {
       return res.status(400).send('Invalid date format');
     }

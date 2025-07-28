@@ -195,15 +195,9 @@ function ProductList() {
   };
 
   const submitOrder = () => {
-    // Use the selected order date and ensure it's in local timezone
-    // Create date in local timezone to avoid timezone conversion issues
-    const [year, month, day] = orderDate.split('-').map(Number);
-    const now = new Date();
-    const selectedDateTime = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
-    
+    // Send the date as a simple YYYY-MM-DD string to avoid timezone issues
+    // The backend will handle it as a date string, not a datetime
     console.log('Order date input:', orderDate);
-    console.log('Created date object:', new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()));
-    console.log('ISO string sent to backend:', selectedDateTime);
     
     // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
@@ -218,7 +212,7 @@ function ProductList() {
       },
       body: JSON.stringify({
         items: orderItems,
-        order_date: selectedDateTime,
+        order_date: orderDate, // Send as simple YYYY-MM-DD string
       }),
     })
     .then(response => {
