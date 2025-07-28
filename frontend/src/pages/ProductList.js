@@ -562,8 +562,8 @@ function ProductList() {
             <TextField
               autoFocus
               margin="dense"
-              label="Ordered By (Email)"
-              type="email"
+              label="Ordered By"
+              type="text"
               fullWidth
               variant="outlined"
               value={orderedBy}
