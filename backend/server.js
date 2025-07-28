@@ -415,6 +415,98 @@ app.get('/confirmed-items', async (req, res) => {
   }
 });
 
+// PUT endpoint to update confirmed items
+app.put('/confirmed-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Parse the ID to get the original order ID and item index
+    const [orderId, itemIndex] = id.split('-').map(Number);
+    
+    if (!orderId || isNaN(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+    
+    // Get the current order data
+    const [currentOrder] = await pool.query(
+      'SELECT * FROM orders WHERE id = ?',
+      [orderId]
+    );
+    
+    if (currentOrder.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const order = currentOrder[0];
+    
+    // Update the order with new data
+    const updateFields = [];
+    const updateValues = [];
+    
+    // Map frontend field names to database column names
+    if (updateData.product_name !== undefined) {
+      // Note: product_name comes from products table, so we can't update it here
+      // We would need to update the product_id if we want to change the product
+    }
+    
+    if (updateData.quantity !== undefined) {
+      updateFields.push('confirmed_quantity = ?');
+      updateValues.push(updateData.quantity);
+    }
+    
+    if (updateData.item_comment !== undefined) {
+      updateFields.push('item_comment = ?');
+      updateValues.push(updateData.item_comment);
+    }
+    
+    if (updateData.order_date !== undefined) {
+      updateFields.push('order_date = ?');
+      updateValues.push(updateData.order_date);
+    }
+    
+    if (updateData.confirm_date !== undefined) {
+      updateFields.push('confirm_date = ?');
+      updateValues.push(updateData.confirm_date);
+    }
+    
+    if (updateData.ordered_by !== undefined) {
+      updateFields.push('ordered_by = ?');
+      updateValues.push(updateData.ordered_by);
+    }
+    
+    // Update serial numbers if provided
+    if (updateData.serial_number !== undefined) {
+      const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
+      if (currentSerialNumbers[itemIndex] !== undefined) {
+        currentSerialNumbers[itemIndex] = updateData.serial_number;
+        updateFields.push('serial_numbers = ?');
+        updateValues.push(JSON.stringify(currentSerialNumbers));
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+    
+    updateValues.push(orderId);
+    
+    const [result] = await pool.query(
+      `UPDATE orders SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Item updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Item not found or no changes made' });
+    }
+  } catch (err) {
+    console.error('Error updating confirmed item:', err.message);
+    res.status(500).send('Error updating confirmed item');
+  }
+});
+
 app.post('/update-order-comment', async (req, res) => {
   try {
     const { orderId, comment } = req.body;
