@@ -48,8 +48,8 @@ function generateNextOrderId(lastOrderId) {
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'asset',
-  password: process.env.DB_PASSWORD || 'AssetJito2024$',
-  database: process.env.DB_NAME || 'order_tracking',
+  password: process.env.DB_PASSWORD || 'Ontario2025$',
+  database: process.env.DB_NAME || 'order_management',
   port: 3306,
   connectionLimit: 10,
   queueLimit: 0,
