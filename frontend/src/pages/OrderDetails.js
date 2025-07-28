@@ -121,7 +121,18 @@ function OrderDetails() {
         return response.json();
       })
       .then(data => {
-        const grouped = data.reduce((acc, order) => {
+        // Sort orders by order_date (newest first) and then by order_id
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.order_date);
+          const dateB = new Date(b.order_date);
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateB.getTime() - dateA.getTime(); // Newest first
+          }
+          // If same date, sort by order_id (newest first)
+          return parseInt(b.order_id) - parseInt(a.order_id);
+        });
+        
+        const grouped = sortedData.reduce((acc, order) => {
           if (!acc[order.order_id]) {
             acc[order.order_id] = [];
           }
