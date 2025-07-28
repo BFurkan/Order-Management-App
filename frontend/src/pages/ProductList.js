@@ -195,8 +195,15 @@ function ProductList() {
   };
 
   const submitOrder = () => {
-    // Use the selected order date and combine with current time
-    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+    // Use the selected order date and ensure it's in local timezone
+    // Create date in local timezone to avoid timezone conversion issues
+    const [year, month, day] = orderDate.split('-').map(Number);
+    const now = new Date();
+    const selectedDateTime = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+    
+    console.log('Order date input:', orderDate);
+    console.log('Created date object:', new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()));
+    console.log('ISO string sent to backend:', selectedDateTime);
     
     // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
