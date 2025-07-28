@@ -878,21 +878,22 @@ function ConfirmedItems() {
                         selectedItem.product_name
                       )}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Serial Number: <strong>
-                        {isEditing ? (
-                          <TextField
-                            value={editForm.serial_number}
-                            onChange={(e) => handleEditFormChange('serial_number', e.target.value)}
-                            variant="outlined"
-                            size="small"
-                            sx={{ width: '200px' }}
-                          />
-                        ) : (
-                          selectedItem.serial_number || 'N/A'
-                        )}
-                      </strong>
-                    </Typography>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" component="span">
+                        Serial Number: <strong>
+                          {isEditing ? null : (selectedItem.serial_number || 'N/A')}
+                        </strong>
+                      </Typography>
+                      {isEditing && (
+                        <TextField
+                          value={editForm.serial_number}
+                          onChange={(e) => handleEditFormChange('serial_number', e.target.value)}
+                          variant="outlined"
+                          size="small"
+                          sx={{ width: '200px', mt: 1 }}
+                        />
+                      )}
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
                       Order ID: <strong>{selectedItem.order_id}</strong>
                     </Typography>
