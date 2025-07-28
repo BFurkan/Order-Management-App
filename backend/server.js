@@ -200,31 +200,34 @@ app.post('/bulk-orders', async (req, res) => {
       return res.status(400).send('Invalid date format');
     }
 
-    // Use AUTO_INCREMENT id as order ID - let the database handle the sequence
-    // We'll get the order ID after insertion
-
-    // Insert the first item to get the AUTO_INCREMENT id
-    const [firstItem] = items;
-    const [result] = await pool.query(
-      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, ordered_by) VALUES (?, ?, ?, 0, ?)',
-      [firstItem.product_id, firstItem.quantity, parsedOrderDate, ordered_by]
-    );
+    // Generate a new order ID for this bulk order
+    const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL');
     
-    const orderId = result.insertId; // This is the AUTO_INCREMENT id
-    
-    // Insert remaining items with the same order ID
-    if (items.length > 1) {
-      const remainingItems = items.slice(1);
-      const insertPromises = remainingItems.map(item => {
-        return pool.query(
-          'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-          [item.product_id, item.quantity, parsedOrderDate, orderId, ordered_by]
-        );
-      });
-      await Promise.all(insertPromises);
+    let nextOrderId = 1; // Default to 1 if no previous orders
+    if (allOrderIds.length > 0) {
+      // Find the highest numeric order ID
+      const numericOrderIds = allOrderIds
+        .map(row => row.order_id)
+        .filter(id => /^\d+$/.test(String(id)))
+        .map(id => parseInt(id));
+      
+      if (numericOrderIds.length > 0) {
+        const maxNumericValue = Math.max(...numericOrderIds);
+        nextOrderId = maxNumericValue + 1;
+      }
     }
 
-    res.status(201).json({ message: 'Bulk order placed successfully', order_id: orderId });
+    // Insert all items with the same order ID
+    const insertPromises = items.map(item => {
+      return pool.query(
+        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
+        [item.product_id, item.quantity, parsedOrderDate, nextOrderId, ordered_by]
+      );
+    });
+
+    await Promise.all(insertPromises);
+
+    res.status(201).json({ message: 'Bulk order placed successfully', order_id: nextOrderId });
   } catch (err) {
     console.error('Error placing bulk order:', err.message);
     res.status(500).send('Error placing bulk order');
@@ -246,17 +249,30 @@ app.post('/orders', async (req, res) => {
 
     let newOrderId = order_id;
     if (!newOrderId) {
-      // Let the database handle the AUTO_INCREMENT
-      newOrderId = null;
+      // Generate a new order ID for this order
+      const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL');
+      
+      newOrderId = 1; // Default to 1 if no previous orders
+      if (allOrderIds.length > 0) {
+        // Find the highest numeric order ID
+        const numericOrderIds = allOrderIds
+          .map(row => row.order_id)
+          .filter(id => /^\d+$/.test(String(id)))
+          .map(id => parseInt(id));
+        
+        if (numericOrderIds.length > 0) {
+          const maxNumericValue = Math.max(...numericOrderIds);
+          newOrderId = maxNumericValue + 1;
+        }
+      }
     }
 
     const [result] = await pool.query(
-      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, ordered_by) VALUES (?, ?, ?, 0, ?)',
-      [product_id, quantity, parsedOrderDate, ordered_by]
+      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
+      [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
     );
 
-    const orderId = result.insertId; // This is the AUTO_INCREMENT id
-    res.status(201).json({ message: 'Order placed successfully', order_id: orderId });
+    res.status(201).json({ message: 'Order placed successfully', order_id: newOrderId });
   } catch (err) {
     console.error('Error placing order:', err.message);
     res.status(500).send('Error placing order');
