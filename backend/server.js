@@ -713,7 +713,18 @@ app.post('/deploy-item', async (req, res) => {
   } catch (err) {
     console.error('Error deploying item:', err.message);
     console.error('Error stack:', err.stack);
-    res.status(500).json({ success: false, message: 'Error deploying item: ' + err.message });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Error deploying item';
+    if (err.message.includes('Incorrect integer value')) {
+      errorMessage = 'Database schema mismatch. Please run the migration script to fix order_id column type.';
+    } else if (err.message.includes('already deployed')) {
+      errorMessage = 'This item is already deployed.';
+    } else {
+      errorMessage = 'Error deploying item: ' + err.message;
+    }
+    
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
