@@ -507,6 +507,73 @@ app.put('/confirmed-items/:id', async (req, res) => {
   }
 });
 
+// DELETE endpoint to delete confirmed items
+app.delete('/confirmed-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Parse the ID to get the original order ID and item index
+    const [orderId, itemIndex] = id.split('-').map(Number);
+    
+    if (!orderId || isNaN(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+    
+    // Get the current order data
+    const [currentOrder] = await pool.query(
+      'SELECT * FROM orders WHERE id = ?',
+      [orderId]
+    );
+    
+    if (currentOrder.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const order = currentOrder[0];
+    
+    // If this is the last confirmed item, we can delete the entire order
+    if (order.confirmed_quantity === 1) {
+      const [result] = await pool.query(
+        'DELETE FROM orders WHERE id = ?',
+        [orderId]
+      );
+      
+      if (result.affectedRows > 0) {
+        res.status(200).json({ message: 'Item deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Item not found' });
+      }
+    } else {
+      // If there are multiple confirmed items, we need to:
+      // 1. Decrease the confirmed_quantity
+      // 2. Remove the specific serial number from the array
+      const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
+      
+      if (currentSerialNumbers[itemIndex] !== undefined) {
+        // Remove the specific serial number
+        currentSerialNumbers.splice(itemIndex, 1);
+        
+        // Update the order
+        const [result] = await pool.query(
+          'UPDATE orders SET confirmed_quantity = ?, serial_numbers = ? WHERE id = ?',
+          [order.confirmed_quantity - 1, JSON.stringify(currentSerialNumbers), orderId]
+        );
+        
+        if (result.affectedRows > 0) {
+          res.status(200).json({ message: 'Item deleted successfully' });
+        } else {
+          res.status(404).json({ message: 'Item not found' });
+        }
+      } else {
+        res.status(404).json({ message: 'Item not found' });
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting confirmed item:', err.message);
+    res.status(500).send('Error deleting confirmed item');
+  }
+});
+
 app.post('/update-order-comment', async (req, res) => {
   try {
     const { orderId, comment } = req.body;

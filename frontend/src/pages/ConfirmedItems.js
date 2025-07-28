@@ -217,6 +217,43 @@ function ConfirmedItems() {
     });
   };
 
+  const handleDeleteItem = async () => {
+    if (!selectedItem) return;
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this item?\n\nProduct: ${selectedItem.product_name}\nSerial Number: ${selectedItem.serial_number || 'N/A'}\nOrder ID: ${selectedItem.order_id}`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await fetch(`http://10.167.49.197:3004/confirmed-items/${selectedItem.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove the item from local state
+        setConfirmedItems(prev => prev.filter(item => item.id !== selectedItem.id));
+        setFilteredItems(prev => prev.filter(item => item.id !== selectedItem.id));
+        
+        // Close the modal
+        setModalOpen(false);
+        setSelectedItem(null);
+        setIsEditing(false);
+        
+        alert('Item deleted successfully!');
+      } else {
+        throw new Error('Failed to delete item');
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Error deleting item. Please try again.');
+    }
+  };
+
   useEffect(() => {
     // Fetch confirmed items with order ID and comment
     fetch('http://10.167.49.197:3004/confirmed-items')
@@ -782,6 +819,14 @@ function ConfirmedItems() {
                   disabled={isEditing}
                 >
                   Edit
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleDeleteItem}
+                  disabled={isEditing}
+                >
+                  Delete
                 </Button>
               </Box>
             </Box>
