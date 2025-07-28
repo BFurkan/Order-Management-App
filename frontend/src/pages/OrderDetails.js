@@ -65,7 +65,7 @@ function OrderDetails() {
     productName: 'Product Name',
     orderDate: 'Order Date',
     totalQuantity: 'Total Quantity',
-    orderedBy: 'Ordered By',
+
     serialNumber: 'Serial Number',
     action: 'Action',
     orderComment: 'Order Comment',
@@ -94,12 +94,12 @@ function OrderDetails() {
     const activeOrders = orders.filter(order => order.quantity > 0);
     
     const csvContent = [
-      ['Product Name', 'Order Date', 'Total Quantity', 'Ordered By'].join(','),
+      ['Product Name', 'Order Date', 'Total Quantity'].join(','),
       ...activeOrders.map(order => [
         `"${order.product_name}"`,
         `"${format(new Date(order.order_date), 'MMM dd, yyyy')}"`,
         order.quantity,
-        `"${getDisplayName(order.ordered_by)}"`
+
       ].join(','))
     ].join('\n');
 
@@ -438,7 +438,7 @@ function OrderDetails() {
                         <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+
                         <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Comment</TableCell>
                         <TableCell sx={{ width: '200px' }}>Item Comment</TableCell>
@@ -470,11 +470,7 @@ function OrderDetails() {
                               {format(new Date(order.order_date), 'MMM dd, yyyy')}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getDisplayName(order.ordered_by)}
-                            </Typography>
-                          </TableCell>
+
                           <TableCell>
                             <TextField
                               fullWidth

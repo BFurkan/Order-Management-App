@@ -81,7 +81,7 @@ function ConfirmedItems() {
     productName: 'Product Name',
     quantity: 'Quantity',
     orderDate: 'Order Date',
-    orderedBy: 'Ordered By',
+
     confirmedDate: 'Confirmed Date',
     serialNumber: 'Serial Number',
     itemComment: 'Item Comments'
@@ -288,14 +288,14 @@ function ConfirmedItems() {
     const orderItems = filteredItems.filter(item => item.order_id === orderId);
     
     const csvContent = [
-      ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Ordered By', 'Order Comment', 'Item Comment'].join(','),
+      ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Order Comment', 'Item Comment'].join(','),
       ...orderItems.map(item => [
         `"${item.product_name}"`,
         item.quantity || '',
         `"${item.serial_number || ''}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
-        `"${getDisplayName(item.ordered_by)}"`,
+
         `"${orderComments[orderId] || ''}"`,
         `"${item.item_comment || ''}"`
       ].join(','))
@@ -626,7 +626,7 @@ function ConfirmedItems() {
                         {visibleColumns.productName && <TableCell sx={{ minWidth: '250px' }}>Product Name</TableCell>}
                         {visibleColumns.quantity && <TableCell sx={{ width: '80px', minWidth: '80px' }}>Qty</TableCell>}
                         {visibleColumns.orderDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>}
-                        {visibleColumns.orderedBy && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>}
+
                         {visibleColumns.confirmedDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Confirmed</TableCell>}
                         {visibleColumns.serialNumber && <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>}
                         {visibleColumns.itemComment && <TableCell sx={{ minWidth: '200px' }}>Item Comments</TableCell>}
@@ -678,8 +678,6 @@ function ConfirmedItems() {
                                       console.log(`Image failed to load for item ${index}, URL: http://10.167.49.197:3004${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
-
-                                                                          onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
                                     onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
                                   />
                                 )}
@@ -706,13 +704,7 @@ function ConfirmedItems() {
                                 </Typography>
                               </TableCell>
                             )}
-                            {visibleColumns.orderedBy && (
-                              <TableCell>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  {getDisplayName(item.ordered_by)}
-                                </Typography>
-                              </TableCell>
-                            )}
+
                             {visibleColumns.confirmedDate && (
                               <TableCell>
                                 <Typography variant="body2">

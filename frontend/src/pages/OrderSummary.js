@@ -425,7 +425,7 @@ function OrderSummary() {
                         <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+
                       </TableRow>
                     </TableHead>
                     <TableBody>

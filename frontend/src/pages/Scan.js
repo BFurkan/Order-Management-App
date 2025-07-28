@@ -335,8 +335,8 @@ function Scan() {
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+
+                        
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>
