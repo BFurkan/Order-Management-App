@@ -329,7 +329,7 @@ function Scan() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Order Date</TableCell>
-                                                  <TableCell>{format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy')}</TableCell>
+                                                  <TableCell>{selectedItem.order_date ? format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell>Confirmed Date</TableCell>

@@ -309,7 +309,7 @@ function OrderSummary() {
                   {/* Date Column */}
                   <Box>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                              {format(new Date(filteredOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                                              {filteredOrders[0].order_date ? format(new Date(filteredOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                     </Typography>
                   </Box>
                 </Box>
@@ -449,7 +449,7 @@ function OrderSummary() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                              {order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                             </Typography>
                           </TableCell>
 

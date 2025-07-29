@@ -95,7 +95,7 @@ function OrderDetails() {
       ['Product Name', 'Order Date', 'Total Quantity'].join(','),
       ...activeOrders.map(order => [
         `"${order.product_name}"`,
-        `"${format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy')}"`,
+        `"${order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}"`,
         order.quantity,
 
       ].join(','))
@@ -393,7 +393,7 @@ function OrderDetails() {
                   {/* Order date on the right */}
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {activeOrders.length > 0 && format(new Date(activeOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                      {activeOrders.length > 0 && activeOrders[0].order_date ? format(new Date(activeOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                     </Typography>
                   </Box>
                 </Box>
@@ -476,7 +476,7 @@ function OrderDetails() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                              {order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                             </Typography>
                           </TableCell>
 

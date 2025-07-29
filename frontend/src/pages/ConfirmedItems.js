@@ -329,7 +329,7 @@ function ConfirmedItems() {
         `"${item.product_name}"`,
         item.quantity || '',
         `"${item.serial_number || ''}"`,
-        `"${format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy')}"`,
+        `"${item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}"`,
         `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
 
         `"${orderComments[orderId] || ''}"`,
@@ -591,7 +591,7 @@ function ConfirmedItems() {
                   
                   {/* Order date on the right */}
                   <Typography variant="body2" color="text.secondary">
-                                            {format(new Date(orderItems[0].order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                                            {orderItems[0].order_date ? format(new Date(orderItems[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                   </Typography>
                 </Box>
               </AccordionSummary>
@@ -736,7 +736,7 @@ function ConfirmedItems() {
                             {visibleColumns.orderDate && (
                               <TableCell>
                                 <Typography variant="body2">
-                                  {format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy')}
+                                                                     {item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
                                 </Typography>
                               </TableCell>
                             )}
@@ -1006,7 +1006,7 @@ function ConfirmedItems() {
                         </TableRow>
                         <TableRow>
                           <TableCell>Order Date</TableCell>
-                          <TableCell>{format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy')}</TableCell>
+                                                     <TableCell>{selectedItem.order_date ? format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}</TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell>Confirmed Date</TableCell>
