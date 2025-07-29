@@ -111,7 +111,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.197:3004/orders')
+    fetch('http://10.167.49.203:3004/orders')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -176,7 +176,7 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.197:3004/update-order-comment', {
+      const response = await fetch('http://10.167.49.203:3004/update-order-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,7 +214,7 @@ function OrderDetails() {
 
   const handleSaveProductComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.197:3004/update-product-comment', {
+      const response = await fetch('http://10.167.49.203:3004/update-product-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -251,7 +251,7 @@ function OrderDetails() {
       return;
     }
 
-    fetch('http://10.167.49.197:3004/confirm', {
+    fetch('http://10.167.49.203:3004/confirm', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -459,7 +459,7 @@ function OrderDetails() {
                         <TableRow key={`${orderId}-${index}`} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.197:3004${order.image}`}
+                              src={`http://10.167.49.203:3004${order.image}`}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />

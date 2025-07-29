@@ -166,7 +166,7 @@ function ConfirmedItems() {
 
   const handleSaveEdit = async () => {
     try {
-      const response = await fetch(`http://10.167.49.197:3004/confirmed-items/${selectedItem.id}`, {
+      const response = await fetch(`http://10.167.49.203:3004/confirmed-items/${selectedItem.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ function ConfirmedItems() {
     if (!confirmDelete) return;
     
     try {
-      const response = await fetch(`http://10.167.49.197:3004/confirmed-items/${selectedItem.id}`, {
+      const response = await fetch(`http://10.167.49.203:3004/confirmed-items/${selectedItem.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ function ConfirmedItems() {
 
   useEffect(() => {
     // Fetch confirmed items with order ID and comment
-    fetch('http://10.167.49.197:3004/confirmed-items')
+    fetch('http://10.167.49.203:3004/confirmed-items')
       .then(response => response.json())
       .then(data => {
         console.log('Confirmed items data:', data); // Debug log
@@ -701,7 +701,7 @@ function ConfirmedItems() {
                                   </Box>
                                 ) : (
                                   <img 
-                                    src={`http://10.167.49.197:3004${item.image}`} 
+                                    src={`http://10.167.49.203:3004${item.image}`} 
                                     alt={item.product_name} 
                                     style={{ 
                                       width: '60px', 
@@ -711,10 +711,10 @@ function ConfirmedItems() {
                                       border: '1px solid #e0e0e0'
                                     }} 
                                     onError={() => {
-                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.197:3004${item.image}`);
+                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.203:3004${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
-                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.203:3004${item.image}`)}
                                   />
                                 )}
                               </TableCell>
@@ -837,7 +837,7 @@ function ConfirmedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[`${selectedItem.order_id}-${selectedItem.id}`] ? (
                     <img 
-                      src={`http://10.167.49.197:3004${selectedItem.image}`} 
+                      src={`http://10.167.49.203:3004${selectedItem.image}`} 
                       alt={selectedItem.product_name}
                       style={{ 
                         width: '120px', 

@@ -60,7 +60,7 @@ function Scan() {
 
     try {
       // Fetch confirmed items and search for the serial number
-      const response = await fetch('http://10.167.49.197:3004/confirmed-items');
+      const response = await fetch('http://10.167.49.203:3004/confirmed-items');
       if (!response.ok) {
         throw new Error('Failed to fetch confirmed items');
       }
@@ -98,7 +98,7 @@ function Scan() {
     setError('');
 
     try {
-      const response = await fetch('http://10.167.49.197:3004/deploy-item', {
+      const response = await fetch('http://10.167.49.203:3004/deploy-item', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ function Scan() {
                       </Box>
                     ) : (
                       <img
-                        src={`http://10.167.49.197:3004${selectedItem.image}`}
+                        src={`http://10.167.49.203:3004${selectedItem.image}`}
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
