@@ -10,10 +10,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = process.env.PORT || 3007;
+const port = process.env.PORT || 3004;
 
 // Smart Order ID Generation Function
-// Handles both alphabetical and numerical order IDs
+// Always generates sequential numeric IDs regardless of existing order IDs
 function generateNextOrderId(lastOrderId) {
   if (!lastOrderId) {
     return 1; // Start with 1 if no previous orders
@@ -28,28 +28,17 @@ function generateNextOrderId(lastOrderId) {
     return parseInt(lastId) + 1;
   }
   
-  // Check if it has a pattern like "ORD001", "ABC123", etc.
-  const match = lastId.match(/^([A-Za-z]*)(\d+)$/);
-  if (match) {
-    // Alphanumeric pattern: increment the numeric part
-    const prefix = match[1];
-    const number = parseInt(match[2]);
-    const paddingLength = match[2].length; // Preserve padding
-    const nextNumber = number + 1;
-    return prefix + nextNumber.toString().padStart(paddingLength, '0');
-  }
-  
-  // If it's a complex pattern or doesn't match, generate a new sequential ID
-  // You can customize this default behavior
-  return `ORD${Date.now().toString().slice(-6)}`; // Generate unique ID based on timestamp
+  // If it's not numeric, find the highest numeric order ID in the database
+  // This ensures we always increment from the highest numeric value
+  return null; // Signal to the calling function to find the highest numeric ID
 }
 
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'asset',
-  password: process.env.DB_PASSWORD || 'AssetJito2024$',
-  database: process.env.DB_NAME || 'order_tracking',
+  password: process.env.DB_PASSWORD || 'Ontario2025$',
+  database: process.env.DB_NAME || 'order_management',
   port: 3306,
   connectionLimit: 10,
   queueLimit: 0,
@@ -205,33 +194,29 @@ app.post('/bulk-orders', async (req, res) => {
       return res.status(400).send('Missing required fields');
     }
 
-    // Parse the datetime string to a Date object
-    const parsedOrderDate = new Date(order_date);
+    // Parse the date string (YYYY-MM-DD format) to a Date object
+    // Add time component to make it a valid datetime for MySQL
+    const parsedOrderDate = new Date(order_date + 'T00:00:00');
     if (isNaN(parsedOrderDate.getTime())) {
       return res.status(400).send('Invalid date format');
     }
 
-    // Get the next order ID (supports both alphabetical and numerical)
-    const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY order_id');
+    // Generate a new order ID for this bulk order
+    const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL');
     
-    let lastOrderId = null;
-    if (allOrderIds.length === 0) {
-      lastOrderId = null; // No previous orders
-    } else {
-      // Check if all order IDs are purely numeric
-      const allNumeric = allOrderIds.every(row => /^\d+$/.test(row.order_id));
+    let nextOrderId = 1; // Default to 1 if no previous orders
+    if (allOrderIds.length > 0) {
+      // Find the highest numeric order ID
+      const numericOrderIds = allOrderIds
+        .map(row => row.order_id)
+        .filter(id => /^\d+$/.test(String(id)))
+        .map(id => parseInt(id));
       
-      if (allNumeric) {
-        // All are numeric - find the maximum numeric value
-        const maxNumericValue = Math.max(...allOrderIds.map(row => parseInt(row.order_id)));
-        lastOrderId = maxNumericValue.toString();
-      } else {
-        // Mixed or alphanumeric patterns - use the last one alphabetically
-        lastOrderId = allOrderIds[allOrderIds.length - 1].order_id;
+      if (numericOrderIds.length > 0) {
+        const maxNumericValue = Math.max(...numericOrderIds);
+        nextOrderId = maxNumericValue + 1;
       }
     }
-    
-    const nextOrderId = generateNextOrderId(lastOrderId);
 
     // Insert all items with the same order ID
     const insertPromises = items.map(item => {
@@ -257,38 +242,34 @@ app.post('/orders', async (req, res) => {
       return res.status(400).send('Missing required fields');
     }
 
-    // Parse the datetime string to a Date object
-    const parsedOrderDate = new Date(order_date);
+    // Parse the date string (YYYY-MM-DD format) to a Date object
+    // Add time component to make it a valid datetime for MySQL
+    const parsedOrderDate = new Date(order_date + 'T00:00:00');
     if (isNaN(parsedOrderDate.getTime())) {
       return res.status(400).send('Invalid date format');
     }
 
     let newOrderId = order_id;
     if (!newOrderId) {
-      // Get the next sequential order ID (supports both alphabetical and numerical)
-      const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL ORDER BY order_id');
+      // Generate a new order ID for this order
+      const [allOrderIds] = await pool.query('SELECT DISTINCT order_id FROM orders WHERE order_id IS NOT NULL');
       
-      let lastOrderId = null;
-      if (allOrderIds.length === 0) {
-        lastOrderId = null; // No previous orders
-      } else {
-        // Check if all order IDs are purely numeric
-        const allNumeric = allOrderIds.every(row => /^\d+$/.test(row.order_id));
+      newOrderId = 1; // Default to 1 if no previous orders
+      if (allOrderIds.length > 0) {
+        // Find the highest numeric order ID
+        const numericOrderIds = allOrderIds
+          .map(row => row.order_id)
+          .filter(id => /^\d+$/.test(String(id)))
+          .map(id => parseInt(id));
         
-        if (allNumeric) {
-          // All are numeric - find the maximum numeric value
-          const maxNumericValue = Math.max(...allOrderIds.map(row => parseInt(row.order_id)));
-          lastOrderId = maxNumericValue.toString();
-        } else {
-          // Mixed or alphanumeric patterns - use the last one alphabetically
-          lastOrderId = allOrderIds[allOrderIds.length - 1].order_id;
+        if (numericOrderIds.length > 0) {
+          const maxNumericValue = Math.max(...numericOrderIds);
+          newOrderId = maxNumericValue + 1;
         }
       }
-      
-      newOrderId = generateNextOrderId(lastOrderId);
     }
 
-    await pool.query(
+    const [result] = await pool.query(
       'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
       [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
     );
@@ -452,6 +433,165 @@ app.get('/confirmed-items', async (req, res) => {
   }
 });
 
+// PUT endpoint to update confirmed items
+app.put('/confirmed-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Parse the ID to get the original order ID and item index
+    const [orderId, itemIndex] = id.split('-').map(Number);
+    
+    if (!orderId || isNaN(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+    
+    // Get the current order data
+    const [currentOrder] = await pool.query(
+      'SELECT * FROM orders WHERE id = ?',
+      [orderId]
+    );
+    
+    if (currentOrder.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const order = currentOrder[0];
+    
+    // Update the order with new data
+    const updateFields = [];
+    const updateValues = [];
+    
+    // Map frontend field names to database column names
+    if (updateData.product_name !== undefined) {
+      // Note: product_name comes from products table, so we can't update it here
+      // We would need to update the product_id if we want to change the product
+    }
+    
+    if (updateData.quantity !== undefined) {
+      updateFields.push('confirmed_quantity = ?');
+      updateValues.push(updateData.quantity);
+    }
+    
+    if (updateData.item_comment !== undefined) {
+      updateFields.push('item_comment = ?');
+      updateValues.push(updateData.item_comment);
+    }
+    
+    if (updateData.order_date !== undefined) {
+      updateFields.push('order_date = ?');
+      updateValues.push(updateData.order_date);
+    }
+    
+    if (updateData.confirm_date !== undefined) {
+      updateFields.push('confirm_date = ?');
+      updateValues.push(updateData.confirm_date);
+    }
+    
+    if (updateData.ordered_by !== undefined) {
+      updateFields.push('ordered_by = ?');
+      updateValues.push(updateData.ordered_by);
+    }
+    
+    // Update serial numbers if provided
+    if (updateData.serial_number !== undefined) {
+      const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
+      if (currentSerialNumbers[itemIndex] !== undefined) {
+        currentSerialNumbers[itemIndex] = updateData.serial_number;
+        updateFields.push('serial_numbers = ?');
+        updateValues.push(JSON.stringify(currentSerialNumbers));
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+    
+    updateValues.push(orderId);
+    
+    const [result] = await pool.query(
+      `UPDATE orders SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Item updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Item not found or no changes made' });
+    }
+  } catch (err) {
+    console.error('Error updating confirmed item:', err.message);
+    res.status(500).send('Error updating confirmed item');
+  }
+});
+
+// DELETE endpoint to delete confirmed items
+app.delete('/confirmed-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Parse the ID to get the original order ID and item index
+    const [orderId, itemIndex] = id.split('-').map(Number);
+    
+    if (!orderId || isNaN(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+    
+    // Get the current order data
+    const [currentOrder] = await pool.query(
+      'SELECT * FROM orders WHERE id = ?',
+      [orderId]
+    );
+    
+    if (currentOrder.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const order = currentOrder[0];
+    
+    // If this is the last confirmed item, we can delete the entire order
+    if (order.confirmed_quantity === 1) {
+      const [result] = await pool.query(
+        'DELETE FROM orders WHERE id = ?',
+        [orderId]
+      );
+      
+      if (result.affectedRows > 0) {
+        res.status(200).json({ message: 'Item deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Item not found' });
+      }
+    } else {
+      // If there are multiple confirmed items, we need to:
+      // 1. Decrease the confirmed_quantity
+      // 2. Remove the specific serial number from the array
+      const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
+      
+      if (currentSerialNumbers[itemIndex] !== undefined) {
+        // Remove the specific serial number
+        currentSerialNumbers.splice(itemIndex, 1);
+        
+        // Update the order
+        const [result] = await pool.query(
+          'UPDATE orders SET confirmed_quantity = ?, serial_numbers = ? WHERE id = ?',
+          [order.confirmed_quantity - 1, JSON.stringify(currentSerialNumbers), orderId]
+        );
+        
+        if (result.affectedRows > 0) {
+          res.status(200).json({ message: 'Item deleted successfully' });
+        } else {
+          res.status(404).json({ message: 'Item not found' });
+        }
+      } else {
+        res.status(404).json({ message: 'Item not found' });
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting confirmed item:', err.message);
+    res.status(500).send('Error deleting confirmed item');
+  }
+});
+
 app.post('/update-order-comment', async (req, res) => {
   try {
     const { orderId, comment } = req.body;
@@ -569,6 +709,21 @@ app.post('/deploy-item', async (req, res) => {
         serialNumber,
         identifier: `${originalId}-${serialNumber}`
       });
+      
+      // Check if this was the last item in the order
+      const [remainingItems] = await pool.query(
+        'SELECT confirmed_quantity FROM orders WHERE id = ?',
+        [originalId]
+      );
+      
+      if (remainingItems.length > 0) {
+        const remainingQuantity = remainingItems[0].confirmed_quantity;
+        
+        // If no more confirmed items, we could optionally delete the order
+        // For now, we'll just leave it as is since it might have other unconfirmed items
+        console.log(`Order ${originalId} has ${remainingQuantity} remaining confirmed items`);
+      }
+      
       res.status(200).json({ success: true, message: 'Item deployed successfully' });
     } else {
       res.status(500).json({ success: false, message: 'Failed to deploy item' });
@@ -576,7 +731,18 @@ app.post('/deploy-item', async (req, res) => {
   } catch (err) {
     console.error('Error deploying item:', err.message);
     console.error('Error stack:', err.stack);
-    res.status(500).json({ success: false, message: 'Error deploying item: ' + err.message });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Error deploying item';
+    if (err.message.includes('Incorrect integer value')) {
+      errorMessage = 'Database schema mismatch. Please run the migration script to fix order_id column type.';
+    } else if (err.message.includes('already deployed')) {
+      errorMessage = 'This item is already deployed.';
+    } else {
+      errorMessage = 'Error deploying item: ' + err.message;
+    }
+    
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 

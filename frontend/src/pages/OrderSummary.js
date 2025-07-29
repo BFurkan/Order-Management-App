@@ -48,7 +48,7 @@ function OrderSummary() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/orders');
+      const response = await fetch('http://10.167.49.197:3004/orders');
       const data = await response.json();
       
       // Group orders by order_id
@@ -83,7 +83,7 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-id', {
+      const response = await fetch('http://10.167.49.197:3004/update-order-id', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-comment', {
+      const response = await fetch('http://10.167.49.197:3004/update-order-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -425,7 +425,7 @@ function OrderSummary() {
                         <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -433,7 +433,7 @@ function OrderSummary() {
                         <TableRow key={order.id} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.203:3004${order.image}`}
+                              src={`http://10.167.49.197:3004${order.image}`}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />

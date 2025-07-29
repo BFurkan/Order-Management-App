@@ -65,7 +65,7 @@ function OrderDetails() {
     productName: 'Product Name',
     orderDate: 'Order Date',
     totalQuantity: 'Total Quantity',
-    orderedBy: 'Ordered By',
+
     serialNumber: 'Serial Number',
     action: 'Action',
     orderComment: 'Order Comment',
@@ -94,12 +94,12 @@ function OrderDetails() {
     const activeOrders = orders.filter(order => order.quantity > 0);
     
     const csvContent = [
-      ['Product Name', 'Order Date', 'Total Quantity', 'Ordered By'].join(','),
+      ['Product Name', 'Order Date', 'Total Quantity'].join(','),
       ...activeOrders.map(order => [
         `"${order.product_name}"`,
         `"${format(new Date(order.order_date), 'MMM dd, yyyy')}"`,
         order.quantity,
-        `"${getDisplayName(order.ordered_by)}"`
+
       ].join(','))
     ].join('\n');
 
@@ -113,7 +113,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.203:3004/orders')
+    fetch('http://10.167.49.197:3004/orders')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -121,7 +121,18 @@ function OrderDetails() {
         return response.json();
       })
       .then(data => {
-        const grouped = data.reduce((acc, order) => {
+        // Sort orders by order_date (newest first) and then by order_id
+        const sortedData = data.sort((a, b) => {
+          const dateA = new Date(a.order_date);
+          const dateB = new Date(b.order_date);
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateB.getTime() - dateA.getTime(); // Newest first
+          }
+          // If same date, sort by order_id (newest first)
+          return parseInt(b.order_id) - parseInt(a.order_id);
+        });
+        
+        const grouped = sortedData.reduce((acc, order) => {
           if (!acc[order.order_id]) {
             acc[order.order_id] = [];
           }
@@ -167,7 +178,7 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-comment', {
+      const response = await fetch('http://10.167.49.197:3004/update-order-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -205,7 +216,7 @@ function OrderDetails() {
 
   const handleSaveProductComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-product-comment', {
+      const response = await fetch('http://10.167.49.197:3004/update-product-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -242,7 +253,7 @@ function OrderDetails() {
       return;
     }
 
-    fetch('http://10.167.49.203:3004/confirm', {
+    fetch('http://10.167.49.197:3004/confirm', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -438,7 +449,7 @@ function OrderDetails() {
                         <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-                        <TableCell sx={{ width: '150px' }}>Ordered By</TableCell>
+
                         <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Comment</TableCell>
                         <TableCell sx={{ width: '200px' }}>Item Comment</TableCell>
@@ -450,7 +461,7 @@ function OrderDetails() {
                         <TableRow key={`${orderId}-${index}`} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.203:3004${order.image}`}
+                              src={`http://10.167.49.197:3004${order.image}`}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />
@@ -470,11 +481,7 @@ function OrderDetails() {
                               {format(new Date(order.order_date), 'MMM dd, yyyy')}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getDisplayName(order.ordered_by)}
-                            </Typography>
-                          </TableCell>
+
                           <TableCell>
                             <TextField
                               fullWidth

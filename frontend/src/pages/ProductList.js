@@ -79,7 +79,7 @@ function ProductList() {
   const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
   const fetchProducts = () => {
-    fetch('http://10.167.49.203:3004/products')
+    fetch('http://10.167.49.197:3004/products')
       .then(response => response.json())
       .then(data => setProducts(data))
       .catch(error => console.error('Error fetching products:', error));
@@ -195,8 +195,9 @@ function ProductList() {
   };
 
   const submitOrder = () => {
-    // Use the selected order date and combine with current time
-    const selectedDateTime = new Date(orderDate + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
+    // Send the date as a simple YYYY-MM-DD string to avoid timezone issues
+    // The backend will handle it as a date string, not a datetime
+    console.log('Order date input:', orderDate);
     
     // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
@@ -204,15 +205,14 @@ function ProductList() {
       quantity: item.quantity
     }));
 
-    fetch('http://10.167.49.203:3004/bulk-orders', {
+    fetch('http://10.167.49.197:3004/bulk-orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         items: orderItems,
-        order_date: selectedDateTime,
-        ordered_by: orderedBy,
+        order_date: orderDate, // Send as simple YYYY-MM-DD string
       }),
     })
     .then(response => {
@@ -225,7 +225,6 @@ function ProductList() {
       console.log('Bulk order submitted:', data);
       alert(`Order submitted successfully! Order ID: ${data.order_id}`);
       setCart([]);
-      setOrderedBy('');
       setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today's date
       setOpen(false);
     })
@@ -244,7 +243,7 @@ function ProductList() {
       formData.append('image', newProduct.image);
     }
 
-    fetch('http://10.167.49.203:3004/products', {
+    fetch('http://10.167.49.197:3004/products', {
       method: 'POST',
       body: formData,
     })
@@ -271,7 +270,7 @@ function ProductList() {
 
   const handleDeleteProduct = (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      fetch(`http://10.167.49.203:3004/products/${productId}`, {
+      fetch(`http://10.167.49.197:3004/products/${productId}`, {
         method: 'DELETE',
       })
       .then(response => {
@@ -299,7 +298,7 @@ function ProductList() {
       formData.append('image', editProduct.image);
     }
 
-    fetch(`http://10.167.49.203:3004/products/${editProduct.id}`, {
+    fetch(`http://10.167.49.197:3004/products/${editProduct.id}`, {
       method: 'PUT',
       body: formData,
     })
@@ -417,7 +416,7 @@ function ProductList() {
                   {visibleColumns.productImage && (
                     <TableCell>
                       <img 
-                        src={product.image ? `http://10.167.49.203:3004${product.image}` : '/placeholder.png'} 
+                        src={product.image ? `http://10.167.49.197:3004${product.image}` : '/placeholder.png'} 
                         alt={product.name} 
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 4 }} 
                       />
@@ -559,24 +558,14 @@ function ProductList() {
               required
             />
             
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Ordered By (Email)"
-              type="email"
-              fullWidth
-              variant="outlined"
-              value={orderedBy}
-              onChange={(e) => setOrderedBy(e.target.value)}
-              required
-            />
+
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
             <Button 
               onClick={submitOrder} 
               variant="contained"
-              disabled={!orderedBy || !orderDate || cart.length === 0}
+              disabled={!orderDate || cart.length === 0}
             >
               Place Order
             </Button>

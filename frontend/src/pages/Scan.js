@@ -40,6 +40,7 @@ function Scan() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
+  const [deploying, setDeploying] = useState(false);
 
   // Function to extract username from email (part before @)
   const getDisplayName = (email) => {
@@ -59,7 +60,7 @@ function Scan() {
 
     try {
       // Fetch confirmed items and search for the serial number
-      const response = await fetch('http://10.167.49.203:3004/confirmed-items');
+      const response = await fetch('http://10.167.49.197:3004/confirmed-items');
       if (!response.ok) {
         throw new Error('Failed to fetch confirmed items');
       }
@@ -90,13 +91,14 @@ function Scan() {
   };
 
   const handleDeploy = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || deploying) return;
 
+    setDeploying(true);
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('http://10.167.49.203:3004/deploy-item', {
+      const response = await fetch('http://10.167.49.197:3004/deploy-item', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,6 +135,7 @@ function Scan() {
       setError('Error deploying item. Please try again.');
     } finally {
       setLoading(false);
+      setDeploying(false);
     }
   };
 
@@ -144,6 +147,7 @@ function Scan() {
     setError('');
     setSuccess('');
     setImageError(false);
+    setDeploying(false);
   };
 
   const handleKeyPress = (event) => {
@@ -274,7 +278,7 @@ function Scan() {
                       </Box>
                     ) : (
                       <img
-                        src={`http://10.167.49.203:3004${selectedItem.image}`}
+                        src={`http://10.167.49.197:3004${selectedItem.image}`}
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
@@ -335,8 +339,8 @@ function Scan() {
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+
+                        
                       </TableRow>
                       {selectedItem.item_comment && (
                         <TableRow>
@@ -362,10 +366,10 @@ function Scan() {
               onClick={handleDeploy}
               variant="contained"
               color="success"
-              disabled={loading}
+              disabled={loading || deploying}
               startIcon={<DeployIcon />}
             >
-              {loading ? 'Deploying...' : 'Deploy Item'}
+              {loading || deploying ? 'Deploying...' : 'Deploy Item'}
             </Button>
           </DialogActions>
         </Dialog>

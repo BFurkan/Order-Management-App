@@ -84,7 +84,7 @@ function DeployedItems() {
     confirmDate: 'Confirmed Date',
     deployDate: 'Deploy Date',
     serialNumber: 'Serial Number',
-    orderedBy: 'Ordered By'
+
   };
 
   const renderComment = (comment) => {
@@ -136,7 +136,7 @@ function DeployedItems() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.203:3004/deployed-items')
+    fetch('http://10.167.49.197:3004/deployed-items')
       .then(response => response.json())
       .then(data => {
         setDeployedItems(data);
@@ -201,14 +201,14 @@ function DeployedItems() {
   const handleExport = (orderId) => {
     const orderItems = groupedItems[orderId] || [];
     const csvContent = [
-      ['Product Name', 'Serial Number', 'Order Date', 'Confirm Date', 'Deploy Date', 'Ordered By'].join(','),
+      ['Product Name', 'Serial Number', 'Order Date', 'Confirm Date', 'Deploy Date'].join(','),
       ...orderItems.map(item => [
         `"${item.product_name}"`,
         `"${item.serial_number}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${item.confirm_date ? format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}"`,
         `"${item.deploy_date ? format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}"`,
-        `"${getDisplayName(item.ordered_by)}"`
+
       ].join(','))
     ].join('\n');
 
@@ -236,7 +236,7 @@ function DeployedItems() {
   const undeployItem = async (itemId) => {
     if (window.confirm('Are you sure you want to undeploy this item?')) {
       try {
-        const response = await fetch('http://10.167.49.203:3004/undeploy-item', {
+        const response = await fetch('http://10.167.49.197:3004/undeploy-item', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,7 +545,7 @@ function DeployedItems() {
                         {visibleColumns.orderDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>}
                         {visibleColumns.confirmDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Confirmed</TableCell>}
                         {visibleColumns.deployDate && <TableCell sx={{ width: '140px', minWidth: '140px' }}>Deployed</TableCell>}
-                        {visibleColumns.orderedBy && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>}
+
                         {visibleColumns.serialNumber && <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>}
                         <TableCell sx={{ width: '150px' }}>Actions</TableCell>
                 </TableRow>
@@ -580,7 +580,7 @@ function DeployedItems() {
                         </Box>
                       ) : (
                         <img
-                                   src={`http://10.167.49.203:3004${item.image}`} 
+                                   src={`http://10.167.49.197:3004${item.image}`} 
                           alt={item.product_name}
                           style={{ 
                             width: '60px', 
@@ -706,7 +706,7 @@ function DeployedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[selectedItem.id] ? (
                     <img 
-                      src={`http://10.167.49.203:3004${selectedItem.image}`} 
+                      src={`http://10.167.49.197:3004${selectedItem.image}`} 
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 

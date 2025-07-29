@@ -57,6 +57,8 @@ function ConfirmedItems() {
   // Modal states
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   // Column visibility management
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
@@ -79,7 +81,7 @@ function ConfirmedItems() {
     productName: 'Product Name',
     quantity: 'Quantity',
     orderDate: 'Order Date',
-    orderedBy: 'Ordered By',
+
     confirmedDate: 'Confirmed Date',
     serialNumber: 'Serial Number',
     itemComment: 'Item Comments'
@@ -139,12 +141,122 @@ function ConfirmedItems() {
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
+    setEditForm({
+      product_name: item.product_name || '',
+      quantity: item.quantity || '',
+      serial_number: item.serial_number || '',
+      item_comment: item.item_comment || '',
+      order_date: item.order_date ? new Date(item.order_date).toISOString().split('T')[0] : '',
+      confirm_date: item.confirm_date ? new Date(item.confirm_date).toISOString().split('T')[0] : '',
+      ordered_by: item.ordered_by || ''
+    });
     setModalOpen(true);
+    setIsEditing(false);
+  };
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleEditFormChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const response = await fetch(`http://10.167.49.197:3004/confirmed-items/${selectedItem.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (response.ok) {
+        // Update the local state
+        setConfirmedItems(prev => 
+          prev.map(item => 
+            item.id === selectedItem.id 
+              ? { ...item, ...editForm }
+              : item
+          )
+        );
+        setFilteredItems(prev => 
+          prev.map(item => 
+            item.id === selectedItem.id 
+              ? { ...item, ...editForm }
+              : item
+          )
+        );
+        setSelectedItem(prev => ({ ...prev, ...editForm }));
+        setIsEditing(false);
+        alert('Item updated successfully!');
+      } else {
+        throw new Error('Failed to update item');
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+      alert('Error updating item. Please try again.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    // Reset edit form to original values
+    setEditForm({
+      product_name: selectedItem.product_name || '',
+      quantity: selectedItem.quantity || '',
+      serial_number: selectedItem.serial_number || '',
+      item_comment: selectedItem.item_comment || '',
+      order_date: selectedItem.order_date ? new Date(selectedItem.order_date).toISOString().split('T')[0] : '',
+      confirm_date: selectedItem.confirm_date ? new Date(selectedItem.confirm_date).toISOString().split('T')[0] : '',
+      ordered_by: selectedItem.ordered_by || ''
+    });
+  };
+
+  const handleDeleteItem = async () => {
+    if (!selectedItem) return;
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this item?\n\nProduct: ${selectedItem.product_name}\nSerial Number: ${selectedItem.serial_number || 'N/A'}\nOrder ID: ${selectedItem.order_id}`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await fetch(`http://10.167.49.197:3004/confirmed-items/${selectedItem.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove the item from local state
+        setConfirmedItems(prev => prev.filter(item => item.id !== selectedItem.id));
+        setFilteredItems(prev => prev.filter(item => item.id !== selectedItem.id));
+        
+        // Close the modal
+        setModalOpen(false);
+        setSelectedItem(null);
+        setIsEditing(false);
+        
+        alert('Item deleted successfully!');
+      } else {
+        throw new Error('Failed to delete item');
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Error deleting item. Please try again.');
+    }
   };
 
   useEffect(() => {
     // Fetch confirmed items with order ID and comment
-    fetch('http://10.167.49.203:3004/confirmed-items')
+    fetch('http://10.167.49.197:3004/confirmed-items')
       .then(response => response.json())
       .then(data => {
         console.log('Confirmed items data:', data); // Debug log
@@ -213,14 +325,14 @@ function ConfirmedItems() {
     const orderItems = filteredItems.filter(item => item.order_id === orderId);
     
     const csvContent = [
-      ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Ordered By', 'Order Comment', 'Item Comment'].join(','),
+      ['Product Name', 'Quantity', 'Serial Number', 'Order Date', 'Confirm Date', 'Order Comment', 'Item Comment'].join(','),
       ...orderItems.map(item => [
         `"${item.product_name}"`,
         item.quantity || '',
         `"${item.serial_number || ''}"`,
         `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
         `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
-        `"${getDisplayName(item.ordered_by)}"`,
+
         `"${orderComments[orderId] || ''}"`,
         `"${item.item_comment || ''}"`
       ].join(','))
@@ -551,7 +663,7 @@ function ConfirmedItems() {
                         {visibleColumns.productName && <TableCell sx={{ minWidth: '250px' }}>Product Name</TableCell>}
                         {visibleColumns.quantity && <TableCell sx={{ width: '80px', minWidth: '80px' }}>Qty</TableCell>}
                         {visibleColumns.orderDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Order Date</TableCell>}
-                        {visibleColumns.orderedBy && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Ordered By</TableCell>}
+
                         {visibleColumns.confirmedDate && <TableCell sx={{ width: '120px', minWidth: '120px' }}>Confirmed</TableCell>}
                         {visibleColumns.serialNumber && <TableCell sx={{ minWidth: '150px' }}>Serial Number</TableCell>}
                         {visibleColumns.itemComment && <TableCell sx={{ minWidth: '200px' }}>Item Comments</TableCell>}
@@ -590,7 +702,7 @@ function ConfirmedItems() {
                                   </Box>
                                 ) : (
                                   <img 
-                                    src={`http://10.167.49.203:3004${item.image}`} 
+                                    src={`http://10.167.49.197:3004${item.image}`} 
                                     alt={item.product_name} 
                                     style={{ 
                                       width: '60px', 
@@ -600,10 +712,10 @@ function ConfirmedItems() {
                                       border: '1px solid #e0e0e0'
                                     }} 
                                     onError={() => {
-                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.203:3004${item.image}`);
+                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.197:3004${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
-                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.203:3004${item.image}`)}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.197:3004${item.image}`)}
                                   />
                                 )}
                               </TableCell>
@@ -629,13 +741,7 @@ function ConfirmedItems() {
                                 </Typography>
                               </TableCell>
                             )}
-                            {visibleColumns.orderedBy && (
-                              <TableCell>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  {getDisplayName(item.ordered_by)}
-                                </Typography>
-                              </TableCell>
-                            )}
+
                             {visibleColumns.confirmedDate && (
                               <TableCell>
                                 <Typography variant="body2">
@@ -699,12 +805,30 @@ function ConfirmedItems() {
               <Typography variant="h6">
                 Confirmed Item Details
               </Typography>
-              <Chip 
-                icon={<ConfirmedIcon />} 
-                label="Confirmed" 
-                color="success" 
-                variant="outlined"
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip 
+                  icon={<ConfirmedIcon />} 
+                  label="Confirmed" 
+                  color="success" 
+                  variant="outlined"
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleEditClick}
+                  disabled={isEditing}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleDeleteItem}
+                  disabled={isEditing}
+                >
+                  Delete
+                </Button>
+              </Box>
             </Box>
           </DialogTitle>
           <DialogContent>
@@ -714,7 +838,7 @@ function ConfirmedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[`${selectedItem.order_id}-${selectedItem.id}`] ? (
                     <img 
-                      src={`http://10.167.49.203:3004${selectedItem.image}`} 
+                      src={`http://10.167.49.197:3004${selectedItem.image}`} 
                       alt={selectedItem.product_name}
                       style={{ 
                         width: '120px', 
@@ -742,78 +866,208 @@ function ConfirmedItems() {
                   
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                      {selectedItem.product_name}
+                      {isEditing ? (
+                        <TextField
+                          fullWidth
+                          value={editForm.product_name}
+                          onChange={(e) => handleEditFormChange('product_name', e.target.value)}
+                          variant="outlined"
+                          size="small"
+                        />
+                      ) : (
+                        selectedItem.product_name
+                      )}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Serial Number: <strong>{selectedItem.serial_number || 'N/A'}</strong>
-                    </Typography>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" component="span">
+                        Serial Number: <strong>
+                          {isEditing ? null : (selectedItem.serial_number || 'N/A')}
+                        </strong>
+                      </Typography>
+                      {isEditing && (
+                        <TextField
+                          value={editForm.serial_number}
+                          onChange={(e) => handleEditFormChange('serial_number', e.target.value)}
+                          variant="outlined"
+                          size="small"
+                          sx={{ width: '200px', mt: 1 }}
+                        />
+                      )}
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
                       Order ID: <strong>{selectedItem.order_id}</strong>
                     </Typography>
                   </Box>
                 </Box>
 
-                {/* Detailed Information Table */}
-                <TableContainer component={Paper} sx={{ mt: 2 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell>Product Name</TableCell>
-                        <TableCell>{selectedItem.product_name}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Quantity</TableCell>
-                        <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Serial Number</TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Order ID</TableCell>
-                        <TableCell>{selectedItem.order_id}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Order Date</TableCell>
-                        <TableCell>{format(new Date(selectedItem.order_date), 'MMM dd, yyyy')}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Confirmed Date</TableCell>
-                        <TableCell>
-                          {selectedItem.confirm_date ? 
-                            format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
-                      </TableRow>
-                      {selectedItem.item_comment && (
+                {/* Edit Form or Display Table */}
+                {isEditing ? (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                      Edit Item Details
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Product Name"
+                          value={editForm.product_name}
+                          onChange={(e) => handleEditFormChange('product_name', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Quantity"
+                          type="number"
+                          value={editForm.quantity}
+                          onChange={(e) => handleEditFormChange('quantity', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                          inputProps={{ min: 0 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Serial Number"
+                          value={editForm.serial_number}
+                          onChange={(e) => handleEditFormChange('serial_number', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Ordered By"
+                          value={editForm.ordered_by}
+                          onChange={(e) => handleEditFormChange('ordered_by', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Order Date"
+                          type="date"
+                          value={editForm.order_date}
+                          onChange={(e) => handleEditFormChange('order_date', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Confirm Date"
+                          type="date"
+                          value={editForm.confirm_date}
+                          onChange={(e) => handleEditFormChange('confirm_date', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Item Comment"
+                          multiline
+                          rows={3}
+                          value={editForm.item_comment}
+                          onChange={(e) => handleEditFormChange('item_comment', e.target.value)}
+                          variant="outlined"
+                          margin="dense"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ) : (
+                  /* Detailed Information Table */
+                  <TableContainer component={Paper} sx={{ mt: 2 }}>
+                    <Table size="small">
+                      <TableHead>
                         <TableRow>
-                          <TableCell>Item Comment</TableCell>
-                          <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>Product Name</TableCell>
+                          <TableCell>{selectedItem.product_name}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Quantity</TableCell>
+                          <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Serial Number</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Order ID</TableCell>
+                          <TableCell>{selectedItem.order_id}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Order Date</TableCell>
+                          <TableCell>{format(new Date(selectedItem.order_date), 'MMM dd, yyyy')}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Confirmed Date</TableCell>
+                          <TableCell>
+                            {selectedItem.confirm_date ? 
+                              format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Ordered By</TableCell>
+                          <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
+                        </TableRow>
+                        {selectedItem.item_comment && (
+                          <TableRow>
+                            <TableCell>Item Comment</TableCell>
+                            <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
               </Box>
             )}
           </DialogContent>
           
           <DialogActions sx={{ p: 3 }}>
-            <Button 
-              onClick={() => setModalOpen(false)}
-              variant="outlined"
-            >
-              Close
-            </Button>
+            {isEditing ? (
+              <>
+                <Button 
+                  onClick={handleCancelEdit}
+                  variant="outlined"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveEdit}
+                  variant="contained"
+                  color="primary"
+                >
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => setModalOpen(false)}
+                variant="outlined"
+              >
+                Close
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
       </Container>
