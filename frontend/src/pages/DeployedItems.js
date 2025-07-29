@@ -167,7 +167,7 @@ function DeployedItems() {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
+
         item.order_id.toString().includes(searchTerm) ||
         (item.item_comment && String(renderComment(item.item_comment)).toLowerCase().includes(searchTerm.toLowerCase()))
       );

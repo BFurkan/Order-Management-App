@@ -425,7 +425,6 @@ function OrderSummary() {
                         <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
-
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -453,11 +452,7 @@ function OrderSummary() {
                               {format(new Date(order.order_date), 'MMM dd, yyyy')}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getDisplayName(order.ordered_by)}
-                            </Typography>
-                          </TableCell>
+
                         </TableRow>
                       ))}
                     </TableBody>
