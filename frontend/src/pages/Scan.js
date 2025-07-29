@@ -28,7 +28,7 @@ import {
   BrokenImage as BrokenImageIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
-import { format } from 'date-fns';
+import { safeFormatDate, safeFormatDateTime } from '../utils/dateUtils';
 import theme from './theme';
 
 function Scan() {
@@ -329,13 +329,12 @@ function Scan() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Order Date</TableCell>
-                                                  <TableCell>{selectedItem.order_date ? format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}</TableCell>
+                        <TableCell>{safeFormatDate(selectedItem.order_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell>Confirmed Date</TableCell>
                         <TableCell>
-                          {selectedItem.confirm_date ? 
-                            format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                          {safeFormatDateTime(selectedItem.confirm_date)}
                         </TableCell>
                       </TableRow>
                       <TableRow>

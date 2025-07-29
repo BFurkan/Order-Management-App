@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../utils/dateUtils';
 import theme from './theme';
 
 function OrderSummary() {
@@ -309,7 +309,7 @@ function OrderSummary() {
                   {/* Date Column */}
                   <Box>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                              {filteredOrders[0].order_date ? format(new Date(filteredOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                      {safeFormatDate(filteredOrders[0].order_date)}
                     </Typography>
                   </Box>
                 </Box>
@@ -449,7 +449,7 @@ function OrderSummary() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                              {safeFormatDate(order.order_date)}
                             </Typography>
                           </TableCell>
 

@@ -38,7 +38,7 @@ import {
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { format } from 'date-fns';
+import { safeFormatDate, safeFormatDateTime, safeToISODate } from '../utils/dateUtils';
 import theme from './theme';
 
 function ConfirmedItems() {
@@ -145,8 +145,8 @@ function ConfirmedItems() {
       quantity: item.quantity || '',
       serial_number: item.serial_number || '',
       item_comment: item.item_comment || '',
-      order_date: item.order_date ? new Date(item.order_date).toISOString().split('T')[0] : '',
-      confirm_date: item.confirm_date ? new Date(item.confirm_date).toISOString().split('T')[0] : '',
+      order_date: safeToISODate(item.order_date),
+      confirm_date: safeToISODate(item.confirm_date),
 
     });
     setModalOpen(true);
@@ -210,8 +210,8 @@ function ConfirmedItems() {
       quantity: selectedItem.quantity || '',
       serial_number: selectedItem.serial_number || '',
       item_comment: selectedItem.item_comment || '',
-      order_date: selectedItem.order_date ? new Date(selectedItem.order_date).toISOString().split('T')[0] : '',
-      confirm_date: selectedItem.confirm_date ? new Date(selectedItem.confirm_date).toISOString().split('T')[0] : '',
+      order_date: safeToISODate(selectedItem.order_date),
+      confirm_date: safeToISODate(selectedItem.confirm_date),
 
     });
   };
@@ -329,8 +329,8 @@ function ConfirmedItems() {
         `"${item.product_name}"`,
         item.quantity || '',
         `"${item.serial_number || ''}"`,
-        `"${item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}"`,
-        `"${format(new Date(item.confirm_date), 'MMM dd, yyyy')}"`,
+        `"${safeFormatDate(item.order_date)}"`,
+        `"${safeFormatDate(item.confirm_date)}"`,
 
         `"${orderComments[orderId] || ''}"`,
         `"${item.item_comment || ''}"`
@@ -591,7 +591,7 @@ function ConfirmedItems() {
                   
                   {/* Order date on the right */}
                   <Typography variant="body2" color="text.secondary">
-                                            {orderItems[0].order_date ? format(new Date(orderItems[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                                            {safeFormatDate(orderItems[0].order_date)}
                   </Typography>
                 </Box>
               </AccordionSummary>
@@ -736,7 +736,7 @@ function ConfirmedItems() {
                             {visibleColumns.orderDate && (
                               <TableCell>
                                 <Typography variant="body2">
-                                                                     {item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                                                                     {safeFormatDate(item.order_date)}
                                 </Typography>
                               </TableCell>
                             )}
@@ -744,8 +744,7 @@ function ConfirmedItems() {
                             {visibleColumns.confirmedDate && (
                               <TableCell>
                                 <Typography variant="body2">
-                                  {item.confirm_date ? 
-                                    format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                                  {safeFormatDate(item.confirm_date)}
                                 </Typography>
                               </TableCell>
                             )}
@@ -805,12 +804,12 @@ function ConfirmedItems() {
                 Confirmed Item Details
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Chip 
-                  icon={<ConfirmedIcon />} 
-                  label="Confirmed" 
-                  color="success" 
-                  variant="outlined"
-                />
+              <Chip 
+                icon={<ConfirmedIcon />} 
+                label="Confirmed" 
+                color="success" 
+                variant="outlined"
+              />
                 <Button
                   variant="contained"
                   color="primary"
@@ -882,7 +881,7 @@ function ConfirmedItems() {
                         Serial Number: <strong>
                           {isEditing ? null : (selectedItem.serial_number || 'N/A')}
                         </strong>
-                      </Typography>
+                    </Typography>
                       {isEditing && (
                         <TextField
                           value={editForm.serial_number}
@@ -979,52 +978,51 @@ function ConfirmedItems() {
                   </Box>
                 ) : (
                   /* Detailed Information Table */
-                  <TableContainer component={Paper} sx={{ mt: 2 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell>Product Name</TableCell>
-                          <TableCell>{selectedItem.product_name}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Quantity</TableCell>
-                          <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Serial Number</TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Order ID</TableCell>
-                          <TableCell>{selectedItem.order_id}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Order Date</TableCell>
-                                                     <TableCell>{selectedItem.order_date ? format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Confirmed Date</TableCell>
-                          <TableCell>
-                            {selectedItem.confirm_date ? 
-                              format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                          </TableCell>
-                        </TableRow>
+                <TableContainer component={Paper} sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Field</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Product Name</TableCell>
+                        <TableCell>{selectedItem.product_name}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>{selectedItem.quantity || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Serial Number</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace' }}>{selectedItem.serial_number || 'N/A'}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order ID</TableCell>
+                        <TableCell>{selectedItem.order_id}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Order Date</TableCell>
+                                                     <TableCell>{safeFormatDate(selectedItem.order_date)}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Confirmed Date</TableCell>
+                        <TableCell>
+                          {safeFormatDateTime(selectedItem.confirm_date)}
+                        </TableCell>
+                      </TableRow>
 
-                        {selectedItem.item_comment && (
-                          <TableRow>
-                            <TableCell>Item Comment</TableCell>
-                            <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                      {selectedItem.item_comment && (
+                        <TableRow>
+                          <TableCell>Item Comment</TableCell>
+                          <TableCell>{renderComment(selectedItem.item_comment)}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 )}
               </Box>
             )}
@@ -1048,12 +1046,12 @@ function ConfirmedItems() {
                 </Button>
               </>
             ) : (
-              <Button 
-                onClick={() => setModalOpen(false)}
-                variant="outlined"
-              >
-                Close
-              </Button>
+            <Button 
+              onClick={() => setModalOpen(false)}
+              variant="outlined"
+            >
+              Close
+            </Button>
             )}
           </DialogActions>
         </Dialog>

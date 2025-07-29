@@ -27,7 +27,7 @@ import {
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { format } from 'date-fns';
+import { safeFormatDate } from '../utils/dateUtils';
 import theme from './theme';
 import ColumnSelector from '../components/ColumnSelector';
 
@@ -95,7 +95,7 @@ function OrderDetails() {
       ['Product Name', 'Order Date', 'Total Quantity'].join(','),
       ...activeOrders.map(order => [
         `"${order.product_name}"`,
-        `"${order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}"`,
+        `"${safeFormatDate(order.order_date)}"`,
         order.quantity,
 
       ].join(','))
@@ -393,7 +393,7 @@ function OrderDetails() {
                   {/* Order date on the right */}
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {activeOrders.length > 0 && activeOrders[0].order_date ? format(new Date(activeOrders[0].order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                      {activeOrders.length > 0 ? safeFormatDate(activeOrders[0].order_date) : 'N/A'}
                     </Typography>
                   </Box>
                 </Box>
@@ -476,7 +476,7 @@ function OrderDetails() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {order.order_date ? format(new Date(order.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                              {safeFormatDate(order.order_date)}
                             </Typography>
                           </TableCell>
 

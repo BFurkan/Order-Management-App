@@ -39,7 +39,7 @@ import {
   ViewColumn as ColumnsIcon
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
-import { format } from 'date-fns';
+import { safeFormatDate, safeFormatDateTime } from '../utils/dateUtils';
 import theme from './theme';
 
 function DeployedItems() {
@@ -204,9 +204,9 @@ function DeployedItems() {
       ...orderItems.map(item => [
         `"${item.product_name}"`,
         `"${item.serial_number}"`,
-        `"${item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}"`,
-        `"${item.confirm_date ? format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}"`,
-        `"${item.deploy_date ? format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}"`,
+        `"${safeFormatDate(item.order_date)}"`,
+        `"${safeFormatDate(item.confirm_date)}"`,
+        `"${safeFormatDateTime(item.deploy_date)}"`,
 
       ].join(','))
     ].join('\n');
@@ -484,7 +484,7 @@ function DeployedItems() {
                   
                   {/* Deploy date on the right */}
                   <Typography variant="body2" color="text.secondary">
-                    {orderItems.length > 0 && format(new Date(orderItems[0].deploy_date), 'MMM dd, yyyy')}
+                    {orderItems.length > 0 ? safeFormatDate(orderItems[0].deploy_date) : 'N/A'}
             </Typography>
           </Box>
               </AccordionSummary>
@@ -603,23 +603,21 @@ function DeployedItems() {
                            {visibleColumns.orderDate && (
                     <TableCell>
                       <Typography variant="body2">
-                                                    {item.order_date ? format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                                                    {safeFormatDate(item.order_date)}
                       </Typography>
                     </TableCell>
                            )}
                            {visibleColumns.confirmDate && (
                     <TableCell>
                       <Typography variant="body2">
-                        {item.confirm_date ? 
-                          format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}
+                        {safeFormatDate(item.confirm_date)}
                       </Typography>
                     </TableCell>
                            )}
                            {visibleColumns.deployDate && (
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
-                        {item.deploy_date ? 
-                          format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                        {safeFormatDateTime(item.deploy_date)}
                       </Typography>
                     </TableCell>
                            )}
@@ -762,20 +760,18 @@ function DeployedItems() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Order Date</TableCell>
-                        <TableCell>{selectedItem.order_date ? format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}</TableCell>
+                        <TableCell>{safeFormatDate(selectedItem.order_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell>Confirmed Date</TableCell>
                         <TableCell>
-                          {selectedItem.confirm_date ? 
-                            format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                          {safeFormatDateTime(selectedItem.confirm_date)}
                         </TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell>Deploy Date</TableCell>
                         <TableCell>
-                          {selectedItem.deploy_date ? 
-                            format(new Date(selectedItem.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                          {safeFormatDateTime(selectedItem.deploy_date)}
                         </TableCell>
                       </TableRow>
 
