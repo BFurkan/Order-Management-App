@@ -189,7 +189,7 @@ app.get('/latest-order-id', async (req, res) => {
 // New bulk order endpoint to keep items together
 app.post('/bulk-orders', async (req, res) => {
   try {
-    const { items, order_date, ordered_by } = req.body;
+    const { items, order_date } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0 || !order_date) {
       return res.status(400).send('Missing required fields');
     }
@@ -237,7 +237,7 @@ app.post('/bulk-orders', async (req, res) => {
 
 app.post('/orders', async (req, res) => {
   try {
-    const { product_id, quantity, order_date, order_id, ordered_by } = req.body;
+    const { product_id, quantity, order_date, order_id } = req.body;
     if (!product_id || !quantity || !order_date) {
       return res.status(400).send('Missing required fields');
     }
