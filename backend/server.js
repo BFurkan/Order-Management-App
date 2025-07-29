@@ -221,8 +221,8 @@ app.post('/bulk-orders', async (req, res) => {
     // Insert all items with the same order ID
     const insertPromises = items.map(item => {
       return pool.query(
-        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-        [item.product_id, item.quantity, parsedOrderDate, nextOrderId, ordered_by]
+        'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, NULL)',
+        [item.product_id, item.quantity, parsedOrderDate, nextOrderId]
       );
     });
 
@@ -271,7 +271,7 @@ app.post('/orders', async (req, res) => {
 
     const [result] = await pool.query(
       'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-      [product_id, quantity, parsedOrderDate, newOrderId, ordered_by]
+      [product_id, quantity, parsedOrderDate, newOrderId, ordered_by || null]
     );
 
     res.status(201).json({ message: 'Order placed successfully', order_id: newOrderId });
