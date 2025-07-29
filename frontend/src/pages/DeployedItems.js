@@ -785,10 +785,7 @@ function DeployedItems() {
                             format(new Date(selectedItem.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
                         </TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableCell>Ordered By</TableCell>
-                        <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
-                      </TableRow>
+
                       {selectedItem.item_comment && (
                         <TableRow>
                           <TableCell>Item Comment</TableCell>

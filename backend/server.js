@@ -270,8 +270,8 @@ app.post('/orders', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, ?)',
-      [product_id, quantity, parsedOrderDate, newOrderId, ordered_by || null]
+      'INSERT INTO orders (product_id, quantity, order_date, confirmed_quantity, order_id, ordered_by) VALUES (?, ?, ?, 0, ?, NULL)',
+      [product_id, quantity, parsedOrderDate, newOrderId]
     );
 
     res.status(201).json({ message: 'Order placed successfully', order_id: newOrderId });

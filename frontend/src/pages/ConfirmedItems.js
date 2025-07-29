@@ -939,16 +939,7 @@ function ConfirmedItems() {
                           margin="dense"
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Ordered By"
-                          value={editForm.ordered_by}
-                          onChange={(e) => handleEditFormChange('ordered_by', e.target.value)}
-                          variant="outlined"
-                          margin="dense"
-                        />
-                      </Grid>
+
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
@@ -1025,10 +1016,7 @@ function ConfirmedItems() {
                               format(new Date(selectedItem.confirm_date), 'MMM dd, yyyy HH:mm') : 'N/A'}
                           </TableCell>
                         </TableRow>
-                        <TableRow>
-                          <TableCell>Ordered By</TableCell>
-                          <TableCell>{getDisplayName(selectedItem.ordered_by)}</TableCell>
-                        </TableRow>
+
                         {selectedItem.item_comment && (
                           <TableRow>
                             <TableCell>Item Comment</TableCell>

@@ -54,7 +54,6 @@ function OrderDetails() {
     productName: true,
     orderDate: true,
     totalQuantity: true,
-    orderedBy: true,
     serialNumber: true,
     action: true,
     orderComment: true,
@@ -65,7 +64,6 @@ function OrderDetails() {
     productName: 'Product Name',
     orderDate: 'Order Date',
     totalQuantity: 'Total Quantity',
-
     serialNumber: 'Serial Number',
     action: 'Action',
     orderComment: 'Order Comment',

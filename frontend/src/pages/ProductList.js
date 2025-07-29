@@ -42,7 +42,7 @@ import theme from './theme';
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
-  const [orderedBy, setOrderedBy] = useState('');
+
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
   const [open, setOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
