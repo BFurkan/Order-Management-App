@@ -196,9 +196,9 @@ app.post('/bulk-orders', async (req, res) => {
 
     // Parse the date string (YYYY-MM-DD format) to a Date object
     // Add time component to make it a valid datetime for MySQL
-    const parsedOrderDate = new Date(order_date + 'T00:00:00');
-    if (isNaN(parsedOrderDate.getTime())) {
-      return res.status(400).send('Invalid date format');
+    const parsedOrderDate = order_date;
+    if (!parsedOrderDate || !/^\d{4}-\d{2}-\d{2}$/.test(parsedOrderDate)) {
+      return res.status(400).send('Invalid date format. Expected YYYY-MM-DD');
     }
 
     // Generate a new order ID for this bulk order
@@ -244,9 +244,9 @@ app.post('/orders', async (req, res) => {
 
     // Parse the date string (YYYY-MM-DD format) to a Date object
     // Add time component to make it a valid datetime for MySQL
-    const parsedOrderDate = new Date(order_date + 'T00:00:00');
-    if (isNaN(parsedOrderDate.getTime())) {
-      return res.status(400).send('Invalid date format');
+    const parsedOrderDate = order_date;
+    if (!parsedOrderDate || !/^\d{4}-\d{2}-\d{2}$/.test(parsedOrderDate)) {
+      return res.status(400).send('Invalid date format. Expected YYYY-MM-DD');
     }
 
     let newOrderId = order_id;

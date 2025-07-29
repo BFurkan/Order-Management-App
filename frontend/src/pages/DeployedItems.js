@@ -204,7 +204,7 @@ function DeployedItems() {
       ...orderItems.map(item => [
         `"${item.product_name}"`,
         `"${item.serial_number}"`,
-        `"${format(new Date(item.order_date), 'MMM dd, yyyy')}"`,
+        `"${format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy')}"`,
         `"${item.confirm_date ? format(new Date(item.confirm_date), 'MMM dd, yyyy') : 'N/A'}"`,
         `"${item.deploy_date ? format(new Date(item.deploy_date), 'MMM dd, yyyy HH:mm') : 'N/A'}"`,
 
@@ -603,7 +603,7 @@ function DeployedItems() {
                            {visibleColumns.orderDate && (
                     <TableCell>
                       <Typography variant="body2">
-                        {format(new Date(item.order_date), 'MMM dd, yyyy')}
+                                                    {format(new Date(item.order_date + 'T00:00:00'), 'MMM dd, yyyy')}
                       </Typography>
                     </TableCell>
                            )}
@@ -762,7 +762,7 @@ function DeployedItems() {
                       </TableRow>
                       <TableRow>
                         <TableCell>Order Date</TableCell>
-                        <TableCell>{format(new Date(selectedItem.order_date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>{format(new Date(selectedItem.order_date + 'T00:00:00'), 'MMM dd, yyyy')}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell>Confirmed Date</TableCell>
