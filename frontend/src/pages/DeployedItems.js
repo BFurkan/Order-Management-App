@@ -71,8 +71,7 @@ function DeployedItems() {
     orderDate: true,
     confirmDate: true,
     deployDate: true,
-    serialNumber: true,
-    orderedBy: true
+    serialNumber: true
   });
 
   const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
@@ -624,13 +623,7 @@ function DeployedItems() {
                       </Typography>
                     </TableCell>
                            )}
-                           {visibleColumns.orderedBy && (
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {getDisplayName(item.ordered_by)}
-                      </Typography>
-                    </TableCell>
-                           )}
+
                            {visibleColumns.serialNumber && (
                     <TableCell>
                                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>

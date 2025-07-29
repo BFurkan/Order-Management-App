@@ -67,7 +67,6 @@ function ConfirmedItems() {
     productName: true,
     quantity: true,
     orderDate: true,
-    orderedBy: true,
     confirmedDate: true,
     serialNumber: true,
     itemComment: true
@@ -148,7 +147,7 @@ function ConfirmedItems() {
       item_comment: item.item_comment || '',
       order_date: item.order_date ? new Date(item.order_date).toISOString().split('T')[0] : '',
       confirm_date: item.confirm_date ? new Date(item.confirm_date).toISOString().split('T')[0] : '',
-      ordered_by: item.ordered_by || ''
+
     });
     setModalOpen(true);
     setIsEditing(false);
@@ -213,7 +212,7 @@ function ConfirmedItems() {
       item_comment: selectedItem.item_comment || '',
       order_date: selectedItem.order_date ? new Date(selectedItem.order_date).toISOString().split('T')[0] : '',
       confirm_date: selectedItem.confirm_date ? new Date(selectedItem.confirm_date).toISOString().split('T')[0] : '',
-      ordered_by: selectedItem.ordered_by || ''
+
     });
   };
 
@@ -296,7 +295,7 @@ function ConfirmedItems() {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        getDisplayName(item.ordered_by).toLowerCase().includes(searchTerm.toLowerCase()) ||
+
         item.order_id.toString().includes(searchTerm) ||
         (orderComments[item.order_id] && orderComments[item.order_id].toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.item_comment && item.item_comment.toLowerCase().includes(searchTerm.toLowerCase()))
