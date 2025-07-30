@@ -12,6 +12,14 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3004;
 
+// Utility function to format date to YYYY-MM-DD to avoid timezone issues
+const formatDateToISO = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+};
+
 // Smart Order ID Generation Function
 // Always generates sequential numeric IDs regardless of existing order IDs
 function generateNextOrderId(lastOrderId) {
@@ -288,7 +296,14 @@ app.get('/orders', async (req, res) => {
       FROM orders o
       JOIN products p ON o.product_id = p.id
     `);
-    res.json(rows);
+    
+    // Format dates in the response
+    const formattedRows = rows.map(row => ({
+      ...row,
+      order_date: formatDateToISO(row.order_date)
+    }));
+    
+    res.json(formattedRows);
   } catch (err) {
     console.error('Error fetching orders:', err.message);
     res.status(500).send('Error fetching orders');
@@ -365,7 +380,12 @@ app.get('/confirmed-items', async (req, res) => {
       WHERE o.confirmed_quantity > 0
     `);
     
+    console.log('=== CONFIRMED ITEMS DEBUG ===');
     console.log('Raw database rows:', rows.length > 0 ? rows[0] : 'No data');
+    if (rows.length > 0) {
+      console.log('Sample order_date from DB:', rows[0].order_date, 'Type:', typeof rows[0].order_date);
+      console.log('Sample confirm_date from DB:', rows[0].confirm_date, 'Type:', typeof rows[0].confirm_date);
+    }
     
     // Get all deployed items to filter them out
     const [deployedItems] = await pool.query(`
@@ -397,6 +417,13 @@ app.get('/confirmed-items', async (req, res) => {
           continue;
         }
         
+        const formattedOrderDate = formatDateToISO(row.order_date);
+        const formattedConfirmDate = formatDateToISO(row.confirm_date);
+        
+        console.log(`Item ${row.id}-${i}:`);
+        console.log(`  Original order_date: ${row.order_date} -> Formatted: ${formattedOrderDate}`);
+        console.log(`  Original confirm_date: ${row.confirm_date} -> Formatted: ${formattedConfirmDate}`);
+        
         const expandedItem = {
           id: `${row.id}-${i}`, // Unique ID for each individual item
           original_id: row.id,
@@ -404,9 +431,9 @@ app.get('/confirmed-items', async (req, res) => {
           product_name: row.product_name,
           image: row.image, // Include product image from products table
           quantity: 1, // Each individual item has quantity 1
-          order_date: row.order_date,
-          confirm_date: row.confirm_date,
-          confirmed_date: row.confirm_date, // Also include as confirmed_date for consistency
+          order_date: formattedOrderDate,
+          confirm_date: formattedConfirmDate,
+          confirmed_date: formattedConfirmDate, // Also include as confirmed_date for consistency
           order_id: row.order_id,
           comment: row.comment, // Order-level comment
           item_comment: row.item_comment, // Item-level comment from orders table
@@ -425,6 +452,7 @@ app.get('/confirmed-items', async (req, res) => {
     });
     
     console.log('Total expanded items (excluding deployed):', expandedItems.length);
+    console.log('=== END CONFIRMED ITEMS DEBUG ===');
     
     res.json(expandedItems);
   } catch (err) {
@@ -753,8 +781,16 @@ app.get('/deployed-items', async (req, res) => {
       SELECT * FROM deployed_items ORDER BY deploy_date DESC
     `);
     
-    console.log('Deployed items found:', rows.length);
-    res.json(rows);
+    // Format dates in the response
+    const formattedRows = rows.map(row => ({
+      ...row,
+      order_date: formatDateToISO(row.order_date),
+      confirm_date: formatDateToISO(row.confirm_date),
+      deploy_date: formatDateToISO(row.deploy_date)
+    }));
+    
+    console.log('Deployed items found:', formattedRows.length);
+    res.json(formattedRows);
   } catch (err) {
     console.error('Error fetching deployed items:', err.message);
     res.status(500).send('Error fetching deployed items');

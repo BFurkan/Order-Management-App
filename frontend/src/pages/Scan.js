@@ -66,8 +66,16 @@ function Scan() {
       }
       
       const confirmedItems = await response.json();
+      console.log('=== SCAN PAGE DEBUG ===');
       console.log('Searching for serial number:', serialNumber);
       console.log('In confirmed items:', confirmedItems.length);
+      
+      // Log sample items to see date formats
+      if (confirmedItems.length > 0) {
+        console.log('Sample item from API:', confirmedItems[0]);
+        console.log('Sample order_date:', confirmedItems[0].order_date, 'Type:', typeof confirmedItems[0].order_date);
+        console.log('Sample confirm_date:', confirmedItems[0].confirm_date, 'Type:', typeof confirmedItems[0].confirm_date);
+      }
       
       // Search for matching serial number
       const matchingItem = confirmedItems.find(item => 
@@ -76,6 +84,12 @@ function Scan() {
 
       if (matchingItem) {
         console.log('Found matching item:', matchingItem);
+        console.log('Matching item order_date:', matchingItem.order_date);
+        console.log('Matching item confirm_date:', matchingItem.confirm_date);
+        console.log('Formatted order_date:', safeFormatDate(matchingItem.order_date));
+        console.log('Formatted confirm_date:', safeFormatDate(matchingItem.confirm_date));
+        console.log('=== END SCAN PAGE DEBUG ===');
+        
         setSearchResult(matchingItem);
         setSelectedItem(matchingItem);
         setModalOpen(true);
