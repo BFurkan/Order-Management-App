@@ -380,84 +380,47 @@ app.get('/confirmed-items', async (req, res) => {
       WHERE o.confirmed_quantity > 0
     `);
     
-    console.log('=== CONFIRMED ITEMS DEBUG ===');
-    console.log('Raw database rows:', rows.length > 0 ? rows[0] : 'No data');
-    if (rows.length > 0) {
-      console.log('Sample order_date from DB:', rows[0].order_date, 'Type:', typeof rows[0].order_date);
-      console.log('Sample confirm_date from DB:', rows[0].confirm_date, 'Type:', typeof rows[0].confirm_date);
-    }
-    
     // Get all deployed items to filter them out
     const [deployedItems] = await pool.query(`
       SELECT original_order_id, serial_number FROM deployed_items
     `);
     
-    console.log('Deployed items for filtering:', deployedItems.length);
-    
-    // Create a Set of deployed item identifiers for fast lookup
-    const deployedSet = new Set();
+    // Create a Set of deployed serial numbers for quick lookup
+    const deployedSerialNumbers = new Set();
     deployedItems.forEach(item => {
-      console.log(`Adding to deployed set: ${item.original_order_id}-${item.serial_number}`);
-      deployedSet.add(`${item.original_order_id}-${item.serial_number}`);
+      if (item.serial_number) {
+        deployedSerialNumbers.add(item.serial_number.toLowerCase());
+      }
     });
     
     // Expand each confirmed item to show individual serial numbers
     const expandedItems = [];
     rows.forEach(row => {
-      const serialNumbers = row.serial_numbers ? JSON.parse(row.serial_numbers) : [];
-      
-      // Create one entry for each confirmed item with its serial number
-      for (let i = 0; i < row.confirmed_quantity; i++) {
-        const serialNumber = serialNumbers[i] || 'N/A';
-        const itemIdentifier = `${row.id}-${serialNumber}`;
-        
-        // Skip this item if it's already deployed
-        if (deployedSet.has(itemIdentifier)) {
-          console.log(`Skipping deployed item: ${itemIdentifier}`);
-          continue;
-        }
-        
-        const formattedOrderDate = formatDateToISO(row.order_date);
-        const formattedConfirmDate = formatDateToISO(row.confirm_date);
-        
-        console.log(`Item ${row.id}-${i}:`);
-        console.log(`  Original order_date: ${row.order_date} -> Formatted: ${formattedOrderDate}`);
-        console.log(`  Original confirm_date: ${row.confirm_date} -> Formatted: ${formattedConfirmDate}`);
-        
-        const expandedItem = {
-          id: `${row.id}-${i}`, // Unique ID for each individual item
-          original_id: row.id,
-          product_id: row.product_id,
-          product_name: row.product_name,
-          image: row.image, // Include product image from products table
-          quantity: 1, // Each individual item has quantity 1
-          order_date: formattedOrderDate,
-          confirm_date: formattedConfirmDate,
-          confirmed_date: formattedConfirmDate, // Also include as confirmed_date for consistency
-          order_id: row.order_id,
-          comment: row.comment, // Order-level comment
-          item_comment: row.item_comment, // Item-level comment from orders table
-          ordered_by: row.ordered_by,
-          serial_number: serialNumber // Get the specific serial number
-        };
-        
-        console.log(`Expanded item ${i}:`, {
-          id: expandedItem.id,
-          image: expandedItem.image,
-          item_comment: expandedItem.item_comment
+      if (row.serial_numbers) {
+        const serialNumbers = row.serial_numbers.split(',').map(s => s.trim());
+        serialNumbers.forEach(serialNumber => {
+          if (serialNumber && !deployedSerialNumbers.has(serialNumber.toLowerCase())) {
+            expandedItems.push({
+              ...row,
+              serial_number: serialNumber,
+              original_id: row.id
+            });
+          }
         });
-        
-        expandedItems.push(expandedItem);
       }
     });
     
-    console.log('Total expanded items (excluding deployed):', expandedItems.length);
-    console.log('=== END CONFIRMED ITEMS DEBUG ===');
+    // Format dates to avoid timezone issues
+    const formattedItems = expandedItems.map(item => ({
+      ...item,
+      order_date: formatDateToISO(item.order_date),
+      confirm_date: formatDateToISO(item.confirm_date)
+    }));
     
-    res.json(expandedItems);
-  } catch (err) {
-    console.error('Error fetching confirmed items:', err.message);
-    res.status(500).send('Error fetching confirmed items');
+    res.json(formattedItems);
+  } catch (error) {
+    console.error('Error fetching confirmed items:', error);
+    res.status(500).json({ error: 'Failed to fetch confirmed items' });
   }
 });
 
