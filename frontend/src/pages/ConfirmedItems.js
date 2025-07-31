@@ -166,12 +166,35 @@ function ConfirmedItems() {
 
   const handleSaveEdit = async () => {
     try {
+      // Validate and clean the form data before sending
+      const cleanedForm = { ...editForm };
+      
+      // Convert quantity to number and validate
+      if (cleanedForm.quantity !== undefined && cleanedForm.quantity !== '') {
+        const quantity = parseInt(cleanedForm.quantity);
+        if (isNaN(quantity) || quantity < 0) {
+          alert('Please enter a valid quantity (positive number)');
+          return;
+        }
+        cleanedForm.quantity = quantity;
+      } else {
+        // If quantity is empty, don't send it to avoid database errors
+        delete cleanedForm.quantity;
+      }
+      
+      // Remove empty fields to avoid sending empty strings
+      Object.keys(cleanedForm).forEach(key => {
+        if (cleanedForm[key] === '' || cleanedForm[key] === null || cleanedForm[key] === undefined) {
+          delete cleanedForm[key];
+        }
+      });
+      
       const response = await fetch(`http://10.167.49.203:3004/confirmed-items/${selectedItem.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(cleanedForm),
       });
 
       if (response.ok) {
@@ -179,26 +202,27 @@ function ConfirmedItems() {
         setConfirmedItems(prev => 
           prev.map(item => 
             item.id === selectedItem.id 
-              ? { ...item, ...editForm }
+              ? { ...item, ...cleanedForm }
               : item
           )
         );
         setFilteredItems(prev => 
           prev.map(item => 
             item.id === selectedItem.id 
-              ? { ...item, ...editForm }
+              ? { ...item, ...cleanedForm }
               : item
           )
         );
-        setSelectedItem(prev => ({ ...prev, ...editForm }));
+        setSelectedItem(prev => ({ ...prev, ...cleanedForm }));
         setIsEditing(false);
         alert('Item updated successfully!');
       } else {
-        throw new Error('Failed to update item');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update item');
       }
     } catch (error) {
       console.error('Error updating item:', error);
-      alert('Error updating item. Please try again.');
+      alert(`Error updating item: ${error.message}`);
     }
   };
 

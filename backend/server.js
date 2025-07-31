@@ -91,6 +91,12 @@ app.use(async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Database connection error:', err);
+    console.error('Database config:', {
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'asset',
+      database: process.env.DB_NAME || 'order_management',
+      port: 3306
+    });
     res.status(500).send('Database connection error');
   }
 });
@@ -462,8 +468,13 @@ app.put('/confirmed-items/:id', async (req, res) => {
     }
     
     if (updateData.quantity !== undefined) {
+      // Convert quantity to integer and validate
+      const quantity = parseInt(updateData.quantity);
+      if (isNaN(quantity) || quantity < 0) {
+        return res.status(400).json({ message: 'Invalid quantity value' });
+      }
       updateFields.push('confirmed_quantity = ?');
-      updateValues.push(updateData.quantity);
+      updateValues.push(quantity);
     }
     
     if (updateData.item_comment !== undefined) {
@@ -514,7 +525,12 @@ app.put('/confirmed-items/:id', async (req, res) => {
     }
   } catch (err) {
     console.error('Error updating confirmed item:', err.message);
-    res.status(500).send('Error updating confirmed item');
+    console.error('Update data received:', updateData);
+    console.error('Order ID:', orderId, 'Serial Index:', serialIndex);
+    res.status(500).json({ 
+      message: 'Error updating confirmed item',
+      error: err.message 
+    });
   }
 });
 
