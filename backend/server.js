@@ -398,12 +398,14 @@ app.get('/confirmed-items', async (req, res) => {
     rows.forEach(row => {
       if (row.serial_numbers) {
         const serialNumbers = row.serial_numbers.split(',').map(s => s.trim());
-        serialNumbers.forEach(serialNumber => {
+        serialNumbers.forEach((serialNumber, index) => {
           if (serialNumber && !deployedSerialNumbers.has(serialNumber.toLowerCase())) {
             expandedItems.push({
               ...row,
+              id: `${row.id}-${index}`, // Generate unique ID for each expanded item
               serial_number: serialNumber,
-              original_id: row.id
+              original_id: row.id,
+              serial_index: index // Track which serial number this is
             });
           }
         });
@@ -430,8 +432,8 @@ app.put('/confirmed-items/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     
-    // Parse the ID to get the original order ID and item index
-    const [orderId, itemIndex] = id.split('-').map(Number);
+    // Parse the ID to get the original order ID and serial index
+    const [orderId, serialIndex] = id.split('-').map(Number);
     
     if (!orderId || isNaN(orderId)) {
       return res.status(400).json({ message: 'Invalid order ID' });
@@ -487,8 +489,8 @@ app.put('/confirmed-items/:id', async (req, res) => {
     // Update serial numbers if provided
     if (updateData.serial_number !== undefined) {
       const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
-      if (currentSerialNumbers[itemIndex] !== undefined) {
-        currentSerialNumbers[itemIndex] = updateData.serial_number;
+      if (serialIndex !== undefined && currentSerialNumbers[serialIndex] !== undefined) {
+        currentSerialNumbers[serialIndex] = updateData.serial_number;
         updateFields.push('serial_numbers = ?');
         updateValues.push(JSON.stringify(currentSerialNumbers));
       }
@@ -521,8 +523,8 @@ app.delete('/confirmed-items/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Parse the ID to get the original order ID and item index
-    const [orderId, itemIndex] = id.split('-').map(Number);
+    // Parse the ID to get the original order ID and serial index
+    const [orderId, serialIndex] = id.split('-').map(Number);
     
     if (!orderId || isNaN(orderId)) {
       return res.status(400).json({ message: 'Invalid order ID' });
@@ -558,9 +560,9 @@ app.delete('/confirmed-items/:id', async (req, res) => {
       // 2. Remove the specific serial number from the array
       const currentSerialNumbers = order.serial_numbers ? JSON.parse(order.serial_numbers) : [];
       
-      if (currentSerialNumbers[itemIndex] !== undefined) {
+      if (serialIndex !== undefined && currentSerialNumbers[serialIndex] !== undefined) {
         // Remove the specific serial number
-        currentSerialNumbers.splice(itemIndex, 1);
+        currentSerialNumbers.splice(serialIndex, 1);
         
         // Update the order
         const [result] = await pool.query(
