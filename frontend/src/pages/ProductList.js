@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react'; // Import useContext
 import { 
   Container, 
   Typography, 
@@ -39,10 +39,12 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
 import { supabase } from '../supabaseClient'; // Import Supabase client
+import { AuthContext } from '../context/AuthContext'; // Import AuthContext
 
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const { user } = useContext(AuthContext); // Get the logged-in user
 
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
   const [open, setOpen] = useState(false);
@@ -210,7 +212,8 @@ function ProductList() {
       order_id: orderId, // Add the generated order ID to each item
       product_id: item.product.id,
       quantity: item.quantity,
-      order_date: orderDate
+      order_date: orderDate,
+      ordered_by: user.email // Add the user's email
     }));
 
     try {
