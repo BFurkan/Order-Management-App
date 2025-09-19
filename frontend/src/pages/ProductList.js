@@ -200,44 +200,33 @@ function ProductList() {
     setCart(prevCart => prevCart.filter(item => item.product.id !== productId));
   };
 
-  const submitOrder = () => {
-    // Send the date as a simple YYYY-MM-DD string to avoid timezone issues
-    // The backend will handle it as a date string, not a datetime
+  const submitOrder = async () => {
     console.log('Order date input:', orderDate);
     
-    // Use bulk order endpoint to keep all items together with same order ID
     const orderItems = cart.map(item => ({
       product_id: item.product.id,
-      quantity: item.quantity
+      quantity: item.quantity,
+      order_date: orderDate
     }));
 
-    fetch('http://10.167.49.203:3004/bulk-orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        items: orderItems,
-        order_date: orderDate, // Send as simple YYYY-MM-DD string
-      }),
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    })
-    .then(data => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(orderItems)
+        .select();
+
+      if (error) throw error;
+      
       console.log('Bulk order submitted:', data);
-      alert(`Order submitted successfully! Order ID: ${data.order_id}`);
+      alert(`Order submitted successfully!`);
       setCart([]);
       setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today's date
       setOpen(false);
-    })
-    .catch(error => {
-      console.error('Error submitting order:', error);
+
+    } catch (error) {
+      console.error('Error submitting order:', error.message);
       alert('Error submitting order. Please try again.');
-    });
+    }
   };
 
   const addProduct = async () => {

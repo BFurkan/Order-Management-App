@@ -26,6 +26,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { safeFormatDate } from '../utils/dateUtils';
 import theme from './theme';
+import { supabase } from '../supabaseClient'; // Import supabase client
 
 function OrderSummary() {
   const [groupedOrders, setGroupedOrders] = useState({});
@@ -48,21 +49,31 @@ function OrderSummary() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/orders');
-      const data = await response.json();
-      
-      // Group orders by order_id
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          product:products(product_name, image)
+        `);
+
+      if (error) throw error;
+
       const grouped = data.reduce((acc, order) => {
-        if (!acc[order.order_id]) {
-          acc[order.order_id] = [];
+        const enrichedOrder = {
+          ...order,
+          product_name: order.product?.product_name || 'N/A',
+          image: order.product?.image ? supabase.storage.from('product-images').getPublicUrl(order.product.image).data.publicUrl : '/placeholder.png'
+        };
+
+        if (!acc[enrichedOrder.order_id]) {
+          acc[enrichedOrder.order_id] = [];
         }
-        acc[order.order_id].push(order);
+        acc[enrichedOrder.order_id].push(enrichedOrder);
         return acc;
       }, {});
       
       setGroupedOrders(grouped);
       
-      // Extract comments from orders
       const comments = {};
       data.forEach(order => {
         if (order.comment) {
@@ -83,37 +94,29 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-id', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          oldOrderId: editingOrderId,
-          newOrderId: newOrderId,
-        }),
-      });
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ order_id: newOrderId })
+        .eq('order_id', editingOrderId);
 
-      if (response.ok) {
-        // Update the local state
-        const updatedGroupedOrders = { ...groupedOrders };
-        updatedGroupedOrders[newOrderId] = updatedGroupedOrders[editingOrderId];
-        delete updatedGroupedOrders[editingOrderId];
-        setGroupedOrders(updatedGroupedOrders);
-        
-        // Update comments if they exist
-        if (orderComments[editingOrderId]) {
-          const updatedComments = { ...orderComments };
-          updatedComments[newOrderId] = updatedComments[editingOrderId];
-          delete updatedComments[editingOrderId];
-          setOrderComments(updatedComments);
-        }
-        
-        setEditingOrderId(null);
-        setNewOrderId('');
-      } else {
-        alert('Failed to update order ID');
+      if (error) throw error;
+      
+      // Manually update local state as Supabase doesn't return the updated records on a bulk update
+      const updatedGroupedOrders = { ...groupedOrders };
+      updatedGroupedOrders[newOrderId] = updatedGroupedOrders[editingOrderId].map(o => ({...o, order_id: newOrderId}));
+      delete updatedGroupedOrders[editingOrderId];
+      setGroupedOrders(updatedGroupedOrders);
+      
+      if (orderComments[editingOrderId]) {
+        const updatedComments = { ...orderComments };
+        updatedComments[newOrderId] = updatedComments[editingOrderId];
+        delete updatedComments[editingOrderId];
+        setOrderComments(updatedComments);
       }
+      
+      setEditingOrderId(null);
+      setNewOrderId('');
+
     } catch (error) {
       console.error('Error updating order ID:', error);
       alert('Error updating order ID');
@@ -132,28 +135,20 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: editingCommentOrderId,
-          comment: commentText,
-        }),
-      });
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ comment: commentText })
+        .eq('order_id', editingCommentOrderId);
 
-      if (response.ok) {
-        // Update local state
-        setOrderComments(prev => ({
-          ...prev,
-          [editingCommentOrderId]: commentText
-        }));
-        setEditingCommentOrderId(null);
-        setCommentText('');
-      } else {
-        alert('Failed to update comment');
-      }
+      if (error) throw error;
+
+      setOrderComments(prev => ({
+        ...prev,
+        [editingCommentOrderId]: commentText
+      }));
+      setEditingCommentOrderId(null);
+      setCommentText('');
+
     } catch (error) {
       console.error('Error updating comment:', error);
       alert('Error updating comment');
@@ -432,7 +427,7 @@ function OrderSummary() {
                         <TableRow key={order.id} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.203:3004${order.image}`}
+                              src={order.image}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />
