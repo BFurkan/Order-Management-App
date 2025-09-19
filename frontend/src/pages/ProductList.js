@@ -40,6 +40,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
 import { supabase } from '../supabaseClient'; // Import Supabase client
 import { AuthContext } from '../context/AuthContext'; // Import AuthContext
+import { v4 as uuidv4 } from 'uuid'; // Import UUID generator
 
 function ProductList() {
   const [products, setProducts] = useState([]);
@@ -205,11 +206,11 @@ function ProductList() {
   const submitOrder = async () => {
     console.log('Order date input:', orderDate);
     
-    // Generate a single, unique order ID for all items in this cart
-    const orderId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a single, unique UUID for all items in this cart
+    const orderId = uuidv4();
 
     const orderItems = cart.map(item => ({
-      order_id: orderId, // Add the generated order ID to each item
+      id: orderId, // Use the generated UUID as the primary key for the new order
       product_id: item.product.id,
       quantity: item.quantity,
       order_date: orderDate,
