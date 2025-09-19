@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Paper } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
+import { supabase } from '../supabaseClient'; // Import supabase
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -12,11 +13,25 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:3004/api/dashboard-stats');
-        const data = await response.json();
-        setStats(data);
+        // Get total number of unique orders
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true });
+
+        if (ordersError) throw ordersError;
+
+        // Get popular products
+        const { data: popularProducts, error: productsError } = await supabase
+          .rpc('get_popular_products');
+        
+        if (productsError) throw productsError;
+
+        setStats({
+          totalOrders: orders.count,
+          popularProducts: popularProducts || [],
+        });
       } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
+        console.error('Error fetching dashboard stats:', error.message);
       }
     };
 

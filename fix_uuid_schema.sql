@@ -1,39 +1,70 @@
--- This is the definitive script to migrate your order IDs to UUIDs.
--- It uses the exact column names you provided.
+-- This script completely resets and rebuilds your database schema to match the application code.
+-- WARNING: This will delete all existing data in these tables.
 
--- Step 1: Drop existing foreign key constraints to unlock the tables.
--- We must also drop the constraint from deployed_items, as it depends on confirmed_items.
-ALTER TABLE public.deployed_items DROP CONSTRAINT IF EXISTS deployed_items_confirmed_item_id_fkey;
-ALTER TABLE public.confirmed_items DROP CONSTRAINT IF EXISTS confirmed_items_order_id_fkey;
-ALTER TABLE public.inventory_items DROP CONSTRAINT IF EXISTS inventory_items_OrderID_fkey; 
+-- Drop tables in reverse order of dependency to avoid errors.
+DROP TABLE IF EXISTS public.deployed_items;
+DROP TABLE IF EXISTS public.inventory_items;
+DROP TABLE IF EXISTS public.confirmed_items;
+DROP TABLE IF EXISTS public.orders;
+DROP TABLE IF EXISTS public.products;
 
--- Step 2: Clear all data from the transactional tables to ensure a clean migration.
-TRUNCATE TABLE public.deployed_items, public.confirmed_items, public.inventory_items, public.orders RESTART IDENTITY CASCADE;
+-- Create the products table first, as it's a parent table.
+CREATE TABLE public.products (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    name character varying NULL,
+    category character varying NULL,
+    price numeric NULL,
+    image text NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NULL,
+    CONSTRAINT products_pkey PRIMARY KEY (id)
+);
 
--- Step 3: Alter the column types to UUID.
--- We alter the parent table (orders) first.
-ALTER TABLE public.orders
-  ALTER COLUMN id DROP DEFAULT,
-  ALTER COLUMN id SET DATA TYPE UUID USING (uuid_generate_v4()),
-  ALTER COLUMN id SET DEFAULT uuid_generate_v4();
+-- Create the orders table, which will be the parent for transactional items.
+CREATE TABLE public.orders (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    order_date date NULL,
+    ordered_by character varying NULL,
+    comment text NULL,
+    product_id uuid NULL,
+    quantity integer NULL,
+    CONSTRAINT orders_pkey PRIMARY KEY (id),
+    CONSTRAINT orders_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id)
+);
 
--- Now, alter the child tables using their specific, case-sensitive column names.
-ALTER TABLE public.confirmed_items
-  ALTER COLUMN order_id SET DATA TYPE UUID USING (order_id::uuid);
+-- Create the confirmed_items table.
+CREATE TABLE public.confirmed_items (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    order_id uuid NULL,
+    serial_number character varying NULL,
+    item_comment text NULL,
+    confirmed_at timestamp with time zone NULL DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT confirmed_items_pkey PRIMARY KEY (id),
+    CONSTRAINT confirmed_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
 
-ALTER TABLE public.inventory_items
-  ALTER COLUMN "OrderID" SET DATA TYPE UUID USING ("OrderID"::uuid);
+-- Create the deployed_items table.
+CREATE TABLE public.deployed_items (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    confirmed_item_id uuid NULL,
+    deployed_by character varying NULL,
+    deployment_location character varying NULL,
+    deployed_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT deployed_items_pkey PRIMARY KEY (id),
+    CONSTRAINT deployed_items_confirmed_item_id_fkey FOREIGN KEY (confirmed_item_id) REFERENCES confirmed_items(id) ON DELETE CASCADE
+);
 
--- Note: We do not need to alter deployed_items' foreign key column type,
--- as it links to confirmed_items.id, which we are not changing.
-
--- Step 4: Add the foreign key constraints back with the correct relationships.
-ALTER TABLE public.confirmed_items
-  ADD CONSTRAINT confirmed_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE CASCADE;
-
-ALTER TABLE public.inventory_items
-  ADD CONSTRAINT inventory_items_OrderID_fkey FOREIGN KEY ("OrderID") REFERENCES public.orders(id) ON DELETE CASCADE;
-
--- Re-add the constraint for deployed_items.
-ALTER TABLE public.deployed_items
-  ADD CONSTRAINT deployed_items_confirmed_item_id_fkey FOREIGN KEY (confirmed_item_id) REFERENCES public.confirmed_items(id) ON DELETE CASCADE;
+-- Create the inventory_items table.
+CREATE TABLE public.inventory_items (
+    "ItemID" uuid NOT NULL DEFAULT uuid_generate_v4(),
+    "OrderID" uuid NULL,
+    "ItemName" character varying NULL,
+    "Barcode" character varying NULL,
+    "Status" character varying NULL,
+    "Received" date NULL,
+    "Count" integer NULL,
+    CONSTRAINT inventory_items_pkey PRIMARY KEY ("ItemID"),
+    CONSTRAINT inventory_items_OrderID_fkey FOREIGN KEY ("OrderID") REFERENCES orders(id) ON DELETE CASCADE
+);

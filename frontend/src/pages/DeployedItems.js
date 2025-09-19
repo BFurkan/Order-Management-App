@@ -142,16 +142,18 @@ function DeployedItems() {
         .from('deployed_items')
         .select(`
           *,
-          order:orders(*, product:products(name, image))
+          confirmed_item:confirmed_items(*, order:orders(*, product:products(name, image)))
         `);
 
       if (error) throw error;
       
       const enrichedData = data.map(item => ({
         ...item,
-        ...item.order,
-        product_name: item.order.product?.name || 'N/A',
-        image: item.order.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.order.product.image).data.publicUrl : '/placeholder.png'
+        ...item.confirmed_item.order,
+        product_name: item.confirmed_item.order.product?.name || 'N/A',
+        image: item.confirmed_item.order.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.confirmed_item.order.product.image).data.publicUrl : '/placeholder.png',
+        serial_number: item.confirmed_item.serial_number,
+        confirm_date: item.confirmed_item.confirmed_at
       }));
 
       setDeployedItems(enrichedData);
