@@ -53,7 +53,7 @@ function OrderSummary() {
         .from('orders')
         .select(`
           *,
-          product:products(product_name, image)
+          product:products(name, image)
         `);
 
       if (error) throw error;
@@ -61,7 +61,7 @@ function OrderSummary() {
       const grouped = data.reduce((acc, order) => {
         const enrichedOrder = {
           ...order,
-          product_name: order.product?.product_name || 'N/A',
+          product_name: order.product?.name || 'N/A',
           image: order.product?.image ? supabase.storage.from('product-images').getPublicUrl(order.product.image).data.publicUrl : '/placeholder.png'
         };
 

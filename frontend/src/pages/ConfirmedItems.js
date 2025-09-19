@@ -40,6 +40,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { safeFormatDate, safeFormatDateTime, safeToISODate } from '../utils/dateUtils';
 import theme from './theme';
+import { supabase } from '../supabaseClient'; // Import Supabase
 
 function ConfirmedItems() {
   const [confirmedItems, setConfirmedItems] = useState([]);
@@ -121,6 +122,38 @@ function ConfirmedItems() {
     setLastRefresh(Date.now());
   };
 
+  const fetchConfirmedItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          product:products(name, image)
+        `)
+        .eq('status', 'confirmed');
+      
+      if (error) throw error;
+
+      const enrichedData = data.map(item => ({
+        ...item,
+        product_name: item.product?.name || 'N/A',
+        image: item.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.product.image).data.publicUrl : '/placeholder.png'
+      }));
+
+      setConfirmedItems(enrichedData);
+      setFilteredItems(enrichedData);
+
+      const comments = {};
+      enrichedData.forEach(item => {
+        if (item.comment) comments[item.order_id] = item.comment;
+      });
+      setOrderComments(comments);
+
+    } catch (error) {
+      console.error('Error fetching confirmed items:', error.message);
+    }
+  };
+
   const renderComment = (comment) => {
     if (!comment) return 'No comment';
     if (typeof comment === 'object') {
@@ -166,62 +199,32 @@ function ConfirmedItems() {
 
   const handleSaveEdit = async () => {
     try {
-      // Validate and clean the form data before sending
-      const cleanedForm = { ...editForm };
-      
-      // Convert quantity to number and validate
-      if (cleanedForm.quantity !== undefined && cleanedForm.quantity !== '') {
-        const quantity = parseInt(cleanedForm.quantity);
-        if (isNaN(quantity) || quantity < 0) {
-          alert('Please enter a valid quantity (positive number)');
-          return;
-        }
-        cleanedForm.quantity = quantity;
-      } else {
-        // If quantity is empty, don't send it to avoid database errors
-        delete cleanedForm.quantity;
-      }
-      
-      // Remove empty fields to avoid sending empty strings
-      Object.keys(cleanedForm).forEach(key => {
-        if (cleanedForm[key] === '' || cleanedForm[key] === null || cleanedForm[key] === undefined) {
-          delete cleanedForm[key];
-        }
-      });
-      
-      const response = await fetch(`http://10.167.49.203:3004/confirmed-items/${selectedItem.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cleanedForm),
-      });
+      const updateData = {
+        product_name: editForm.product_name,
+        quantity: editForm.quantity,
+        serial_number: editForm.serial_number,
+        item_comment: editForm.item_comment,
+        order_date: editForm.order_date,
+        confirm_date: editForm.confirm_date
+      };
 
-      if (response.ok) {
-        // Update the local state
-        setConfirmedItems(prev => 
-          prev.map(item => 
-            item.id === selectedItem.id 
-              ? { ...item, ...cleanedForm }
-              : item
-          )
-        );
-        setFilteredItems(prev => 
-          prev.map(item => 
-            item.id === selectedItem.id 
-              ? { ...item, ...cleanedForm }
-              : item
-          )
-        );
-        setSelectedItem(prev => ({ ...prev, ...cleanedForm }));
-        setIsEditing(false);
-        alert('Item updated successfully!');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update item');
-      }
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', selectedItem.id)
+        .select();
+
+      if (error) throw error;
+
+      // Manually update local state to avoid a full refresh
+      const updatedItem = { ...selectedItem, ...updateData };
+      setConfirmedItems(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
+      setSelectedItem(updatedItem);
+      setIsEditing(false);
+      alert('Item updated successfully!');
+
     } catch (error) {
-      console.error('Error updating item:', error);
+      console.error('Error updating item:', error.message);
       alert(`Error updating item: ${error.message}`);
     }
   };
@@ -250,65 +253,27 @@ function ConfirmedItems() {
     if (!confirmDelete) return;
     
     try {
-      const response = await fetch(`http://10.167.49.203:3004/confirmed-items/${selectedItem.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', selectedItem.id);
 
-      if (response.ok) {
-        // Remove the item from local state
-        setConfirmedItems(prev => prev.filter(item => item.id !== selectedItem.id));
-        setFilteredItems(prev => prev.filter(item => item.id !== selectedItem.id));
-        
-        // Close the modal
-        setModalOpen(false);
-        setSelectedItem(null);
-        setIsEditing(false);
-        
-        alert('Item deleted successfully!');
-      } else {
-        throw new Error('Failed to delete item');
-      }
+      if (error) throw error;
+
+      setConfirmedItems(prev => prev.filter(item => item.id !== selectedItem.id));
+      setModalOpen(false);
+      setSelectedItem(null);
+      setIsEditing(false);
+      alert('Item deleted successfully!');
+
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error('Error deleting item:', error.message);
       alert('Error deleting item. Please try again.');
     }
   };
 
   useEffect(() => {
-    // Fetch confirmed items with order ID and comment
-    fetch('http://10.167.49.203:3004/confirmed-items')
-      .then(response => response.json())
-      .then(data => {
-        console.log('Confirmed items data:', data); // Debug log
-        console.log('Sample item structure:', data[0]); // Debug first item structure
-        
-        // Debug image and comment data specifically
-        data.forEach((item, idx) => {
-          console.log(`Item ${idx}:`, {
-            id: item.id,
-            product_name: item.product_name,
-            image: item.image,
-            item_comment: item.item_comment,
-            comment: item.comment
-          });
-        });
-        
-        setConfirmedItems(data);
-        setFilteredItems(data);
-        
-        // Extract comments from confirmed items
-        const comments = {};
-        data.forEach(item => {
-          if (item.comment) {
-            comments[item.order_id] = item.comment;
-          }
-        });
-        setOrderComments(comments);
-      })
-      .catch(error => console.error('Error fetching confirmed items:', error));
+    fetchConfirmedItems();
   }, [lastRefresh]);
 
   useEffect(() => {
@@ -725,7 +690,7 @@ function ConfirmedItems() {
                                   </Box>
                                 ) : (
                                   <img 
-                                    src={`http://10.167.49.203:3004${item.image}`} 
+                                    src={item.image} 
                                     alt={item.product_name} 
                                     style={{ 
                                       width: '60px', 
@@ -735,10 +700,10 @@ function ConfirmedItems() {
                                       border: '1px solid #e0e0e0'
                                     }} 
                                     onError={() => {
-                                      console.log(`Image failed to load for item ${index}, URL: http://10.167.49.203:3004${item.image}`);
+                                      console.log(`Image failed to load for item ${index}, URL: ${item.image}`);
                                       handleImageError(`${orderId}-${index}`);
                                     }}
-                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: http://10.167.49.203:3004${item.image}`)}
+                                    onLoad={() => console.log(`Image loaded successfully for item ${index}, URL: ${item.image}`)}
                                   />
                                 )}
                               </TableCell>
@@ -860,7 +825,7 @@ function ConfirmedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[`${selectedItem.order_id}-${selectedItem.id}`] ? (
                     <img 
-                      src={`http://10.167.49.203:3004${selectedItem.image}`} 
+                      src={selectedItem.image} 
                       alt={selectedItem.product_name}
                       style={{ 
                         width: '120px', 

@@ -31,7 +31,7 @@ function Navigation() {
   }
 
   return (
-    <AppBar position="static" sx={{ backgroundColor: cyan[900] }}>
+    <AppBar position="static" sx={{ backgroundColor: blueGrey[800] }}>
       <Toolbar>
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Order Management
@@ -41,9 +41,6 @@ function Navigation() {
         </Button>
         <Button component={Link} to="/products" sx={{ color: blueGrey[50] }}>
           Product List
-        </Button>
-        <Button component={Link} to="/order-summary" sx={{ color: blueGrey[50] }}>
-          Open Orders
         </Button>
         <Button component={Link} to="/order-details" sx={{ color: blueGrey[50] }}>
           Order Details

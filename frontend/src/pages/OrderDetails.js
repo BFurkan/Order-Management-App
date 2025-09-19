@@ -30,6 +30,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { safeFormatDate } from '../utils/dateUtils';
 import theme from './theme';
 import ColumnSelector from '../components/ColumnSelector';
+import { supabase } from '../supabaseClient'; // Import Supabase
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
@@ -77,8 +78,55 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    // No need to fetch products for this page - removed unused variable
+    fetchOrders();
   }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          product:products(name, image)
+        `)
+        .eq('status', 'open');
+
+      if (error) throw error;
+
+      const sortedData = data.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+
+      const grouped = sortedData.reduce((acc, order) => {
+        const enrichedOrder = {
+          ...order,
+          product_name: order.product?.name || 'N/A',
+          image: order.product?.image ? supabase.storage.from('product-images').getPublicUrl(order.product.image).data.publicUrl : '/placeholder.png'
+        };
+
+        if (!acc[enrichedOrder.order_id]) {
+          acc[enrichedOrder.order_id] = [];
+        }
+        acc[enrichedOrder.order_id].push(enrichedOrder);
+        return acc;
+      }, {});
+
+      setGroupedOrders(grouped);
+
+      const comments = {};
+      data.forEach(order => {
+        if (order.comment) comments[order.order_id] = order.comment;
+      });
+      setOrderComments(comments);
+
+      const productCommentsData = {};
+      data.forEach(order => {
+        if (order.item_comment) productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
+      });
+      setProductComments(productCommentsData);
+
+    } catch (error) {
+      console.error('Error fetching orders:', error.message);
+    }
+  };
 
   const handleColumnToggle = (column) => {
     setVisibleColumns(prev => ({
@@ -111,53 +159,7 @@ function OrderDetails() {
   };
 
   useEffect(() => {
-    fetch('http://10.167.49.203:3004/orders')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        // Sort orders by order_date (newest first) and then by order_id
-        const sortedData = data.sort((a, b) => {
-          const dateA = new Date(a.order_date);
-          const dateB = new Date(b.order_date);
-          if (dateA.getTime() !== dateB.getTime()) {
-            return dateB.getTime() - dateA.getTime(); // Newest first
-          }
-          // If same date, sort by order_id (newest first)
-          return parseInt(b.order_id) - parseInt(a.order_id);
-        });
-        
-        const grouped = sortedData.reduce((acc, order) => {
-          if (!acc[order.order_id]) {
-            acc[order.order_id] = [];
-          }
-          acc[order.order_id].push(order);
-          return acc;
-        }, {});
-       setGroupedOrders(grouped);
-       
-       // Extract order-level comments from orders
-       const comments = {};
-       data.forEach(order => {
-         if (order.comment) {
-           comments[order.order_id] = order.comment;
-         }
-       });
-       setOrderComments(comments);
-
-       // Extract product-level comments from orders
-       const productCommentsData = {};
-       data.forEach(order => {
-         if (order.item_comment) {
-           productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
-         }
-       });
-       setProductComments(productCommentsData);
-      })
-      .catch(error => console.error('Error fetching orders:', error));
+    // No need to fetch products for this page - removed unused variable
   }, []);
 
   const handleSerialNumberChange = (order_id, product_id, value) => {
@@ -176,31 +178,23 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-order-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: currentCommentOrderId,
-          comment: commentText,
-        }),
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({ comment: commentText })
+        .eq('order_id', currentCommentOrderId);
 
-      if (response.ok) {
-        // Update local state
-        setOrderComments(prev => ({
-          ...prev,
-          [currentCommentOrderId]: commentText
-        }));
-        setCommentDialogOpen(false);
-        setCurrentCommentOrderId(null);
-        setCommentText('');
-      } else {
-        alert('Failed to update comment');
-      }
+      if (error) throw error;
+
+      setOrderComments(prev => ({
+        ...prev,
+        [currentCommentOrderId]: commentText
+      }));
+      setCommentDialogOpen(false);
+      setCurrentCommentOrderId(null);
+      setCommentText('');
+
     } catch (error) {
-      console.error('Error updating comment:', error);
+      console.error('Error updating comment:', error.message);
       alert('Error updating comment');
     }
   };
@@ -214,69 +208,53 @@ function OrderDetails() {
 
   const handleSaveProductComment = async () => {
     try {
-      const response = await fetch('http://10.167.49.203:3004/update-product-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: currentProductComment.orderId,
-          productId: currentProductComment.productId,
-          comment: productCommentText,
-        }),
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({ item_comment: productCommentText })
+        .match({ order_id: currentProductComment.orderId, product_id: currentProductComment.productId });
 
-      if (response.ok) {
-        // Update local state
-        setProductComments(prev => ({
-          ...prev,
-          [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
-        }));
-        setProductCommentDialogOpen(false);
-        setCurrentProductComment({ orderId: null, productId: null });
-        setProductCommentText('');
-      } else {
-        alert('Failed to update product comment');
-      }
+      if (error) throw error;
+
+      setProductComments(prev => ({
+        ...prev,
+        [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
+      }));
+      setProductCommentDialogOpen(false);
+      setCurrentProductComment({ orderId: null, productId: null });
+      setProductCommentText('');
+
     } catch (error) {
-      console.error('Error updating product comment:', error);
+      console.error('Error updating product comment:', error.message);
       alert('Error updating product comment');
     }
   };
 
-  const handleConfirm = (order_id, product_id) => {
+  const handleConfirm = async (order_id, product_id) => {
     const serialNumber = serialNumbers[`${order_id}-${product_id}`];
     if (!serialNumber) {
       alert('Please enter a serial number before confirming.');
       return;
     }
 
-    fetch('http://10.167.49.203:3004/confirm', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        order_id,
-        product_id,
-        serialNumber,
-      }),
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        alert('Order confirmed successfully!');
-        // Refresh the page or update state
-        window.location.reload();
-      })
-      .catch(error => {
-        console.error('Error confirming order:', error);
-        alert('Failed to confirm order');
-      });
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'confirmed',
+          serial_number: serialNumber,
+          confirm_date: new Date().toISOString()
+        })
+        .match({ order_id: order_id, product_id: product_id });
+
+      if (error) throw error;
+
+      alert('Order confirmed successfully!');
+      fetchOrders(); // Refresh the data
+      
+    } catch (error) {
+      console.error('Error confirming order:', error.message);
+      alert('Failed to confirm order');
+    }
   };
 
   const handleAccordionChange = (orderId) => (event, isExpanded) => {
@@ -459,7 +437,7 @@ function OrderDetails() {
                         <TableRow key={`${orderId}-${index}`} hover>
                           <TableCell>
                             <img
-                              src={`http://10.167.49.203:3004${order.image}`}
+                              src={order.image}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />
