@@ -41,6 +41,7 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { safeFormatDate, safeFormatDateTime } from '../utils/dateUtils';
 import theme from './theme';
+import { supabase } from '../supabaseClient'; // Import supabase
 
 function DeployedItems() {
   const [deployedItems, setDeployedItems] = useState([]);
@@ -134,30 +135,38 @@ function DeployedItems() {
     return email.split('@')[0];
   };
 
-  useEffect(() => {
-    fetch('http://10.167.49.203:3004/deployed-items')
-      .then(response => response.json())
-      .then(data => {
-        setDeployedItems(data);
-        setLoading(false);
-        
-        // Group items by order_id
-        const grouped = data.reduce((acc, item) => {
-          const orderId = item.order_id;
-          if (!acc[orderId]) {
-            acc[orderId] = [];
-          }
-          acc[orderId].push(item);
-          return acc;
-        }, {});
-        
-        setGroupedItems(grouped);
-      })
-      .catch(error => {
-        console.error('Error fetching deployed items:', error);
-        setError('Failed to fetch deployed items');
+  const fetchDeployedItems = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('deployed_items')
+        .select(`
+          *,
+          order:orders(*, product:products(name, image))
+        `);
+
+      if (error) throw error;
+      
+      const enrichedData = data.map(item => ({
+        ...item,
+        ...item.order,
+        product_name: item.order.product?.name || 'N/A',
+        image: item.order.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.order.product.image).data.publicUrl : '/placeholder.png'
+      }));
+
+      setDeployedItems(enrichedData);
+      setFilteredItems(enrichedData);
+
+    } catch (err) {
+      console.error('Error fetching deployed items:', err);
+      setError('Failed to fetch deployed items');
+    } finally {
       setLoading(false);
-      });
+    }
+  };
+
+  useEffect(() => {
+    fetchDeployedItems();
   }, [lastRefresh]);
 
   useEffect(() => {
@@ -235,25 +244,19 @@ function DeployedItems() {
   const undeployItem = async (itemId) => {
     if (window.confirm('Are you sure you want to undeploy this item?')) {
       try {
-        const response = await fetch('http://10.167.49.203:3004/undeploy-item', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            itemId: itemId,
-            serialNumber: selectedItem?.serial_number
-        }),
-      });
+        // First, delete the item from the deployed_items table
+        const { error: deleteError } = await supabase
+          .from('deployed_items')
+          .delete()
+          .eq('id', itemId);
 
-        if (response.ok) {
+        if (deleteError) throw deleteError;
+        
         setSuccess('Item undeployed successfully!');
-          refreshData();
-          setModalOpen(false);
+        refreshData();
+        setModalOpen(false);
         setTimeout(() => setSuccess(''), 3000);
-      } else {
-          setError('Failed to undeploy item');
-        }
+
       } catch (error) {
         console.error('Error undeploying item:', error);
         setError('Error undeploying item. Please try again.');
@@ -579,7 +582,7 @@ function DeployedItems() {
                         </Box>
                       ) : (
                         <img
-                                   src={`http://10.167.49.203:3004${item.image}`} 
+                                   src={item.image} 
                           alt={item.product_name}
                           style={{ 
                             width: '60px', 
@@ -697,7 +700,7 @@ function DeployedItems() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   {selectedItem.image && !imageErrors[selectedItem.id] ? (
                     <img 
-                      src={`http://10.167.49.203:3004${selectedItem.image}`} 
+                      src={selectedItem.image} 
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 

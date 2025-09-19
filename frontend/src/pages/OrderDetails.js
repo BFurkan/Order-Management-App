@@ -88,12 +88,19 @@ function OrderDetails() {
         .select(`
           *,
           product:products(name, image)
-        `)
-        .eq('status', 'open');
+        `);
 
       if (error) throw error;
 
-      const sortedData = data.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+      // Filter for items that are NOT in confirmed_items or deployed_items
+      const { data: confirmedIds } = await supabase.from('confirmed_items').select('order_id');
+      const { data: deployedIds } = await supabase.from('deployed_items').select('order_id');
+      const confirmedIdSet = new Set((confirmedIds || []).map(i => i.order_id));
+      const deployedIdSet = new Set((deployedIds || []).map(i => i.order_id));
+
+      const openOrders = data.filter(order => !confirmedIdSet.has(order.id) && !deployedIdSet.has(order.id));
+
+      const sortedData = openOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
 
       const grouped = sortedData.reduce((acc, order) => {
         const enrichedOrder = {

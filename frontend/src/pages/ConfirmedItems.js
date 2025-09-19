@@ -125,19 +125,19 @@ function ConfirmedItems() {
   const fetchConfirmedItems = async () => {
     try {
       const { data, error } = await supabase
-        .from('orders')
+        .from('confirmed_items')
         .select(`
           *,
-          product:products(name, image)
-        `)
-        .eq('status', 'confirmed');
+          order:orders(*, product:products(name, image))
+        `);
       
       if (error) throw error;
 
       const enrichedData = data.map(item => ({
         ...item,
-        product_name: item.product?.name || 'N/A',
-        image: item.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.product.image).data.publicUrl : '/placeholder.png'
+        ...item.order,
+        product_name: item.order.product?.name || 'N/A',
+        image: item.order.product?.image ? supabase.storage.from('product-images').getPublicUrl(item.order.product.image).data.publicUrl : '/placeholder.png'
       }));
 
       setConfirmedItems(enrichedData);
@@ -200,16 +200,13 @@ function ConfirmedItems() {
   const handleSaveEdit = async () => {
     try {
       const updateData = {
-        product_name: editForm.product_name,
-        quantity: editForm.quantity,
         serial_number: editForm.serial_number,
         item_comment: editForm.item_comment,
-        order_date: editForm.order_date,
         confirm_date: editForm.confirm_date
       };
 
       const { data, error } = await supabase
-        .from('orders')
+        .from('confirmed_items')
         .update(updateData)
         .eq('id', selectedItem.id)
         .select();
@@ -254,7 +251,7 @@ function ConfirmedItems() {
     
     try {
       const { error } = await supabase
-        .from('orders')
+        .from('confirmed_items')
         .delete()
         .eq('id', selectedItem.id);
 
