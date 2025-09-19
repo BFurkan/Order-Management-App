@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
+import { supabase } from '../supabaseClient'; // Import Supabase client
 
 function ProductList() {
   const [products, setProducts] = useState([]);
@@ -78,11 +79,16 @@ function ProductList() {
 
   const categories = ['All Categories', 'Notebooks', 'Monitors', 'Accessories'];
 
-  const fetchProducts = () => {
-    fetch('http://10.167.49.203:3004/products')
-      .then(response => response.json())
-      .then(data => setProducts(data))
-      .catch(error => console.error('Error fetching products:', error));
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      if (error) throw error;
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error.message);
+    }
   };
 
   useEffect(() => {
@@ -234,27 +240,22 @@ function ProductList() {
     });
   };
 
-  const addProduct = () => {
-    const formData = new FormData();
-    formData.append('name', newProduct.name);
-    formData.append('category', newProduct.category);
-    formData.append('price', newProduct.price);
-    if (newProduct.image) {
-      formData.append('image', newProduct.image);
-    }
+  const addProduct = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([{ name: newProduct.name, category: newProduct.category, price: newProduct.price }])
+        .select();
 
-    fetch('http://10.167.49.203:3004/products', {
-      method: 'POST',
-      body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
+      if (error) throw error;
+
       console.log('Product added:', data);
       fetchProducts(); // Refresh the products list
       setAddProductOpen(false);
       setNewProduct({ name: '', category: '', price: '', image: null });
-    })
-    .catch(error => console.error('Error adding product:', error));
+    } catch (error) {
+      console.error('Error adding product:', error.message);
+    }
   };
 
   const handleEditProduct = (product) => {
@@ -268,48 +269,43 @@ function ProductList() {
     setEditProductOpen(true);
   };
 
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      fetch(`http://10.167.49.203:3004/products/${productId}`, {
-        method: 'DELETE',
-      })
-      .then(response => {
-        if (response.ok) {
-          console.log('Product deleted successfully');
-          fetchProducts(); // Refresh the products list
-          setEditProductOpen(false); // Close edit dialog
-        } else {
-          throw new Error('Failed to delete product');
-        }
-      })
-      .catch(error => {
-        console.error('Error deleting product:', error);
+      try {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', productId);
+
+        if (error) throw error;
+
+        console.log('Product deleted successfully');
+        fetchProducts(); // Refresh the products list
+        setEditProductOpen(false); // Close edit dialog
+      } catch (error) {
+        console.error('Error deleting product:', error.message);
         alert('Error deleting product. Please try again.');
-      });
+      }
     }
   };
 
-  const updateProduct = () => {
-    const formData = new FormData();
-    formData.append('name', editProduct.name);
-    formData.append('category', editProduct.category);
-    formData.append('price', editProduct.price);
-    if (editProduct.image) {
-      formData.append('image', editProduct.image);
-    }
+  const updateProduct = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .update({ name: editProduct.name, category: editProduct.category, price: editProduct.price })
+        .eq('id', editProduct.id)
+        .select();
 
-    fetch(`http://10.167.49.203:3004/products/${editProduct.id}`, {
-      method: 'PUT',
-      body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
+      if (error) throw error;
+
       console.log('Product updated:', data);
       fetchProducts(); // Refresh the products list
       setEditProductOpen(false);
       setEditProduct({ id: '', name: '', category: '', price: '', image: null });
-    })
-    .catch(error => console.error('Error updating product:', error));
+    } catch (error) {
+      console.error('Error updating product:', error.message);
+    }
   };
 
   return (
@@ -416,7 +412,7 @@ function ProductList() {
                   {visibleColumns.productImage && (
                     <TableCell>
                       <img 
-                        src={product.image ? `http://10.167.49.203:3004${product.image}` : '/placeholder.png'} 
+                        src={product.image || '/placeholder.png'} 
                         alt={product.name} 
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 4 }} 
                       />
