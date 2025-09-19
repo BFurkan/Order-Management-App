@@ -203,7 +203,11 @@ function ProductList() {
   const submitOrder = async () => {
     console.log('Order date input:', orderDate);
     
+    // Generate a single, unique order ID for all items in this cart
+    const orderId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const orderItems = cart.map(item => ({
+      order_id: orderId, // Add the generated order ID to each item
       product_id: item.product.id,
       quantity: item.quantity,
       order_date: orderDate
