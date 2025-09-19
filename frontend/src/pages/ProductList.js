@@ -408,7 +408,7 @@ function ProductList() {
                   {visibleColumns.productImage && (
                     <TableCell>
                       <img 
-                        src={product.image || '/placeholder.png'} 
+                        src={product.image ? supabase.storage.from('product-images').getPublicUrl(product.image).data.publicUrl : '/placeholder.png'}
                         alt={product.name} 
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 4 }} 
                       />
