@@ -803,6 +803,33 @@ app.post('/undeploy-item', async (req, res) => {
   }
 });
 
+// Dashboard stats endpoint
+app.get('/api/dashboard-stats', async (req, res) => {
+  try {
+    // 1. Get total number of orders
+    const [orderCountResult] = await pool.query('SELECT COUNT(DISTINCT order_id) as totalOrders FROM orders');
+    const totalOrders = orderCountResult[0].totalOrders;
+
+    // 2. Get most popular products
+    const [popularProductsResult] = await pool.query(`
+      SELECT p.name, COUNT(o.product_id) as orderCount
+      FROM orders o
+      JOIN products p ON o.product_id = p.id
+      GROUP BY o.product_id
+      ORDER BY orderCount DESC
+      LIMIT 5
+    `);
+
+    res.json({
+      totalOrders,
+      popularProducts: popularProductsResult,
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err.message);
+    res.status(500).send('Error fetching dashboard stats');
+  }
+});
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${port}`);
 });
