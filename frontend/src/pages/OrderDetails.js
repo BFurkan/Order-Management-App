@@ -19,15 +19,17 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Paper
+  Paper,
+  Grid
 } from '@mui/material';
 import { 
-  FileDownload as ExportIcon
+  FileDownload as ExportIcon,
+  Edit as EditIcon // Import Edit Icon
 } from '@mui/icons-material';
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { safeFormatDate } from '../utils/dateUtils';
+import { safeFormatDate, safeToISODate } from '../utils/dateUtils';
 import theme from './theme';
 import ColumnSelector from '../components/ColumnSelector';
 import { supabase } from '../supabaseClient'; // Import Supabase
@@ -36,6 +38,8 @@ function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [serialNumbers, setSerialNumbers] = useState({});
   const [expandedOrders, setExpandedOrders] = useState({});
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingOrderGroup, setEditingOrderGroup] = useState(null);
   
   // Order-level comments
   const [orderComments, setOrderComments] = useState({});
@@ -83,23 +87,22 @@ function OrderDetails() {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase
+      // 1. Get the IDs of all orders that have already been confirmed.
+      const { data: confirmedOrders, error: confirmedError } = await supabase
+        .from('confirmed_items')
+        .select('order_id');
+      if (confirmedError) throw confirmedError;
+      const confirmedIdSet = new Set((confirmedOrders || []).map(c => c.order_id));
+
+      // 2. Fetch all orders.
+      const { data: allOrders, error: allOrdersError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          product:products(name, image)
-        `);
+        .select(`*, product:products(name, image)`);
+      if (allOrdersError) throw allOrdersError;
 
-      if (error) throw error;
-
-      // Filter for items that are NOT in confirmed_items or deployed_items
-      const { data: confirmedIds } = await supabase.from('confirmed_items').select('order_id');
-      const { data: deployedIds } = await supabase.from('deployed_items').select('order_id');
-      const confirmedIdSet = new Set((confirmedIds || []).map(i => i.order_id));
-      const deployedIdSet = new Set((deployedIds || []).map(i => i.order_id));
-
-      const openOrders = data.filter(order => !confirmedIdSet.has(order.id) && !deployedIdSet.has(order.id));
-
+      // 3. Filter on the client-side to get only the "open" orders.
+      const openOrders = allOrders.filter(order => !confirmedIdSet.has(order.id));
+      
       const sortedData = openOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
 
       const grouped = sortedData.reduce((acc, order) => {
@@ -236,31 +239,81 @@ function OrderDetails() {
     }
   };
 
-  const handleConfirm = async (order_id, product_id) => {
-    const serialNumber = serialNumbers[`${order_id}-${product_id}`];
+  const handleConfirm = async (order, serialNumber) => {
     if (!serialNumber) {
       alert('Please enter a serial number before confirming.');
       return;
     }
 
     try {
+      // When an item is confirmed, INSERT a new row into confirmed_items.
       const { error } = await supabase
-        .from('orders')
-        .update({
-          status: 'confirmed',
+        .from('confirmed_items')
+        .insert({
+          order_id: order.id, // Link to the original order row
           serial_number: serialNumber,
-          confirm_date: new Date().toISOString()
-        })
-        .match({ order_id: order_id, product_id: product_id });
+          item_comment: order.item_comment // Carry over any item-specific comments
+        });
 
       if (error) throw error;
 
       alert('Order confirmed successfully!');
-      fetchOrders(); // Refresh the data
+      fetchOrders(); // Re-fetch the list of open orders. This one will now be gone.
       
     } catch (error) {
       console.error('Error confirming order:', error.message);
       alert('Failed to confirm order');
+    }
+  };
+
+  const handleOpenEditModal = (orderGroupId) => {
+    const itemsInGroup = groupedOrders[orderGroupId];
+    setEditingOrderGroup({
+      order_group_id: orderGroupId,
+      order_date: itemsInGroup[0].order_date,
+      comment: itemsInGroup[0].comment || '',
+      items: itemsInGroup.map(item => ({ id: item.id, product_name: item.product_name, quantity: item.quantity }))
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingOrderGroup(null);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!editingOrderGroup) return;
+
+    try {
+      // 1. Update common fields for all items in the group
+      const { error: groupError } = await supabase
+        .from('orders')
+        .update({
+          order_date: editingOrderGroup.order_date,
+          comment: editingOrderGroup.comment
+        })
+        .eq('order_group_id', editingOrderGroup.order_group_id);
+
+      if (groupError) throw groupError;
+
+      // 2. Update quantities for each individual item
+      for (const item of editingOrderGroup.items) {
+        const { error: itemError } = await supabase
+          .from('orders')
+          .update({ quantity: item.quantity })
+          .eq('id', item.id);
+        
+        if (itemError) throw itemError;
+      }
+      
+      alert('Order updated successfully!');
+      handleCloseEditModal();
+      fetchOrders(); // Refresh data
+
+    } catch (error) {
+      console.error('Error updating order:', error.message);
+      alert('Failed to update order.');
     }
   };
 
@@ -385,8 +438,16 @@ function OrderDetails() {
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Export Button */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                {/* Export and Edit Buttons */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleOpenEditModal(orderId)}
+                    size="small"
+                  >
+                    Edit Order
+                  </Button>
                   <Button
                     variant="outlined"
                     startIcon={<ExportIcon />}
@@ -520,7 +581,7 @@ function OrderDetails() {
                               variant="contained"
                               color="primary"
                               size="small"
-                              onClick={() => handleConfirm(order.order_id, order.product_id)}
+                              onClick={() => handleConfirm(order, serialNumbers[`${order.order_id}-${order.product_id}`])}
                               sx={{ fontSize: '0.75rem' }}
                             >
                               Confirm
@@ -577,6 +638,66 @@ function OrderDetails() {
           <DialogActions>
             <Button onClick={() => setProductCommentDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveProductComment} variant="contained">Save</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Order Modal */}
+        <Dialog open={isEditModalOpen} onClose={handleCloseEditModal} maxWidth="md" fullWidth>
+          <DialogTitle>Edit Order</DialogTitle>
+          <DialogContent>
+            {editingOrderGroup && (
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12}>
+                  <Typography variant="h6">
+                    Order Group ID: {editingOrderGroup.order_group_id}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Order Date"
+                    type="date"
+                    fullWidth
+                    value={safeToISODate(editingOrderGroup.order_date)}
+                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, order_date: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Order Comment"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={editingOrderGroup.comment}
+                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, comment: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" sx={{ mt: 2 }}>Items</Typography>
+                  {editingOrderGroup.items.map((item, index) => (
+                    <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                      <Typography sx={{ flexGrow: 1 }}>{item.product_name}</Typography>
+                      <TextField
+                        label="Quantity"
+                        type="number"
+                        size="small"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const newItems = [...editingOrderGroup.items];
+                          newItems[index].quantity = parseInt(e.target.value, 10) || 0;
+                          setEditingOrderGroup(prev => ({ ...prev, items: newItems }));
+                        }}
+                        inputProps={{ min: 0 }}
+                      />
+                    </Box>
+                  ))}
+                </Grid>
+              </Grid>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseEditModal}>Cancel</Button>
+            <Button onClick={handleSaveChanges} variant="contained">Save Changes</Button>
           </DialogActions>
         </Dialog>
       </Container>

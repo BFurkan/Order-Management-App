@@ -206,11 +206,11 @@ function ProductList() {
   const submitOrder = async () => {
     console.log('Order date input:', orderDate);
     
-    // Generate a single, unique UUID for all items in this cart
-    const orderId = uuidv4();
+    // Generate a single, unique group ID for all items in this cart
+    const orderGroupId = uuidv4();
 
     const orderItems = cart.map(item => ({
-      id: orderId, // Use the generated UUID as the primary key for the new order
+      order_group_id: orderGroupId, // Use the generated UUID to group items
       product_id: item.product.id,
       quantity: item.quantity,
       order_date: orderDate,
