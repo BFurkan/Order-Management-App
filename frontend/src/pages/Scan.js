@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Container, 
   Typography, 
@@ -18,7 +18,8 @@ import {
   Paper,
   Alert,
   Grid,
-  Chip
+  Chip,
+  CircularProgress
 } from '@mui/material';
 import { 
   Search as SearchIcon,
@@ -42,11 +43,23 @@ function Scan() {
   const [imageError, setImageError] = useState(false);
   const [deploying, setDeploying] = useState(false);
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
+  const videoRef = useRef(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  useEffect(() => {
+    if (isScanning && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.error("Error accessing camera:", err);
+          alert("Could not access camera. Please ensure you have a camera and permissions are granted.");
+        });
+    }
+  }, [isScanning]);
 
   const handleSearch = async () => {
     if (!serialNumber.trim()) {

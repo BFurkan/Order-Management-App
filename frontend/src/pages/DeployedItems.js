@@ -32,7 +32,6 @@ import {
   Search as SearchIcon,
   BrokenImage as BrokenImageIcon,
   Inventory as DeployedIcon,
-  Visibility as ViewIcon,
   Undo as UndeployIcon,
   ExpandMore as ExpandMoreIcon,
   Refresh as RefreshIcon,
@@ -128,11 +127,6 @@ function DeployedItems() {
       ...prev,
       [orderId]: isExpanded
     }));
-  };
-
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
   };
 
   const fetchDeployedItems = async () => {

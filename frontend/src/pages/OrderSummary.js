@@ -37,12 +37,6 @@ function OrderSummary() {
   const [commentText, setCommentText] = useState('');
   const [orderComments, setOrderComments] = useState({});
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
-
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -94,10 +88,10 @@ function OrderSummary() {
 
   const handleSaveOrderId = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('orders')
-        .update({ order_id: newOrderId })
-        .eq('order_id', editingOrderId);
+        .update({ order_group_id: newOrderId })
+        .eq('order_group_id', editingOrderId);
 
       if (error) throw error;
       
@@ -135,10 +129,10 @@ function OrderSummary() {
 
   const handleSaveComment = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ comment: commentText })
-        .eq('order_id', editingCommentOrderId);
+        .eq('order_group_id', editingCommentOrderId);
 
       if (error) throw error;
 

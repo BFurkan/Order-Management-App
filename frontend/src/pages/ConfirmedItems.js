@@ -25,7 +25,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert
 } from '@mui/material';
 import { 
   FileDownload as ExportIcon,
@@ -85,12 +84,6 @@ function ConfirmedItems() {
     confirmedDate: 'Confirmed Date',
     serialNumber: 'Serial Number',
     itemComment: 'Item Comments'
-  };
-
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
   };
 
   // Handle image loading errors
@@ -199,22 +192,25 @@ function ConfirmedItems() {
 
   const handleSaveEdit = async () => {
     try {
-      const updateData = {
-        serial_number: editForm.serial_number,
-        item_comment: editForm.item_comment,
-        confirm_date: editForm.confirm_date
-      };
-
-      const { data, error } = await supabase
+      // Validate and clean the form data before sending
+      const cleanedForm = { ...editForm };
+      Object.keys(cleanedForm).forEach(key => {
+        if (cleanedForm[key] === '' || cleanedForm[key] === null || cleanedForm[key] === undefined) {
+          delete cleanedForm[key];
+        }
+      });
+      
+      const { error } = await supabase
         .from('confirmed_items')
-        .update(updateData)
-        .eq('id', selectedItem.id)
-        .select();
+        .update(cleanedForm)
+        .eq('id', selectedItem.id);
 
-      if (error) throw error;
-
-      // Manually update local state to avoid a full refresh
-      const updatedItem = { ...selectedItem, ...updateData };
+      if (error) {
+        throw error;
+      }
+      
+      // Update the local state
+      const updatedItem = { ...selectedItem, ...cleanedForm };
       setConfirmedItems(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
       setSelectedItem(updatedItem);
       setIsEditing(false);

@@ -75,12 +75,6 @@ function OrderDetails() {
     productComment: 'Product Comment'
   };
 
-  // Function to extract username from email (part before @)
-  const getDisplayName = (email) => {
-    if (!email) return 'N/A';
-    return email.split('@')[0];
-  };
-
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -246,19 +240,31 @@ function OrderDetails() {
     }
 
     try {
-      // When an item is confirmed, INSERT a new row into confirmed_items.
-      const { error } = await supabase
+      // 1. Create a new row in the confirmed_items table.
+      const { data: confirmedItem, error: insertError } = await supabase
         .from('confirmed_items')
         .insert({
-          order_id: order.id, // Link to the original order row
+          order_id: order.id,
           serial_number: serialNumber,
-          item_comment: order.item_comment // Carry over any item-specific comments
-        });
+          item_comment: order.item_comment
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      alert('Order confirmed successfully!');
-      fetchOrders(); // Re-fetch the list of open orders. This one will now be gone.
+      // 2. Decrement the quantity of the original order.
+      if (order.quantity > 0) {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ quantity: order.quantity - 1 })
+          .eq('id', order.id);
+        
+        if (updateError) throw updateError;
+      }
+
+      alert('Item confirmed successfully!');
+      fetchOrders(); // Re-fetch the list of open orders.
       
     } catch (error) {
       console.error('Error confirming order:', error.message);
@@ -290,6 +296,7 @@ function OrderDetails() {
       const { error: groupError } = await supabase
         .from('orders')
         .update({
+          order_group_id: editingOrderGroup.order_group_id, // Allow editing the group id
           order_date: editingOrderGroup.order_date,
           comment: editingOrderGroup.comment
         })
@@ -368,7 +375,7 @@ function OrderDetails() {
                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Typography variant="h6">
-                      Order ID: {orderId}
+                      Order Group ID: {orderId}
                     </Typography>
                     
                     {/* Category totals beside Order ID - only count active orders */}
@@ -527,14 +534,25 @@ function OrderDetails() {
                           </TableCell>
 
                           <TableCell>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              placeholder="Enter serial number"
-                              value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
-                              onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
-                              variant="outlined"
-                            />
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Enter serial number"
+                                value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
+                                variant="outlined"
+                              />
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => handleConfirm(order, serialNumbers[`${order.order_id}-${order.product_id}`])}
+                                sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                              >
+                                Confirm
+                              </Button>
+                            </Box>
                           </TableCell>
                           <TableCell>
                             <Box>
@@ -648,9 +666,12 @@ function OrderDetails() {
             {editingOrderGroup && (
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid item xs={12}>
-                  <Typography variant="h6">
-                    Order Group ID: {editingOrderGroup.order_group_id}
-                  </Typography>
+                  <TextField
+                    label="Order Group ID"
+                    fullWidth
+                    value={editingOrderGroup.order_group_id}
+                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, order_group_id: e.target.value }))}
+                  />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
