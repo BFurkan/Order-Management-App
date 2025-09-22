@@ -122,13 +122,13 @@ function OrderDetails() {
       setGroupedOrders(grouped);
 
       const comments = {};
-      data.forEach(order => {
+      openOrders.forEach(order => {
         if (order.comment) comments[order.order_id] = order.comment;
       });
       setOrderComments(comments);
 
       const productCommentsData = {};
-      data.forEach(order => {
+      openOrders.forEach(order => {
         if (order.item_comment) productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
       });
       setProductComments(productCommentsData);
