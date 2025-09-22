@@ -45,7 +45,8 @@ import { v4 as uuidv4 } from 'uuid'; // Import UUID generator
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
-  const { user } = useContext(AuthContext); // Get the logged-in user
+  const auth = useContext(AuthContext); // Get the auth context
+  const user = auth?.user; // Safely access the user
 
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
   const [open, setOpen] = useState(false);
@@ -214,7 +215,7 @@ function ProductList() {
       product_id: item.product.id,
       quantity: item.quantity,
       order_date: orderDate,
-      ordered_by: user.email // Add the user's email
+      ordered_by: user?.email // Safely access the user's email
     }));
 
     try {
