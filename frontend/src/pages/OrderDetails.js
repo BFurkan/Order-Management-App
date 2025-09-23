@@ -193,30 +193,25 @@ function OrderDetails() {
   };
 
   const handleSaveComment = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: currentCommentOrderId,
-          comment: commentText,
-        }),
-      });
+    if (!currentCommentOrderId) return;
 
-      if (response.ok) {
-        // Update local state
-        setOrderComments(prev => ({
-          ...prev,
-          [currentCommentOrderId]: commentText
-        }));
-        setCommentDialogOpen(false);
-        setCurrentCommentOrderId(null);
-        setCommentText('');
-      } else {
-        alert('Failed to update comment');
-      }
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ comment: commentText })
+        .eq('order_id', currentCommentOrderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrderComments(prev => ({
+        ...prev,
+        [currentCommentOrderId]: commentText
+      }));
+      setCommentDialogOpen(false);
+      setCurrentCommentOrderId(null);
+      setCommentText('');
+
     } catch (error) {
       console.error('Error updating comment:', error);
       alert('Error updating comment');
@@ -231,31 +226,24 @@ function OrderDetails() {
   };
 
   const handleSaveProductComment = async () => {
+    if (!currentProductComment.orderId || !currentProductComment.productId) return;
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/update-product-comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: currentProductComment.orderId,
-          productId: currentProductComment.productId,
-          comment: productCommentText,
-        }),
-      });
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ item_comment: productCommentText })
+        .eq('order_id', currentProductComment.orderId)
+        .eq('product_id', currentProductComment.productId);
 
-      if (response.ok) {
-        // Update local state
-        setProductComments(prev => ({
-          ...prev,
-          [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
-        }));
-        setProductCommentDialogOpen(false);
-        setCurrentProductComment({ orderId: null, productId: null });
-        setProductCommentText('');
-      } else {
-        alert('Failed to update product comment');
-      }
+      if (error) throw error;
+
+      // Update local state
+      setProductComments(prev => ({
+        ...prev,
+        [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
+      }));
+      setProductCommentDialogOpen(false);
+      setCurrentProductComment({ orderId: null, productId: null });
+      setProductCommentText('');
     } catch (error) {
       console.error('Error updating product comment:', error);
       alert('Error updating product comment');
@@ -337,7 +325,11 @@ function OrderDetails() {
       }
 
     } catch (error) {
-      console.error('Error confirming order:', error.message);
+      console.error('Error confirming order:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
       alert('Failed to confirm order');
     }
   };
@@ -375,58 +367,27 @@ function OrderDetails() {
     if (!selectedOrder) return;
 
     try {
-      // Update order ID if changed
-      if (editedOrderId !== selectedOrder.order_id) {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-id`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            oldOrderId: selectedOrder.order_id,
-            newOrderId: editedOrderId,
-          }),
-        });
-
-        if (!response.ok) {
-          alert('Failed to update order ID');
-          return;
-        }
-      }
-
-      // Update comment if changed
+      const updates = {};
       if (editedComment !== (orderComments[selectedOrder.order_id] || '')) {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-comment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId: editedOrderId,
-            comment: editedComment,
-          }),
-        });
-
-        if (!response.ok) {
-          alert('Failed to update comment');
-          return;
-        }
+        updates.comment = editedComment;
+      }
+      if (editedQuantity !== '' && parseInt(editedQuantity) !== selectedOrder.quantity) {
+        updates.quantity = parseInt(editedQuantity);
+      }
+      if (editedOrderDate && editedOrderDate !== selectedOrder.order_date) {
+        updates.order_date = editedOrderDate;
+      }
+      if (editedOrderId && editedOrderId !== selectedOrder.order_id) {
+        updates.order_id = editedOrderId;
       }
 
-      // Update quantity and order date
-      const body = {};
-      if (editedQuantity !== '') body.quantity = parseInt(editedQuantity);
-      if (editedOrderDate) body.order_date = editedOrderDate;
+      if (Object.keys(updates).length > 0) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update(updates)
+          .eq('id', selectedOrder.id);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/orders/${selectedOrder.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        alert('Failed to update order details');
-        return;
+        if (error) throw error;
       }
 
       // Refresh data
@@ -442,14 +403,12 @@ function OrderDetails() {
     if (!window.confirm('Delete this product from the order?')) return;
     
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/orders/${selectedOrder.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        alert('Failed to delete order');
-        return;
-      }
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', selectedOrder.id);
+
+      if (error) throw error;
       
       // Refresh data
       window.location.reload();
@@ -508,6 +467,10 @@ function OrderDetails() {
       window.location.reload();
     } catch (error) {
       console.error('Error updating order details:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
       alert('Failed to update order details');
     }
   };
