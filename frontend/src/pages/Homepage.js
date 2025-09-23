@@ -22,48 +22,52 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import theme from './theme';
+import { supabase } from '../supabaseClient';
 
 function Homepage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    totalProducts: 0,
-    activeOrders: 0,
-    confirmedItems: 0,
-    deployedItems: 0
+    totalOrders: 0,
+    totalConfirmed: 0,
+    totalDeployed: 0,
+    totalUsers: 1 // Assuming at least one user (admin)
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch dashboard statistics
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const [productsRes, ordersRes, confirmedRes, deployedRes] = await Promise.all([
-          fetch(`${process.env.REACT_APP_API_URL}/products`),
-          fetch(`${process.env.REACT_APP_API_URL}/orders`),
-          fetch(`${process.env.REACT_APP_API_URL}/confirmed-items`),
-          fetch(`${process.env.REACT_APP_API_URL}/deployed-items`)
-        ]);
+        // Fetch counts for orders, confirmed, and deployed
+        const { count: orderCount, error: orderError } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
 
-        if (!productsRes.ok || !ordersRes.ok || !confirmedRes.ok || !deployedRes.ok) {
-          throw new Error('Network response was not ok');
+        const { count: confirmedCount, error: confirmedError } = await supabase
+          .from('confirmed_items')
+          .select('*', { count: 'exact', head: true });
+
+        const { count: deployedCount, error: deployedError } = await supabase
+          .from('deployed_items')
+          .select('*', { count: 'exact', head: true });
+
+        // Fetch popular products using the RPC
+        const { data: popularProducts, error: popularError } = await supabase
+          .rpc('get_popular_products');
+
+        if (orderError || confirmedError || deployedError || popularError) {
+          throw orderError || confirmedError || deployedError || popularError;
         }
 
-        const [products, orders, confirmed, deployed] = await Promise.all([
-          productsRes.json(),
-          ordersRes.json(),
-          confirmedRes.json(),
-          deployedRes.json()
-        ]);
+        setStats(prev => ({
+          ...prev,
+          totalOrders: orderCount,
+          totalConfirmed: confirmedCount,
+          totalDeployed: deployedCount,
+        }));
 
-        setStats({
-          totalProducts: products.length,
-          activeOrders: orders.filter(order => order.quantity > 0).length,
-          confirmedItems: confirmed.length,
-          deployedItems: deployed.length
-        });
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching dashboard stats:', error);
       } finally {
         setLoading(false);
       }
@@ -151,27 +155,17 @@ function Homepage() {
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: '#1976d2' }}>
-                      {stats.totalProducts}
+                      {stats.totalOrders}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Total Products
+                      Total Orders
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ fontWeight: 600, color: '#f57c00' }}>
-                      {stats.activeOrders}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Active Orders
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#388e3c' }}>
-                      {stats.confirmedItems}
+                      {stats.totalConfirmed}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Confirmed Items
@@ -180,11 +174,21 @@ function Homepage() {
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#0288d1' }}>
-                      {stats.deployedItems}
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#388e3c' }}>
+                      {stats.totalDeployed}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Deployed Items
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#0288d1' }}>
+                      {stats.totalUsers}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Users
                     </Typography>
                   </Box>
                 </Grid>
@@ -301,17 +305,6 @@ function Homepage() {
           </Paper>
         </Box>
 
-        {/* Supported Locations */}
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            Supported Locations
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip label="180 Dundas" variant="outlined" />
-            <Chip label="1 Queen" variant="outlined" />
-            <Chip label="Osgoode Hall" variant="outlined" />
-          </Box>
-        </Box>
       </Container>
     </ThemeProvider>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Container, 
   Typography, 
@@ -23,23 +23,20 @@ import {
   Grid
 } from '@mui/material';
 import { 
-  FileDownload as ExportIcon,
-  Edit as EditIcon // Import Edit Icon
+  FileDownload as ExportIcon
 } from '@mui/icons-material';
 // Removed DataGrid import to avoid compatibility issues
 import { ThemeProvider } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { safeFormatDate, safeToISODate } from '../utils/dateUtils';
+import { safeFormatDate } from '../utils/dateUtils';
 import theme from './theme';
 import ColumnSelector from '../components/ColumnSelector';
-import { supabase } from '../supabaseClient'; // Import Supabase
+import { supabase } from '../supabaseClient';
 
 function OrderDetails() {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [serialNumbers, setSerialNumbers] = useState({});
   const [expandedOrders, setExpandedOrders] = useState({});
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingOrderGroup, setEditingOrderGroup] = useState(null);
   
   // Order-level comments
   const [orderComments, setOrderComments] = useState({});
@@ -53,26 +50,37 @@ function OrderDetails() {
   const [currentProductComment, setCurrentProductComment] = useState({ orderId: null, productId: null });
   const [productCommentText, setProductCommentText] = useState('');
   
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedOrderId, setEditedOrderId] = useState('');
+  const [editedComment, setEditedComment] = useState('');
+  const [editedQuantity, setEditedQuantity] = useState('');
+  const [editedOrderDate, setEditedOrderDate] = useState('');
+  const [editingOrderGroup, setEditingOrderGroup] = useState(null);
+
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
+    orderId: true,
+    itemsSummary: true,
     productName: true,
-    orderDate: true,
-    totalQuantity: true,
-    serialNumber: true,
-    action: true,
-    orderComment: true,
-    productComment: true
+    location: false, // Set location to be hidden by default
+    comment: true,
+    date: true,
+    customerOrderId: true,
+    image: true
   });
 
   const columnLabels = {
+    orderId: 'Order ID',
+    itemsSummary: 'Item Summary',
     productName: 'Product Name',
-    orderDate: 'Order Date',
-    totalQuantity: 'Total Quantity',
-    serialNumber: 'Serial Number',
-    action: 'Action',
-    orderComment: 'Order Comment',
-    productComment: 'Product Comment'
+    location: 'Location', // Add location label
+    comment: 'Comments',
+    date: 'Order Date',
+    customerOrderId: 'Customer Order ID'
   };
 
   useEffect(() => {
@@ -81,54 +89,58 @@ function OrderDetails() {
 
   const fetchOrders = async () => {
     try {
-      // 1. Get the IDs of all orders that have already been confirmed.
-      const { data: confirmedOrders, error: confirmedError } = await supabase
-        .from('confirmed_items')
-        .select('order_id');
-      if (confirmedError) throw confirmedError;
-      const confirmedIdSet = new Set((confirmedOrders || []).map(c => c.order_id));
-
-      // 2. Fetch all orders.
-      const { data: allOrders, error: allOrdersError } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .select(`*, product:products(name, image)`);
-      if (allOrdersError) throw allOrdersError;
+        .select('*, product:products(*)')
+        .gt('quantity', 0); // Only fetch orders with items to be confirmed
 
-      // 3. Filter on the client-side to get only the "open" orders.
-      const openOrders = allOrders.filter(order => !confirmedIdSet.has(order.id));
-      
-      const sortedData = openOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+      if (error) throw error;
 
-      const grouped = sortedData.reduce((acc, order) => {
-        const enrichedOrder = {
-          ...order,
-          product_name: order.product?.name || 'N/A',
-          image: order.product?.image ? supabase.storage.from('product-images').getPublicUrl(order.product.image).data.publicUrl : '/placeholder.png'
-        };
+      if (!Array.isArray(data) || data.length === 0) {
+        setGroupedOrders({});
+        return;
+      }
 
-        if (!acc[enrichedOrder.order_id]) {
-          acc[enrichedOrder.order_id] = [];
+      const sortedData = data.sort((a, b) => {
+        const dateA = new Date(a.order_date);
+        const dateB = new Date(b.order_date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateB.getTime() - dateA.getTime();
         }
-        acc[enrichedOrder.order_id].push(enrichedOrder);
+        return (a.customer_order_id || '').localeCompare(b.customer_order_id || '');
+      });
+      
+      const grouped = sortedData.reduce((acc, order) => {
+        const cleanOrderId = order.order_id ? order.order_id.trim() : order.order_id;
+        if (!acc[cleanOrderId]) {
+          acc[cleanOrderId] = [];
+        }
+        acc[cleanOrderId].push(order);
         return acc;
       }, {});
-
       setGroupedOrders(grouped);
 
       const comments = {};
-      openOrders.forEach(order => {
-        if (order.comment) comments[order.order_id] = order.comment;
+      data.forEach(order => {
+        if (order.comment) {
+          const cleanOrderId = order.order_id ? order.order_id.trim() : order.order_id;
+          comments[cleanOrderId] = order.comment;
+        }
       });
       setOrderComments(comments);
 
       const productCommentsData = {};
-      openOrders.forEach(order => {
-        if (order.item_comment) productCommentsData[`${order.order_id}-${order.product_id}`] = order.item_comment;
+      data.forEach(order => {
+        if (order.item_comment) {
+          const cleanOrderId = order.order_id ? order.order_id.trim() : order.order_id;
+          productCommentsData[`${cleanOrderId}-${order.product_id}`] = order.item_comment;
+        }
       });
       setProductComments(productCommentsData);
 
     } catch (error) {
-      console.error('Error fetching orders:', error.message);
+      console.error('Error fetching orders:', error);
+      // Handle the error appropriately in the UI
     }
   };
 
@@ -140,16 +152,18 @@ function OrderDetails() {
   };
 
   const handleExport = (orderId) => {
-    const orders = groupedOrders[orderId] || [];
-    const activeOrders = orders.filter(order => order.quantity > 0);
-    
+    const norm = (v) => (v == null ? v : String(v).trim());
+    const orders = groupedOrders[orderId] || groupedOrders[norm(orderId)] || [];
+    // Prefer remaining (unconfirmed) items; if none, export the group anyway
+    const rows = orders.filter(order => (order.quantity || 0) > 0);
+    const exportRows = rows.length > 0 ? rows : orders;
+
     const csvContent = [
       ['Product Name', 'Order Date', 'Total Quantity'].join(','),
-      ...activeOrders.map(order => [
+      ...exportRows.map(order => [
         `"${order.product_name}"`,
         `"${safeFormatDate(order.order_date)}"`,
-        order.quantity,
-
+        (order.quantity || 0),
       ].join(','))
     ].join('\n');
 
@@ -162,9 +176,7 @@ function OrderDetails() {
     window.URL.revokeObjectURL(url);
   };
 
-  useEffect(() => {
-    // No need to fetch products for this page - removed unused variable
-  }, []);
+  // Remove redundant second fetch block to avoid stale grouping by old order IDs
 
   const handleSerialNumberChange = (order_id, product_id, value) => {
     setSerialNumbers(prev => ({
@@ -182,23 +194,31 @@ function OrderDetails() {
 
   const handleSaveComment = async () => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ comment: commentText })
-        .eq('order_id', currentCommentOrderId);
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: currentCommentOrderId,
+          comment: commentText,
+        }),
+      });
 
-      if (error) throw error;
-
-      setOrderComments(prev => ({
-        ...prev,
-        [currentCommentOrderId]: commentText
-      }));
-      setCommentDialogOpen(false);
-      setCurrentCommentOrderId(null);
-      setCommentText('');
-
+      if (response.ok) {
+        // Update local state
+        setOrderComments(prev => ({
+          ...prev,
+          [currentCommentOrderId]: commentText
+        }));
+        setCommentDialogOpen(false);
+        setCurrentCommentOrderId(null);
+        setCommentText('');
+      } else {
+        alert('Failed to update comment');
+      }
     } catch (error) {
-      console.error('Error updating comment:', error.message);
+      console.error('Error updating comment:', error);
       alert('Error updating comment');
     }
   };
@@ -212,115 +232,113 @@ function OrderDetails() {
 
   const handleSaveProductComment = async () => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ item_comment: productCommentText })
-        .match({ order_id: currentProductComment.orderId, product_id: currentProductComment.productId });
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/update-product-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: currentProductComment.orderId,
+          productId: currentProductComment.productId,
+          comment: productCommentText,
+        }),
+      });
 
-      if (error) throw error;
-
-      setProductComments(prev => ({
-        ...prev,
-        [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
-      }));
-      setProductCommentDialogOpen(false);
-      setCurrentProductComment({ orderId: null, productId: null });
-      setProductCommentText('');
-
+      if (response.ok) {
+        // Update local state
+        setProductComments(prev => ({
+          ...prev,
+          [`${currentProductComment.orderId}-${currentProductComment.productId}`]: productCommentText
+        }));
+        setProductCommentDialogOpen(false);
+        setCurrentProductComment({ orderId: null, productId: null });
+        setProductCommentText('');
+      } else {
+        alert('Failed to update product comment');
+      }
     } catch (error) {
-      console.error('Error updating product comment:', error.message);
+      console.error('Error updating product comment:', error);
       alert('Error updating product comment');
     }
   };
 
-  const handleConfirm = async (order, serialNumber) => {
+  const handleConfirm = async (order, serialNumber, clearInput) => {
     if (!serialNumber) {
       alert('Please enter a serial number before confirming.');
       return;
     }
 
     try {
-      // 1. Create a new row in the confirmed_items table.
-      const { data: confirmedItem, error: insertError } = await supabase
+      // 1. Check current quantity to prevent race conditions
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('quantity')
+        .eq('id', order.id)
+        .single();
+
+      if (fetchError || !currentOrder) {
+        throw new Error('Could not fetch current order quantity. Please refresh and try again.');
+      }
+
+      if (currentOrder.quantity <= 0) {
+        alert('This item is already fully confirmed.');
+        clearInput(); // Clear the input field
+        // Re-fetch the orders to update the quantity in the table
+        const { data: updatedOrders, error: reFetchError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('order_group_id', order.order_group_id);
+        if (reFetchError) {
+          console.error('Error re-fetching orders:', reFetchError);
+          alert('Failed to update order quantity after confirmation.');
+        } else {
+          setGroupedOrders(prev => ({
+            ...prev,
+            [order.order_id]: updatedOrders
+          }));
+        }
+        return;
+      }
+
+      // 2. Create a new row in the confirmed_items table.
+      const { error: insertError } = await supabase
         .from('confirmed_items')
         .insert({
-          order_id: order.id,
+          order_id: order.id, // Link to the original order row
           serial_number: serialNumber,
           item_comment: order.item_comment
-        })
-        .select()
-        .single();
+        });
 
       if (insertError) throw insertError;
 
-      // 2. Decrement the quantity of the original order.
-      if (order.quantity > 0) {
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({ quantity: order.quantity - 1 })
-          .eq('id', order.id);
-        
-        if (updateError) throw updateError;
-      }
+      // 3. Decrement the quantity of the original order.
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ quantity: currentOrder.quantity - 1 })
+        .eq('id', order.id);
+
+      if (updateError) throw updateError;
 
       alert('Item confirmed successfully!');
-      fetchOrders(); // Re-fetch the list of open orders.
-      
+      clearInput(); // Clear the input field on success
+      // Re-fetch the orders to update the quantity in the table
+      const { data: updatedOrders, error: reFetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_group_id', order.order_group_id);
+      if (reFetchError) {
+        console.error('Error re-fetching orders:', reFetchError);
+        alert('Failed to update order quantity after confirmation.');
+      } else {
+        setGroupedOrders(prev => ({
+          ...prev,
+          [order.order_id]: updatedOrders
+        }));
+      }
+
     } catch (error) {
       console.error('Error confirming order:', error.message);
       alert('Failed to confirm order');
-    }
-  };
-
-  const handleOpenEditModal = (orderGroupId) => {
-    const itemsInGroup = groupedOrders[orderGroupId];
-    setEditingOrderGroup({
-      order_group_id: orderGroupId,
-      order_date: itemsInGroup[0].order_date,
-      comment: itemsInGroup[0].comment || '',
-      items: itemsInGroup.map(item => ({ id: item.id, product_name: item.product_name, quantity: item.quantity }))
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
-    setEditingOrderGroup(null);
-  };
-
-  const handleSaveChanges = async () => {
-    if (!editingOrderGroup) return;
-
-    try {
-      // 1. Update common fields for all items in the group
-      const { error: groupError } = await supabase
-        .from('orders')
-        .update({
-          order_group_id: editingOrderGroup.order_group_id, // Allow editing the group id
-          order_date: editingOrderGroup.order_date,
-          comment: editingOrderGroup.comment
-        })
-        .eq('order_group_id', editingOrderGroup.order_group_id);
-
-      if (groupError) throw groupError;
-
-      // 2. Update quantities for each individual item
-      for (const item of editingOrderGroup.items) {
-        const { error: itemError } = await supabase
-          .from('orders')
-          .update({ quantity: item.quantity })
-          .eq('id', item.id);
-        
-        if (itemError) throw itemError;
-      }
-      
-      alert('Order updated successfully!');
-      handleCloseEditModal();
-      fetchOrders(); // Refresh data
-
-    } catch (error) {
-      console.error('Error updating order:', error.message);
-      alert('Failed to update order.');
     }
   };
 
@@ -331,13 +349,184 @@ function OrderDetails() {
     }));
   };
 
+  // Edit modal handlers
+  const handleRowClick = (order) => {
+    setSelectedOrder(order);
+    setEditedOrderId(order.order_id);
+    setEditedComment(orderComments[order.order_id] || '');
+    setEditedQuantity(order.quantity?.toString() || '');
+    setEditedOrderDate(order.order_date ? String(order.order_date).slice(0, 10) : '');
+    setEditModalOpen(true);
+  };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedOrderId(selectedOrder?.order_id || '');
+    setEditedComment(orderComments[selectedOrder?.order_id] || '');
+    setEditedQuantity(selectedOrder?.quantity?.toString() || '');
+    setEditedOrderDate(selectedOrder?.order_date ? String(selectedOrder.order_date).slice(0, 10) : '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      // Update order ID if changed
+      if (editedOrderId !== selectedOrder.order_id) {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-id`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            oldOrderId: selectedOrder.order_id,
+            newOrderId: editedOrderId,
+          }),
+        });
+
+        if (!response.ok) {
+          alert('Failed to update order ID');
+          return;
+        }
+      }
+
+      // Update comment if changed
+      if (editedComment !== (orderComments[selectedOrder.order_id] || '')) {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/update-order-comment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: editedOrderId,
+            comment: editedComment,
+          }),
+        });
+
+        if (!response.ok) {
+          alert('Failed to update comment');
+          return;
+        }
+      }
+
+      // Update quantity and order date
+      const body = {};
+      if (editedQuantity !== '') body.quantity = parseInt(editedQuantity);
+      if (editedOrderDate) body.order_date = editedOrderDate;
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/orders/${selectedOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        alert('Failed to update order details');
+        return;
+      }
+
+      // Refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Error updating order');
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder) return;
+    if (!window.confirm('Delete this product from the order?')) return;
+    
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/orders/${selectedOrder.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        alert('Failed to delete order');
+        return;
+      }
+      
+      // Refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      alert('Error deleting order');
+    }
+  };
+
+  const handleOpenEditModal = (orderGroup) => {
+    // Ensure all properties have a default value to prevent uncontrolled input warnings
+    setEditingOrderGroup({
+      ...orderGroup,
+      customer_order_id: orderGroup.customer_order_id || '',
+      comment: orderGroup.comment || '',
+      items: orderGroup.items.map(item => ({
+        ...item,
+        quantity: item.quantity || 0
+      }))
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingOrderGroup(null);
+    setEditModalOpen(false);
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      // 1. Update the main order details (date, comment, customer_order_id) for the entire group.
+      const { error: groupUpdateError } = await supabase
+        .from('orders')
+        .update({
+          order_date: editingOrderGroup.order_date,
+          comment: editingOrderGroup.comment,
+          customer_order_id: editingOrderGroup.customer_order_id,
+        })
+        .eq('order_group_id', editingOrderGroup.order_group_id);
+
+      if (groupUpdateError) throw groupUpdateError;
+
+      // 2. Update individual order details (quantity) for each item in the group.
+      for (const item of editingOrderGroup.items) {
+        const { error: itemUpdateError } = await supabase
+          .from('orders')
+          .update({ quantity: item.quantity })
+          .eq('id', item.id);
+
+        if (itemUpdateError) {
+          throw itemUpdateError;
+        }
+      }
+
+      alert('Order details updated successfully!');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating order details:', error);
+      alert('Failed to update order details');
+    }
+  };
+
+  const getHeaderCellStyle = (isVisible) => ({
+    display: isVisible ? 'table-cell' : 'none',
+    width: isVisible ? 'auto' : 0,
+  });
+
+  const getCellStyle = (isVisible) => ({
+    display: isVisible ? 'table-cell' : 'none',
+    width: isVisible ? 'auto' : 0,
+  });
 
   return (
     <ThemeProvider theme={theme}>
       <Container>
         <Typography variant="h4" component="h1" gutterBottom>
-          Order Details
+          Receive Order
         </Typography>
 
         {/* Column Selection */}
@@ -349,15 +538,64 @@ function OrderDetails() {
           />
         </Box>
 
+        {/* Table Headers */}
+        {Object.values(visibleColumns).some(visible => visible) && (
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: (() => {
+              const cols = [];
+              if (visibleColumns.orderId) cols.push('120px');
+              if (visibleColumns.itemsSummary) cols.push('2fr');
+              if (visibleColumns.productName) cols.push('180px');
+              if (visibleColumns.location) cols.push('150px');
+              if (visibleColumns.comment) cols.push('1fr');
+              if (visibleColumns.date) cols.push('120px');
+              if (visibleColumns.customerOrderId) cols.push('150px');
+              return cols.join(' ');
+            })(),
+            gap: 2, 
+            p: 2, 
+            mb: 2,
+            backgroundColor: '#f5f5f5',
+            borderRadius: 1,
+            fontWeight: 600
+          }}>
+            {visibleColumns.orderId && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Order ID</Typography>
+            )}
+            {visibleColumns.itemsSummary && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Item Summary</Typography>
+            )}
+            {visibleColumns.productName && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Product Name</Typography>
+            )}
+            {visibleColumns.location && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Location</Typography>
+            )}
+            {visibleColumns.comment && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Comments</Typography>
+            )}
+            {visibleColumns.date && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Order Date</Typography>
+            )}
+            {visibleColumns.customerOrderId && (
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Customer Order ID</Typography>
+            )}
+          </Box>
+        )}
+
         {Object.keys(groupedOrders).map(orderId => {
           const orders = groupedOrders[orderId];
-          // Filter out fully confirmed items (quantity = 0)
-          const activeOrders = orders.filter(order => order.quantity > 0);
-          
-          // If no active orders, don't render the accordion
+          // Only show orders with remaining unconfirmed quantity
+          const activeOrders = orders.filter(order => (order.quantity || 0) > 0);
           if (activeOrders.length === 0) {
             return null;
           }
+
+          // Compute totals for header chips
+          const totalRemaining = activeOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+          const totalConfirmed = activeOrders.reduce((sum, o) => sum + Math.max(0, (o.confirmed_quantity || 0) - parseInt(o.deployed_quantity || 0, 10)), 0);
+          const totalDeployed = activeOrders.reduce((sum, o) => sum + parseInt(o.deployed_quantity || 0, 10), 0);
 
           return (
             <Accordion 
@@ -370,91 +608,170 @@ function OrderDetails() {
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls={`panel-${orderId}-content`}
                 id={`panel-${orderId}-header`}
-                sx={{ backgroundColor: '#f5f5f5' }}
+                sx={{ backgroundColor: '#f9f9f9' }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="h6">
-                      Order Group ID: {orderId}
-                    </Typography>
-                    
-                    {/* Category totals beside Order ID - only count active orders */}
-                    {(() => {
-                      const orderTotals = { monitors: 0, notebooks: 0, accessories: 0 };
-                      activeOrders.forEach(order => {
-                        const productName = order.product_name.toLowerCase();
-                        // First check for accessories (to avoid misclassification)
-                        if (productName.includes('dock') || productName.includes('docking') ||
-                            productName.includes('charger') || productName.includes('adapter') ||
-                            productName.includes('cable') || productName.includes('mouse') ||
-                            productName.includes('keyboard') || productName.includes('headset') ||
-                            productName.includes('webcam') || productName.includes('speaker') ||
-                            productName.includes('hub') || productName.includes('stand') ||
-                            productName.includes('bag') || productName.includes('case')) {
-                          orderTotals.accessories += order.quantity;
-                        } else if (productName.includes('monitor') || productName.includes('display')) {
-                          orderTotals.monitors += order.quantity;
-                        } else if (productName.includes('notebook') || productName.includes('laptop') || 
-                                   productName.includes('thinkpad') || productName.includes('elitebook') || 
-                                   productName.includes('macbook') || productName.includes('surface') ||
-                                   productName.includes('k14') || productName.includes('lenovo') ||
-                                   productName.includes('ideapad') || productName.includes('yoga') ||
-                                   productName.includes('inspiron') || productName.includes('latitude') ||
-                                   productName.includes('pavilion') || productName.includes('probook') ||
-                                   productName.includes('toughbook') || productName.includes('fz55')) {
-                          orderTotals.notebooks += order.quantity;
-                        } else {
-                          orderTotals.accessories += order.quantity;
-                        }
-                      });
-                      return (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          {orderTotals.monitors > 0 && (
-                            <Chip
-                              label={`Monitors: ${orderTotals.monitors}`}
-                              size="small"
-                              sx={{ backgroundColor: '#e3f2fd', color: '#1976d2' }}
-                            />
-                          )}
-                          {orderTotals.notebooks > 0 && (
-                            <Chip
-                              label={`Notebooks: ${orderTotals.notebooks}`}
-                              size="small"
-                              sx={{ backgroundColor: '#f3e5f5', color: '#7b1fa2' }}
-                            />
-                          )}
-                          {orderTotals.accessories > 0 && (
-                            <Chip
-                              label={`Accessories: ${orderTotals.accessories}`}
-                              size="small"
-                              sx={{ backgroundColor: '#e8f5e8', color: '#388e3c' }}
-                            />
-                          )}
-                        </Box>
-                      );
-                    })()}
-                  </Box>
-                  
-                  {/* Order date on the right */}
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {activeOrders.length > 0 ? safeFormatDate(activeOrders[0].order_date) : 'N/A'}
-                    </Typography>
-                  </Box>
+                {/* Table-like Row Layout: Order ID | Items Summary | Comment | Date */}
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: (() => {
+                    const columns = [];
+                    if (visibleColumns.orderId) columns.push('120px');
+                    if (visibleColumns.itemsSummary) columns.push('2fr');
+                    if (visibleColumns.productName) columns.push('180px');
+                    if (visibleColumns.location) columns.push('150px');
+                    if (visibleColumns.comment) columns.push('1fr');
+                    if (visibleColumns.date) columns.push('120px');
+                    if (visibleColumns.customerOrderId) columns.push('150px');
+                    return columns.join(' ');
+                  })(),
+                  gap: 2, 
+                  width: '100%',
+                  alignItems: 'center'
+                }}>
+                  {/* Order ID Column */}
+                  {visibleColumns.orderId && (
+                    <Box>
+                      <Typography variant="subtitle1">
+                        {orderId}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Items Summary Column */}
+                  {visibleColumns.itemsSummary && (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-start', pl: 1 }}>
+                      <Chip
+                        label={`Remaining: ${totalRemaining}`}
+                        size="small"
+                        color={totalRemaining > 0 ? 'warning' : 'default'}
+                        variant={totalRemaining > 0 ? 'filled' : 'outlined'}
+                      />
+                      <Chip
+                        label={`Confirmed: ${totalConfirmed}`}
+                        size="small"
+                        color={totalConfirmed > 0 ? 'success' : 'default'}
+                        variant={totalConfirmed > 0 ? 'filled' : 'outlined'}
+                      />
+                      <Chip
+                        label={`Deployed: ${totalDeployed}`}
+                        size="small"
+                        color={totalDeployed > 0 ? 'info' : 'default'}
+                        variant={totalDeployed > 0 ? 'filled' : 'outlined'}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Product Name Column */}
+                  {visibleColumns.productName && (
+                    <Box>
+                      {activeOrders.map(order => (
+                        <Typography key={order.id} variant="body2">
+                          {order.product_name}
+                        </Typography>
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Location Column */}
+                  {visibleColumns.location && (
+                    <Box>
+                      <Typography variant="body1">
+                        {activeOrders[0]?.location || ''}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Comment Column */}
+                  {visibleColumns.comment && (
+                    <Box>
+                      {orderComments[orderId] ? (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.875rem',
+                            fontStyle: 'italic',
+                            wordBreak: 'break-word',
+                            lineHeight: 1.2
+                          }}
+                        >
+                          💬 {orderComments[orderId]}
+                        </Typography>
+                      ) : (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.disabled',
+                            fontSize: '0.875rem',
+                            fontStyle: 'italic'
+                          }}
+                        >
+                          
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Date Column */}
+                  {visibleColumns.date && (
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {activeOrders.length > 0 ? safeFormatDate(activeOrders[0].order_date) : ''}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Customer Order ID Column */}
+                  {visibleColumns.customerOrderId && (
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {activeOrders[0]?.customer_order_id || ''}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               </AccordionSummary>
               
               <AccordionDetails>
-                {/* Export and Edit Buttons */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 1 }}>
-                  <Button
+                {/* Order ID Section - Clickable to open modal */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 'fit-content' }}>
+                    Order ID:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {orderId}
+                  </Typography>
+                  <Button 
+                    size="small" 
                     variant="outlined"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenEditModal(orderId)}
-                    size="small"
+                    onClick={() => {
+                      // Get the first order from this group to get real data
+                      const firstOrder = activeOrders[0];
+                      if (firstOrder) {
+                        handleRowClick(firstOrder);
+                      }
+                    }}
                   >
-                    Edit Order
+                    Edit
                   </Button>
+                </Box>
+
+                {/* Order Comment Display */}
+                <Box sx={{ mb: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                        Order Comment:
+                      </Typography>
+                      <Typography variant="body2">
+                        {orderComments[orderId] || 'No comment added'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Export Button */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                   <Button
                     variant="outlined"
                     startIcon={<ExportIcon />}
@@ -496,12 +813,15 @@ function OrderDetails() {
                   }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: '120px' }}>Product Image</TableCell>
-                        <TableCell sx={{ minWidth: '200px' }}>Product Name</TableCell>
+                        <TableCell style={getHeaderCellStyle(visibleColumns.orderId)}>Order Group ID</TableCell>
+                        <TableCell style={getHeaderCellStyle(visibleColumns.orderDate)}>Order Date</TableCell>
+                        <TableCell style={getHeaderCellStyle(visibleColumns.customerOrderId)}>Customer Order ID</TableCell>
+                        <TableCell style={getHeaderCellStyle(visibleColumns.productName)}>Product Name</TableCell>
+                        <TableCell style={getHeaderCellStyle(visibleColumns.image)}>Image</TableCell>
                         <TableCell sx={{ width: '120px' }}>Quantity</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Date</TableCell>
 
-                        <TableCell sx={{ width: '200px' }}>Serial Number</TableCell>
+                        <TableCell sx={{ width: '200px' }}>Enter Details</TableCell>
                         <TableCell sx={{ width: '150px' }}>Order Comment</TableCell>
                         <TableCell sx={{ width: '200px' }}>Item Comment</TableCell>
                         <TableCell sx={{ width: '120px' }}>Confirm</TableCell>
@@ -510,17 +830,16 @@ function OrderDetails() {
                     <TableBody>
                       {activeOrders.map((order, index) => (
                         <TableRow key={`${orderId}-${index}`} hover>
-                          <TableCell>
+                          <TableCell style={getCellStyle(visibleColumns.orderId)}>{order.order_group_id}</TableCell>
+                          <TableCell style={getCellStyle(visibleColumns.orderDate)}>{safeFormatDate(order.order_date)}</TableCell>
+                          <TableCell style={getCellStyle(visibleColumns.customerOrderId)}>{order.customer_order_id}</TableCell>
+                          <TableCell style={getCellStyle(visibleColumns.productName)}>{order.product_name}</TableCell>
+                          <TableCell style={getCellStyle(visibleColumns.image)}>
                             <img
-                              src={order.image}
+                              src={`${process.env.REACT_APP_API_URL}${order.image}`}
                               alt={order.product_name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: 4 }}
                             />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {order.product_name}
-                            </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
@@ -534,25 +853,29 @@ function OrderDetails() {
                           </TableCell>
 
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {order.category && order.category.toLowerCase() === 'accessories' ? (
                               <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="Enter serial number"
-                                value={serialNumbers[`${order.order_id}-${order.product_id}`] || ''}
-                                onChange={(e) => handleSerialNumberChange(order.order_id, order.product_id, e.target.value)}
+                                type="number"
+                                placeholder={`Enter quantity (max ${order.quantity})`}
+                                value={serialNumbers[`${orderId}-${order.product_id}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(orderId, order.product_id, e.target.value)}
+                                variant="outlined"
+                                inputProps={{ min: 1, max: order.quantity }}
+                              />
+                            ) : (
+                              <TextField
+                                fullWidth
+                                size="small"
+                                multiline
+                                rows={3}
+                                placeholder="Enter serial numbers, one per line"
+                                value={serialNumbers[`${orderId}-${order.product_id}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(orderId, order.product_id, e.target.value)}
                                 variant="outlined"
                               />
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick={() => handleConfirm(order, serialNumbers[`${order.order_id}-${order.product_id}`])}
-                                sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                              >
-                                Confirm
-                              </Button>
-                            </Box>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Box>
@@ -564,14 +887,6 @@ function OrderDetails() {
                               >
                                 Edit Order Comment
                               </Button>
-                              {orderComments[orderId] && (
-                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                                  {orderComments[orderId].length > 50 
-                                    ? `${orderComments[orderId].substring(0, 50)}...` 
-                                    : orderComments[orderId]
-                                  }
-                                </Typography>
-                              )}
                             </Box>
                           </TableCell>
                           <TableCell>
@@ -579,7 +894,7 @@ function OrderDetails() {
                               <Button
                                 variant="outlined"
                                 size="small"
-                                onClick={() => handleOpenProductCommentDialog(order.order_id, order.product_id)}
+                                onClick={() => handleOpenProductCommentDialog(orderId, order.product_id)}
                                 sx={{ fontSize: '0.75rem', mb: 1 }}
                               >
                                 Edit Item Comment
@@ -595,15 +910,31 @@ function OrderDetails() {
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="contained"
-                              color="primary"
-                              size="small"
-                              onClick={() => handleConfirm(order, serialNumbers[`${order.order_id}-${order.product_id}`])}
-                              sx={{ fontSize: '0.75rem' }}
-                            >
-                              Confirm
-                            </Button>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                type="text"
+                                placeholder="Enter serial number"
+                                value={serialNumbers[`${orderId}-${order.product_id}`] || ''}
+                                onChange={(e) => handleSerialNumberChange(orderId, order.product_id, e.target.value)}
+                                variant="outlined"
+                                inputProps={{ min: 1, max: order.quantity }}
+                              />
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => {
+                                  const serial = serialNumbers[`${orderId}-${order.product_id}`];
+                                  handleConfirm(order, serial, () => setSerialNumbers(prev => ({ ...prev, [`${orderId}-${order.product_id}`]: '' })));
+                                }}
+                                disabled={!serialNumbers[`${orderId}-${order.product_id}`]}
+                                sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                              >
+                                Confirm
+                              </Button>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -660,65 +991,130 @@ function OrderDetails() {
         </Dialog>
 
         {/* Edit Order Modal */}
-        <Dialog open={isEditModalOpen} onClose={handleCloseEditModal} maxWidth="md" fullWidth>
-          <DialogTitle>Edit Order</DialogTitle>
+        <Dialog 
+          open={editModalOpen} 
+          onClose={() => setEditModalOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h6">
+                Edit Order Details
+              </Typography>
+              <Box>
+                {!isEditing && (
+                  <Button onClick={handleEdit} variant="contained" color="primary" sx={{ mr: 1 }}>
+                    Edit
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </DialogTitle>
           <DialogContent>
-            {editingOrderGroup && (
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Order Group ID"
-                    fullWidth
-                    value={editingOrderGroup.order_group_id}
-                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, order_group_id: e.target.value }))}
+            {selectedOrder && (
+              <Box>
+                {/* Order Header */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                  <img
+                    src={`${process.env.REACT_APP_API_URL}${selectedOrder.image}`}
+                    alt={selectedOrder.product_name}
+                    style={{ 
+                      width: '120px', 
+                      height: '120px', 
+                      objectFit: 'cover', 
+                      borderRadius: 8,
+                      border: '1px solid #e0e0e0'
+                    }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                      {selectedOrder.product_name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Order ID: <strong>{selectedOrder.order_id}</strong>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Quantity: <strong>{selectedOrder.quantity}</strong>
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Edit Form */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    label="Order ID"
+                    value={editedOrderId}
+                    onChange={(e) => setEditedOrderId(e.target.value)}
+                    fullWidth
+                    disabled={!isEditing}
+                    variant="outlined"
+                  />
+                  
+                  <TextField
+                    label="Comment"
+                    value={editedComment}
+                    onChange={(e) => setEditedComment(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={3}
+                    disabled={!isEditing}
+                    variant="outlined"
+                    placeholder="Enter order comment..."
+                  />
+                  
+                  <TextField
+                    label="Quantity"
+                    type="number"
+                    value={editedQuantity}
+                    onChange={(e) => setEditedQuantity(e.target.value)}
+                    fullWidth
+                    disabled={!isEditing}
+                    variant="outlined"
+                  />
+                  
                   <TextField
                     label="Order Date"
                     type="date"
+                    value={editedOrderDate}
+                    onChange={(e) => setEditedOrderDate(e.target.value)}
                     fullWidth
-                    value={safeToISODate(editingOrderGroup.order_date)}
-                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, order_date: e.target.value }))}
-                    InputLabelProps={{ shrink: true }}
+                    disabled={!isEditing}
+                    variant="outlined"
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
                   />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Order Comment"
-                    fullWidth
-                    multiline
-                    rows={2}
-                    value={editingOrderGroup.comment}
-                    onChange={(e) => setEditingOrderGroup(prev => ({ ...prev, comment: e.target.value }))}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" sx={{ mt: 2 }}>Items</Typography>
-                  {editingOrderGroup.items.map((item, index) => (
-                    <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                      <Typography sx={{ flexGrow: 1 }}>{item.product_name}</Typography>
-                      <TextField
-                        label="Quantity"
-                        type="number"
-                        size="small"
-                        value={item.quantity}
-                        onChange={(e) => {
-                          const newItems = [...editingOrderGroup.items];
-                          newItems[index].quantity = parseInt(e.target.value, 10) || 0;
-                          setEditingOrderGroup(prev => ({ ...prev, items: newItems }));
-                        }}
-                        inputProps={{ min: 0 }}
-                      />
-                    </Box>
-                  ))}
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             )}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseEditModal}>Cancel</Button>
-            <Button onClick={handleSaveChanges} variant="contained">Save Changes</Button>
+          
+          <DialogActions sx={{ p: 3 }}>
+            <Button 
+              onClick={() => setEditModalOpen(false)}
+              variant="outlined"
+            >
+              Close
+            </Button>
+            {isEditing ? (
+              <>
+                <Button onClick={handleCancelEdit} variant="outlined">
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} variant="contained" color="primary">
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={handleDeleteOrder}
+                variant="contained"
+                color="error"
+              >
+                Delete Order
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
       </Container>
@@ -727,6 +1123,3 @@ function OrderDetails() {
 }
 
 export default OrderDetails;
-
-
-

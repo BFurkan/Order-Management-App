@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   Container, 
   Typography, 
@@ -18,8 +18,7 @@ import {
   Paper,
   Alert,
   Grid,
-  Chip,
-  CircularProgress
+  Chip
 } from '@mui/material';
 import { 
   Search as SearchIcon,
@@ -31,6 +30,7 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { safeFormatDate, safeFormatDateTime } from '../utils/dateUtils';
 import theme from './theme';
+import { supabase } from '../supabaseClient';
 
 function Scan() {
   const [serialNumber, setSerialNumber] = useState('');
@@ -42,24 +42,8 @@ function Scan() {
   const [success, setSuccess] = useState('');
   const [imageError, setImageError] = useState(false);
   const [deploying, setDeploying] = useState(false);
-
-  const videoRef = useRef(null);
-  const [isScanning, setIsScanning] = useState(false);
-
-  useEffect(() => {
-    if (isScanning && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        })
-        .catch(err => {
-          console.error("Error accessing camera:", err);
-          alert("Could not access camera. Please ensure you have a camera and permissions are granted.");
-        });
-    }
-  }, [isScanning]);
+  const [address, setAddress] = useState('');
+  const [itemSentTo, setItemSentTo] = useState('');
 
   const handleSearch = async () => {
     if (!serialNumber.trim()) {
@@ -72,29 +56,39 @@ function Scan() {
     setSearchResult(null);
 
     try {
-      // Fetch confirmed items and search for the serial number
-      const response = await fetch('http://10.167.49.203:3004/confirmed-items');
-      if (!response.ok) {
-        throw new Error('Failed to fetch confirmed items');
-      }
-      
-      const confirmedItems = await response.json();
-      
-      // Search for matching serial number
-      const matchingItem = confirmedItems.find(item => 
-        item.serial_number && item.serial_number.toLowerCase() === serialNumber.toLowerCase().trim()
-      );
+      const { data, error } = await supabase
+        .from('confirmed_items')
+        .select(`
+          *,
+          order:orders (
+            *,
+            product:products (*)
+          )
+        `)
+        .eq('serial_number', serialNumber.trim())
+        .single();
 
-      if (matchingItem) {
-        setSearchResult(matchingItem);
-        setSelectedItem(matchingItem);
-        setModalOpen(true);
-      } else {
-        setError('No confirmed item found with this serial number');
-      }
+      if (error) throw new Error('No confirmed item found with this serial number.');
+
+      const result = {
+        id: data.id,
+        serial_number: data.serial_number,
+        item_comment: data.item_comment,
+        confirm_date: data.confirmed_at,
+        order_id: data.order.id,
+        order_date: data.order.order_date,
+        product_id: data.order.product.id,
+        product_name: data.order.product.name,
+        image: data.order.product.image
+      };
+
+      setSearchResult(result);
+      setSelectedItem(result);
+      setModalOpen(true);
+
     } catch (err) {
       console.error('Error searching for item:', err);
-      setError('Error searching for item. Please try again.');
+      setError(err.message || 'Error searching for item. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -104,47 +98,40 @@ function Scan() {
     if (!selectedItem || deploying) return;
 
     setDeploying(true);
-    setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('http://10.167.49.203:3004/deploy-item', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          itemId: selectedItem.id,
-          originalId: selectedItem.original_id,
-          productId: selectedItem.product_id,
-          orderId: selectedItem.order_id,
-          serialNumber: selectedItem.serial_number,
-          deployDate: new Date().toISOString()
-        }),
-      });
+      const { data, error } = await supabase
+        .from('deployed_items')
+        .insert({
+          confirmed_item_id: selectedItem.id,
+          deployment_location: address,
+          deployed_by: itemSentTo
+        })
+        .select();
 
-      if (!response.ok) {
-        throw new Error('Failed to deploy item');
+      if (error) {
+        // Check for unique constraint violation
+        if (error.code === '23505') {
+          throw new Error('This item has already been deployed.');
+        }
+        throw error;
       }
 
-      const result = await response.json();
-      if (result.success) {
-        setSuccess('Item deployed successfully!');
-        setModalOpen(false);
-        setSerialNumber('');
-        setSearchResult(null);
-        setSelectedItem(null);
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError(result.message || 'Failed to deploy item');
-      }
+      setSuccess('Item deployed successfully!');
+      setModalOpen(false);
+      setSerialNumber('');
+      setSearchResult(null);
+      setSelectedItem(null);
+      setAddress('');
+      setItemSentTo('');
+      
+      setTimeout(() => setSuccess(''), 3000);
+
     } catch (err) {
       console.error('Error deploying item:', err);
-      setError('Error deploying item. Please try again.');
+      setError(err.message || 'Error deploying item. Please try again.');
     } finally {
-      setLoading(false);
       setDeploying(false);
     }
   };
@@ -158,6 +145,8 @@ function Scan() {
     setSuccess('');
     setImageError(false);
     setDeploying(false);
+    setAddress('');
+    setItemSentTo('');
   };
 
   const handleKeyPress = (event) => {
@@ -288,7 +277,7 @@ function Scan() {
                       </Box>
                     ) : (
                       <img
-                        src={`http://10.167.49.203:3004${selectedItem.image}`}
+                        src={`${supabase.storage.from('product-images').getPublicUrl(selectedItem.image).data.publicUrl}`}
                         alt={selectedItem.product_name}
                         style={{ 
                           width: '120px', 
@@ -313,7 +302,7 @@ function Scan() {
                       Order ID: <strong>{selectedItem.order_id}</strong>
                     </Typography>
                   </Box>
-                </Box>
+                 </Box>
 
                 {/* Detailed Information Table */}
                 <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -357,6 +346,30 @@ function Scan() {
                           <TableCell>{selectedItem.item_comment}</TableCell>
                         </TableRow>
                       )}
+                      <TableRow>
+                        <TableCell>Address</TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="standard"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            placeholder="Enter address"
+                          />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Item Sent To</TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="standard"
+                            value={itemSentTo}
+                            onChange={(e) => setItemSentTo(e.target.value)}
+                            placeholder="Enter recipient's name"
+                          />
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </TableContainer>

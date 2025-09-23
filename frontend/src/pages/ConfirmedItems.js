@@ -277,9 +277,8 @@ function ConfirmedItems() {
       filtered = filtered.filter(item =>
         item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-
         item.order_id.toString().includes(searchTerm) ||
-        (orderComments[item.order_id] && orderComments[item.order_id].toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.comment && item.comment.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.item_comment && item.item_comment.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
