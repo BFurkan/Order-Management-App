@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1 # Start with one replica
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: your-docker-repo/order-management-backend:latest # <-- IMPORTANT: Replace with your image
+        ports:
+        - containerPort: 3007
+        env:
+          # In a real-world scenario, you would use Kubernetes Secrets for sensitive data
+          # For now, we can define them here, but it's better to use a secrets file.
+          - name: REACT_APP_SUPABASE_URL
+            value: "YOUR_SUPABASE_URL" # <-- Replace with your Supabase URL
+          - name: REACT_APP_SUPABASE_ANON_KEY
+            value: "YOUR_SUPABASE_ANON_KEY" # <-- Replace with your Supabase Anon Key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 3007
+      targetPort: 3007
+  type: ClusterIP # Exposes the service on an internal IP in the cluster
+
+
+

@@ -38,34 +38,21 @@ function Homepage() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        // Fetch counts for orders, confirmed, and deployed
-        const { count: orderCount, error: orderError } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true });
+        const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-        const { count: confirmedCount, error: confirmedError } = await supabase
-          .from('confirmed_items')
-          .select('*', { count: 'exact', head: true });
-
-        const { count: deployedCount, error: deployedError } = await supabase
-          .from('deployed_items')
-          .select('*', { count: 'exact', head: true });
-
-        // Fetch popular products using the RPC
-        const { data: popularProducts, error: popularError } = await supabase
-          .rpc('get_popular_products');
-
-        if (orderError || confirmedError || deployedError || popularError) {
-          throw orderError || confirmedError || deployedError || popularError;
+        if (error) {
+          throw error;
         }
 
-        setStats(prev => ({
-          ...prev,
-          totalOrders: orderCount,
-          totalConfirmed: confirmedCount,
-          totalDeployed: deployedCount,
-        }));
-
+        if (data && data.length > 0) {
+          const statsData = data[0];
+          setStats(prev => ({
+            ...prev,
+            totalOrders: statsData.total_orders,
+            totalConfirmed: statsData.total_confirmed,
+            totalDeployed: statsData.total_deployed,
+          }));
+        }
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
       } finally {

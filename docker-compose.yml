@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - '3008:80'
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '3007:3007'
+    environment:
+      # You can add any backend-specific environment variables here
+      # For example:
+      # DATABASE_URL: your_database_url
+      # Remember to use Docker's internal networking for service-to-service communication
+      # For instance, if your frontend needs to talk to your backend, it would use http://backend:3007
+      # Make sure to update your frontend's .env file to use this URL for development
+      # REACT_APP_API_URL=http://localhost:3007 # When running locally, you can use this
+      # In a Docker Compose setup, you might want to use the service name:
+      REACT_APP_API_URL: http://backend:3007 # Example for service-to-service communication
+
+
+
